@@ -7,7 +7,7 @@ import './App.css'
 
 const App: React.FC = () => {
 	return (
-		<div className="App">
+		<div className='App'>
 			<h1>THUMP</h1>
 			<p>thump thump thump thump</p>
 		</div>
