@@ -4,13 +4,13 @@ export type ClockState = {
 	paused: boolean
 }
 
-const initialState: ClockState = {
+export const clockStateInitial: ClockState = {
 	paused: false,
 }
 
 const clockSlice = createSlice({
 	name: 'clock',
-	initialState,
+	initialState: clockStateInitial,
 	reducers: {
 		pausedSet(state, action: PayloadAction<boolean>) {
 			state.paused = action.payload
