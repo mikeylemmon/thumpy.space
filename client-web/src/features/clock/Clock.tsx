@@ -1,17 +1,16 @@
 import React from 'react'
 import { useSelector, useDispatch } from 'react-redux'
-import { togglePaused } from './clockSlice'
-import { RootState } from 'app/rootReducer'
+import clock from './clockState'
 
 const Clock: React.FC = () => {
 	const dispatch = useDispatch()
-	const { paused } = useSelector((state: RootState) => state.clock)
-	const togPause = () => dispatch(togglePaused())
+	const paused = useSelector(clock.paused.selector)
+	const togglePaused = () => dispatch(clock.paused.toggle())
 	const txt = paused ? 'PLAY' : 'PAUSE'
 	return (
 		<div className='Clock'>
 			<button
-				onClick={togPause}
+				onClick={togglePaused}
 				style={{
 					cursor: 'pointer',
 					fontWeight: 'bold',

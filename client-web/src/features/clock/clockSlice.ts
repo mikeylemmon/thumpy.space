@@ -1,6 +1,6 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit'
 
-type ClockState = {
+export type ClockState = {
 	paused: boolean
 }
 
@@ -12,21 +12,14 @@ const clockSlice = createSlice({
 	name: 'clock',
 	initialState,
 	reducers: {
-		setPaused(state, action: PayloadAction<boolean>) {
+		pausedSet(state, action: PayloadAction<boolean>) {
 			state.paused = action.payload
 		},
-		togglePaused(state) {
+		pausedToggle(state) {
 			state.paused = !state.paused
 		},
 	},
 })
 
-export const { setPaused, togglePaused } = clockSlice.actions
-
-// export const selectClock = state => state.clock
-// export const selectPaused = createSelector(
-// 	[selectClock],
-// 	clock => clock.paused
-// )
-
+export const clockActions = clockSlice.actions
 export default clockSlice.reducer
