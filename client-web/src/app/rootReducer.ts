@@ -1,4 +1,4 @@
-import { combineReducers, createAction } from '@reduxjs/toolkit'
+import { combineReducers, createAction, PayloadAction } from '@reduxjs/toolkit'
 import clockReducer, { clockStateInitial } from 'features/clock/clockSlice'
 
 const rootReducer = combineReducers({
@@ -12,7 +12,12 @@ export const rootStateInitial: RootState = {
 }
 
 export const rootActions = {
-	sync: createAction<RootState>('root/sync'),
+	sync: createAction('root/sync', function prepare(rootState: RootState, action: PayloadAction) {
+		return {
+			payload: rootState,
+			meta: { action },
+		}
+	}),
 }
 
 export default rootReducer

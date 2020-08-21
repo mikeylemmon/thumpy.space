@@ -1,5 +1,5 @@
 // Inspired by https://github.com/burakcan/redux-shared-worker/blob/master/src/wire.worker.js
-import { PayloadAction } from '@reduxjs/toolkit'
+import { createAction, PayloadAction } from '@reduxjs/toolkit'
 import { rootActions } from 'app/rootReducer'
 import store from 'app/store'
 const { sync } = rootActions
@@ -39,9 +39,10 @@ function run() {
 		const id = connID++
 		console.log(`Client ${id} connected`)
 		const port = event.ports[0]
+		// TODO: refactor to redux-observables to provide triggering action along with sync payload
 		port.onmessage = handleMessage
 		store.subscribe(() => {
-			port.postMessage(sync(store.getState()))
+			port.postMessage(sync(store.getState(), createAction('root/null')()))
 		})
 	}
 }
