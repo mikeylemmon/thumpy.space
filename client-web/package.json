@@ -22,7 +22,10 @@
 		"react-redux": "^7.2.1",
 		"react-scripts": "3.4.3",
 		"redux": "^4.0.5",
+		"standardized-audio-context": "^24.1.26",
+		"tone": "^14.7.39",
 		"typescript": "~3.7.2",
+		"webpack": "4.42.0",
 		"worker-plugin": "^5.0.0"
 	},
 	"scripts": {
