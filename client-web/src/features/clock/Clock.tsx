@@ -1,6 +1,6 @@
 import React from 'react'
 import { useSelector, useDispatch } from 'react-redux'
-import clock from './clockState'
+import clock from 'store/clockState'
 // import * as Tone from 'tone'
 // let synth: Tone.Synth | null = null
 

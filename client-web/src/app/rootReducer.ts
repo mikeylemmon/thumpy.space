@@ -1,14 +1,17 @@
 import { combineReducers, createAction, PayloadAction } from '@reduxjs/toolkit'
-import clockReducer, { clockStateInitial } from 'features/clock/clockSlice'
+import clockReducer, { clockSliceName, clockStateInitial } from 'store/clockSlice'
+import localClientsReducer, { localClientsSliceName, localClientsStateInitial } from 'store/localClientsSlice'
 
 const rootReducer = combineReducers({
-	clock: clockReducer,
+	[clockSliceName]: clockReducer,
+	[localClientsSliceName]: localClientsReducer,
 })
 
 export type RootState = ReturnType<typeof rootReducer>
 
 export const rootStateInitial: RootState = {
-	clock: clockStateInitial,
+	[clockSliceName]: clockStateInitial,
+	[localClientsSliceName]: localClientsStateInitial,
 }
 
 export const rootActions = {

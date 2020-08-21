@@ -4,7 +4,7 @@ import { Provider } from 'react-redux'
 import storeProxy from './app/storeProxy'
 import 'index.css'
 
-const worker = new SharedWorker('./store-worker', {
+const worker = new SharedWorker('./store-worker/worker', {
 	type: 'module',
 	name: 'thump-worker',
 })
