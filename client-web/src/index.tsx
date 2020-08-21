@@ -4,12 +4,10 @@ import { Provider } from 'react-redux'
 import storeProxy from './app/storeProxy'
 import 'index.css'
 
-const worker = new SharedWorker('/static/js/worker.chunk.js', {
+const worker = new SharedWorker('./store-worker', {
 	type: 'module',
 	name: 'thump-worker',
 })
-console.log('worker', worker)
-worker.port.start()
 const store = storeProxy(worker)
 
 const render = () => {

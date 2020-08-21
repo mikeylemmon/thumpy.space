@@ -1,7 +1,6 @@
-import { configureStore, createAction, createReducer, EnhancedStore, PayloadAction } from '@reduxjs/toolkit'
-import { RootState, rootStateInitial } from './rootReducer'
-
-export const syncRoot = createAction<RootState>('@@storeProxy/syncRoot')
+// Inspired by https://github.com/burakcan/redux-shared-worker/blob/master/src/wire.js
+import { configureStore, createReducer, EnhancedStore, PayloadAction } from '@reduxjs/toolkit'
+import { RootState, rootStateInitial, rootActions } from './rootReducer'
 
 // A store proxy is a minimal redux store that forwards all dispatches to a
 // worker, and receives all state updates from that worker. Worker is expected
@@ -10,7 +9,7 @@ export const syncRoot = createAction<RootState>('@@storeProxy/syncRoot')
 const storeProxy = (worker: any): EnhancedStore => {
 	const store = configureStore({
 		reducer: createReducer(rootStateInitial, {
-			[syncRoot.type]: (state, action: PayloadAction<RootState>) => action.payload,
+			[rootActions.sync.type]: (state, action: PayloadAction<RootState>) => action.payload,
 		}),
 	})
 

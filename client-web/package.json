@@ -1,50 +1,53 @@
 {
-  "name": "thump-web-client",
-  "version": "0.1.0",
-  "private": true,
-  "dependencies": {
-    "@reduxjs/toolkit": "^1.4.0",
-    "@testing-library/dom": "^7.22.3",
-    "@testing-library/jest-dom": "^4.2.4",
-    "@testing-library/react": "^9.3.2",
-    "@testing-library/user-event": "^7.1.2",
-    "@types/jest": "^24.0.0",
-    "@types/node": "^12.0.0",
-    "@types/react": "^16.9.0",
-    "@types/react-dom": "^16.9.0",
-    "@types/react-redux": "^7.1.9",
-    "@types/sharedworker": "^0.0.29",
-    "@types/webpack-env": "^1.15.2",
-    "react": "^16.13.1",
-    "react-dom": "^16.13.1",
-    "react-redux": "^7.2.1",
-    "react-scripts": "3.4.3",
-    "redux": "^4.0.5",
-    "typescript": "~3.7.2"
-  },
-  "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject",
-    "format": "prettier --write \"src/**/*\""
-  },
-  "eslintConfig": {
-    "extends": "react-app"
-  },
-  "browserslist": {
-    "production": [
-      ">0.2%",
-      "not dead",
-      "not op_mini all"
-    ],
-    "development": [
-      "last 1 chrome version",
-      "last 1 firefox version",
-      "last 1 safari version"
-    ]
-  },
-  "devDependencies": {
-    "prettier": "^2.0.5"
-  }
+	"name": "thump-web-client",
+	"version": "0.1.0",
+	"private": true,
+	"dependencies": {
+		"@reduxjs/toolkit": "^1.4.0",
+		"@rescripts/cli": "^0.0.14",
+		"@testing-library/dom": "^7.22.3",
+		"@testing-library/jest-dom": "^4.2.4",
+		"@testing-library/react": "^9.3.2",
+		"@testing-library/user-event": "^7.1.2",
+		"@types/jest": "^24.0.0",
+		"@types/node": "^12.0.0",
+		"@types/react": "^16.9.0",
+		"@types/react-dom": "^16.9.0",
+		"@types/react-redux": "^7.1.9",
+		"@types/sharedworker": "^0.0.29",
+		"@types/webpack-env": "^1.15.2",
+		"prettier": "^2.0.5",
+		"react": "^16.13.1",
+		"react-dom": "^16.13.1",
+		"react-redux": "^7.2.1",
+		"react-scripts": "3.4.3",
+		"redux": "^4.0.5",
+		"typescript": "~3.7.2",
+		"worker-plugin": "^5.0.0"
+	},
+	"scripts": {
+		"start": "rescripts start",
+		"build": "rescripts build",
+		"test": "rescripts test",
+		"eject": "react-scripts eject",
+		"format": "prettier --write \"src/**/*\""
+	},
+	"eslintConfig": {
+		"extends": "react-app",
+		"rules": {
+			"no-restricted-globals": "off"
+		}
+	},
+	"browserslist": {
+		"production": [
+			">0.2%",
+			"not dead",
+			"not op_mini all"
+		],
+		"development": [
+			"last 1 chrome version",
+			"last 1 firefox version",
+			"last 1 safari version"
+		]
+	}
 }

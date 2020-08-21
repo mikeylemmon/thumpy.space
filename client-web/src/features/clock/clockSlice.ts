@@ -17,6 +17,7 @@ const clockSlice = createSlice({
 		},
 		pausedToggle(state) {
 			state.paused = !state.paused
+			console.log('toggled!', state.paused)
 		},
 	},
 })
