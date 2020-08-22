@@ -1,5 +1,5 @@
 import { createSelector } from '@reduxjs/toolkit'
-import { RootState } from 'app/rootReducer'
+import { RootState } from './rootReducer'
 import {
 	localClientAdd,
 	localClientsAdapter,

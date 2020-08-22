@@ -1,10 +1,10 @@
 // Inspired by https://github.com/burakcan/redux-shared-worker/blob/master/src/wire.worker.js
 import { configureStore, getDefaultMiddleware } from '@reduxjs/toolkit'
 import { createEpicMiddleware } from 'redux-observable'
-import rootReducer from 'app/rootReducer'
+import rootReducer from 'store/rootReducer'
 import localClients from 'store/localClientsState'
-import { workerMsgConnected } from 'store/workerAPI'
-import rootEpic from './epics'
+import { workerMsgConnected, ProxyMsg, ProxyMsgKind } from 'store/workerAPI'
+import rootEpic from './workerEpics'
 
 const epicMiddleware = createEpicMiddleware()
 const store = configureStore({
@@ -13,21 +13,22 @@ const store = configureStore({
 })
 
 function handleMessage(event: MessageEvent) {
-	const { data, ports, ...rest } = event
-	const { action } = data
-	if (!action) {
-		console.error('[handleMessage] Received an unexpected message', event)
-		return
+	const msg = event.data as ProxyMsg
+	switch (msg.kind) {
+		case ProxyMsgKind.Action:
+			store.dispatch(msg.data.action)
+			return
+		default:
+			console.error('[handleMessage] Received an unsupported message', event.data)
+			return
 	}
-	console.log(`[handleMessage] Received ${action.type}`, action.payload, rest, { numPorts: ports.length })
-	store.dispatch(action)
 }
 
 function handleConnect(event: MessageEvent) {
 	const port = event.ports[0]
 	const actionAddLC = localClients.add(port)
 	const lc = actionAddLC.payload
-	port.postMessage(workerMsgConnected(lc)) // tell the client which client it is
+	port.postMessage(workerMsgConnected(lc, store.getState())) // tell the client which client it is
 	store.dispatch(actionAddLC) // add client to the store
 	port.onmessage = handleMessage // set the port's message handler
 }

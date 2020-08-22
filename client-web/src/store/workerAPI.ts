@@ -1,5 +1,5 @@
 import { PayloadAction } from '@reduxjs/toolkit'
-import { RootState } from 'app/rootReducer'
+import { RootState } from './rootReducer'
 import { LocalClient } from './localClientsSlice'
 
 //
@@ -26,30 +26,28 @@ export function proxyMsgAction(action: PayloadAction): ProxyMsgAction {
 //
 export enum WorkerMsgKind {
 	Connected = 'connected',
-	Sync = 'sync',
+	Action = 'action',
 }
-export type WorkerMsgConnectedData = { localClient: LocalClient }
+export type WorkerMsgConnectedData = { localClient: LocalClient; rootState: RootState }
 export type WorkerMsgConnected = {
 	kind: WorkerMsgKind.Connected
 	data: WorkerMsgConnectedData
 }
-export type SyncMeta = { sync: boolean; rootState: RootState }
-export type SyncAction = PayloadAction<any, string, SyncMeta>
-export type WorkerMsgSyncData = { action: SyncAction }
-export type WorkerMsgSync = {
-	kind: WorkerMsgKind.Sync
-	data: WorkerMsgSyncData
+export type WorkerMsgActionData = { action: PayloadAction }
+export type WorkerMsgAction = {
+	kind: WorkerMsgKind.Action
+	data: WorkerMsgActionData
 }
-export type WorkerMsg = WorkerMsgConnected | WorkerMsgSync
-export function workerMsgConnected(lc: LocalClient): WorkerMsgConnected {
+export type WorkerMsg = WorkerMsgConnected | WorkerMsgAction
+export function workerMsgConnected(lc: LocalClient, rootState: RootState): WorkerMsgConnected {
 	return {
 		kind: WorkerMsgKind.Connected,
-		data: { localClient: lc },
+		data: { localClient: lc, rootState },
 	}
 }
-export function workerMsgSync(action: PayloadAction, rootState: RootState): WorkerMsgSync {
+export function workerMsgAction(action: PayloadAction): WorkerMsgAction {
 	return {
-		kind: WorkerMsgKind.Sync,
-		data: { action: { ...action, meta: { sync: true, rootState } } },
+		kind: WorkerMsgKind.Action,
+		data: { action },
 	}
 }
