@@ -1,4 +1,4 @@
-import { combineReducers, createAction, PayloadAction } from '@reduxjs/toolkit'
+import { combineReducers, PayloadAction } from '@reduxjs/toolkit'
 import clockReducer, { clockSliceName, clockStateInitial } from 'store/clockSlice'
 import localClientsReducer, { localClientsSliceName, localClientsStateInitial } from 'store/localClientsSlice'
 
@@ -14,13 +14,18 @@ export const rootStateInitial: RootState = {
 	[localClientsSliceName]: localClientsStateInitial,
 }
 
+export type SyncMeta = { sync: boolean; rootState: RootState }
+export type SyncPayloadAction = PayloadAction<any, string, SyncMeta>
 export const rootActions = {
-	sync: createAction('root/sync', function prepare(rootState: RootState, action: PayloadAction) {
+	sync: (action: PayloadAction, rootState: RootState): SyncPayloadAction => {
 		return {
-			payload: rootState,
-			meta: { action },
+			...action,
+			meta: {
+				sync: true,
+				rootState,
+			},
 		}
-	}),
+	},
 }
 
 export default rootReducer

@@ -46,6 +46,7 @@ export const localClientsSlice = createSlice({
 // a corresponding localClient to the store
 export const localClientAdd = createAction(localClientsSlice.actions.addOne.type, (port: MessagePort) => {
 	const lc = ports.newLocalClient(port)
+	console.log('[localClients] New local client', lc)
 	return { payload: lc }
 })
 

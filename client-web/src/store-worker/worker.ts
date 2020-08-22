@@ -8,25 +8,30 @@ import {
 	StateObservable,
 } from 'redux-observable'
 import { Observable } from 'rxjs'
-import { catchError, ignoreElements, tap } from 'rxjs/operators'
+import { catchError, ignoreElements, tap, withLatestFrom } from 'rxjs/operators'
 import rootReducer, { rootActions, RootState } from 'app/rootReducer'
 // import store from 'app/store'
 import localClients from 'store/localClientsState'
-const { sync } = rootActions
 
-type Action$ = ActionsObservable<Action<any>>
-type State$ = StateObservable<void>
+type Action$ = ActionsObservable<PayloadAction>
+type State$ = StateObservable<RootState>
 
 const epicMiddleware = createEpicMiddleware()
-const epicLogAction: Epic = (action$: Action$, state$: State$) =>
+const epicSync: Epic = (action$: Action$, state$: State$) =>
 	action$.pipe(
-		tap(action => console.log('[epicLogAction]', action.type)),
-		// tap(action => {
-		// 	throw new Error('hi')
-		// }),
-		ignoreElements(), // don't emit any actions
+		withLatestFrom(state$),
+		tap(([action, state]) => {
+			console.log('[sync]', action.type)
+			for (const lc of localClients.selectWithPort(state)) {
+				lc.port.postMessage(rootActions.sync(action, state))
+			}
+		}),
+		// Now throw the stream away so we don't trigger more actions
+		// and cause an endless feedback loop
+		ignoreElements(),
 	)
-const epics: Epic = combineEpics(epicLogAction)
+
+const epics: Epic = combineEpics(epicSync)
 // rootEpic wraps the epics with global error handler that catches uncaught errors
 const rootEpic: Epic = (action$: Action$, store$: State$, deps: any) =>
 	epics(action$, store$, deps).pipe(
@@ -46,7 +51,7 @@ export type StoreWorkerAPI = {
 		action: PayloadAction
 	}
 	resp: {
-		action: typeof sync
+		action: typeof rootActions.sync
 	}
 }
 
@@ -61,17 +66,10 @@ function handleMessage(event: MessageEvent) {
 	store.dispatch(action)
 }
 
-let connID = 0
 function handleConnect(event: MessageEvent) {
-	const id = connID++
-	console.log(`Client ${id} connected`)
 	const port = event.ports[0]
-	store.dispatch(localClients.add(port))
-	// TODO: refactor to redux-observables to provide triggering action along with sync payload
-	port.onmessage = handleMessage
-	store.subscribe(() => {
-		port.postMessage(sync(store.getState(), createAction('root/null')()))
-	})
+	store.dispatch(localClients.add(port)) // add new local client to the store
+	port.onmessage = handleMessage // set the port's message handler
 }
 
 function run() {
@@ -80,7 +78,7 @@ function run() {
 		console.error(`Can't find "onconnect", is this a SharedWorker context?`, ctx)
 		return
 	}
-	console.log('Running thump worker')
+	console.log('[run] Running thump worker')
 
 	epicMiddleware.run(rootEpic)
 
