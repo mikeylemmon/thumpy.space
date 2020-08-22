@@ -1,5 +1,7 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit'
 
+export const clockSliceName = 'clock'
+
 export type ClockState = {
 	paused: boolean
 }
@@ -9,7 +11,7 @@ export const clockStateInitial: ClockState = {
 }
 
 const clockSlice = createSlice({
-	name: 'clock',
+	name: clockSliceName,
 	initialState: clockStateInitial,
 	reducers: {
 		pausedSet(state, action: PayloadAction<boolean>) {
