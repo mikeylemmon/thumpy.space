@@ -1,3 +1,4 @@
+import { Selector } from 'reselect'
 import { actionsShared, sliceNameShared, StateShared as IStateShared } from './sliceShared'
 import { StateLocal } from './rootReducerLocal'
 
@@ -7,6 +8,6 @@ export type StateShared = IStateShared
 export const selectShared = (state: StateLocal): StateShared => state[sliceNameShared]
 
 export default {
-	selector: selectShared,
+	selector: selectShared as Selector<StateLocal, StateShared>,
 	connected: actionsShared.connected,
 }

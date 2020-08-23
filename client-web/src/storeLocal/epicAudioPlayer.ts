@@ -20,7 +20,7 @@ const synth = new MembraneSynth({
 export default (thisClient: Client): Epic => (action$: Action$, state$: StateLocal$) => {
 	return state$.pipe(
 		filter(() => thisClient.isAudioPlayer),
-		map(state => apiClock.selector(state)),
+		map(state => apiClock.select(state)),
 		distinctUntilChanged(),
 		tap(clockState => {
 			console.log('[audioPlayerEpic]', clockState)

@@ -18,7 +18,7 @@ const selectClientsWithPort = createSelector<StateShared, Client[], Array<Client
 )
 
 export default {
-	select: selectClients,
-	selectWithPort: selectClientsWithPort,
+	selectAll: selectClients,
+	selectAllWithPort: selectClientsWithPort,
 	newFromPort: actionsClients.newFromPort,
 }

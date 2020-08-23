@@ -10,9 +10,9 @@ const selectClock = createSelector<StateLocal, StateShared, StateClock>(
 const selectPaused = createSelector<StateLocal, StateClock, boolean>([selectClock], clock => clock.paused)
 
 export default {
-	selector: selectClock,
+	select: selectClock,
 	paused: {
-		selector: selectPaused,
+		select: selectPaused,
 		toggle: actionsClock.pausedToggle,
 	},
 }

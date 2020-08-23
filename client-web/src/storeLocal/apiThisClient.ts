@@ -9,9 +9,9 @@ const selectIsAudioPlayer = createSelector<StateLocal, StateThisClient, boolean>
 )
 
 export default {
-	selector: selectThisClient,
+	select: selectThisClient,
 	update: actionsThisClient.update,
 	isAudioPlayer: {
-		selector: selectIsAudioPlayer,
+		select: selectIsAudioPlayer,
 	},
 }

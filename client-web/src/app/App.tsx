@@ -1,5 +1,6 @@
 import React from 'react'
-import Clock from 'features/clock/Clock'
+import Clock from 'components/Clock'
+import SequenceList from 'components/sequence/SequenceList'
 
 import './App.css'
 
@@ -13,9 +14,7 @@ const App: React.FC = () => {
 		>
 			<h1>THUMP</h1>
 			<Clock />
-			<p>thump thump thump thump</p>
-			<p>thump thump thump thump</p>
-			<p>thump thump thump thump</p>
+			<SequenceList />
 		</div>
 	)
 }

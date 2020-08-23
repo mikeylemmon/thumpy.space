@@ -11,7 +11,7 @@ const epicForwardAction: Epic = (action$: Action$, state$: StateShared$) =>
 		withLatestFrom(state$),
 		tap(([action, state]) => {
 			console.log('[epicFowardAction]', action.type)
-			for (const client of apiClients.selectWithPort(state)) {
+			for (const client of apiClients.selectAllWithPort(state)) {
 				client.port.postMessage(workerMsg.action(action))
 			}
 		}),
