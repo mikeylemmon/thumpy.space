@@ -8,13 +8,19 @@ const App: React.FC = () => {
 	return (
 		<div
 			className='App'
-			// style={{
-			// 	backgroundColor: 'red',
-			// }}
+			style={{
+				display: 'flex',
+				flexDirection: 'column',
+				position: 'absolute',
+				backgroundColor: '#383838',
+				top: 0,
+				left: 0,
+				right: 0,
+				bottom: 0,
+			}}
 		>
-			<h1>THUMP</h1>
-			<Clock />
 			<SequenceList />
+			<Clock />
 		</div>
 	)
 }

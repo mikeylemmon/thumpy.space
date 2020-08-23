@@ -10,16 +10,26 @@ const SequenceView: React.FC<OwnProps> = ({ sequence: seq }) => {
 		const step = seq.steps[ii]
 		steps.push(<StepView seqId={seq.id} step={step} stepId={ii} key={`${seq.id}-step${ii}`} />)
 	}
+	// <h4 style={{ transform: 'rotate(-90deg)' }}>{seq.name}</h4>
 	return (
 		<div
-			className='Sequence'
 			style={{
 				display: 'flex',
-				flexDirection: 'column',
+				flexDirection: 'row',
+				flex: 1,
 			}}
 		>
-			<h4>{seq.name}</h4>
-			<div style={{ display: 'flex', flexDirection: 'row' }}>{steps}</div>
+			<h4
+				style={{
+					display: 'flex',
+					padding: '1rem',
+					color: 'white',
+					fontWeight: 'bold',
+				}}
+			>
+				{seq.name}
+			</h4>
+			<div style={{ display: 'flex', flexDirection: 'row', flex: 1 }}>{steps}</div>
 		</div>
 	)
 }

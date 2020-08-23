@@ -18,13 +18,17 @@ const SequenceList: React.FC = () => {
 			apiSequences.addOne({
 				id: 'default-sequence',
 				name: 'Default Sequence',
-				steps: [[], [], [], [], [], [], [], []],
+				steps: [[], [], [], [], [], [], [], [], [], [], [], [], [], [], [], []],
 			}),
 		)
 	})
 
 	const seqViews = sequences.map(seq => <SequenceView key={seq.id} sequence={seq} />)
-	return <div className='Sequences'>{seqViews}</div>
+	return (
+		<div className='Sequences' style={{ display: 'flex', flex: 1, margin: '0.5rem' }}>
+			{seqViews}
+		</div>
+	)
 }
 
 export default SequenceList

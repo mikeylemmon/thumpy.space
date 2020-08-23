@@ -10,13 +10,24 @@ const Clock: React.FC = () => {
 	const paused = useSelector(apiClock.paused.select)
 	const txt = paused ? 'PLAY' : 'PAUSE'
 	return (
-		<div className='Clock'>
+		<div
+			style={{
+				display: 'flex',
+				justifyContent: 'center',
+				alignItems: 'center',
+				backgroundColor: '#222',
+			}}
+		>
 			<button
 				onClick={togglePaused}
 				style={{
 					cursor: 'pointer',
 					fontWeight: 'bold',
-					padding: '5px',
+					fontSize: '0.8rem',
+					padding: '1.0rem',
+					margin: '0.5rem',
+					backgroundColor: '#ccc',
+					borderRadius: '1rem',
 				}}
 			>
 				{txt}
