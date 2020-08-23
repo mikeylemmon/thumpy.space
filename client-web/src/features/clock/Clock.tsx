@@ -1,10 +1,12 @@
+import * as Tone from 'tone'
 import React from 'react'
 import { useSelector, useDispatch } from 'react-redux'
-import clock from 'store/clockState'
+import clock from 'storeLocal/apiClock'
 
 const Clock: React.FC = () => {
 	const dispatch = useDispatch()
 	const togglePaused = () => {
+		Tone.start()
 		dispatch(clock.paused.toggle())
 	}
 	const paused = useSelector(clock.paused.selector)

@@ -7,9 +7,10 @@ import {
 	PayloadAction,
 } from '@reduxjs/toolkit'
 import { createEpicMiddleware } from 'redux-observable'
-import { proxyMsgAction, WorkerMsg, WorkerMsgKind } from 'store/workerAPI'
-import rootReducer, { rootStateInitial, RootState } from 'store/rootReducer'
-import createRootEpic from './localClientEpics'
+import { proxyMsg, WorkerMsg, WorkerMsgKind } from 'storeShared/apiWorker'
+import { StateShared } from 'storeShared/reducerShared'
+import rootReducerLocal, { localRootStateInitial, StateLocal } from './rootReducerLocal'
+import createRootEpic from './rootEpicLocal'
 
 // syncedStore connects to the shared store worker and receives up-to-date app
 // state as it's first message from the worker. Instead of handling dispatched
@@ -22,15 +23,18 @@ import createRootEpic from './localClientEpics'
 // typescript doesn't have support for SharedWorker.
 const syncedStore = (worker: any): EnhancedStore => {
 	const epicMiddleware = createEpicMiddleware()
-	const setRootState = createAction<RootState>('setRootState')
-	type SetRootState = PayloadAction<RootState>
+	const setRootState = createAction<StateShared>('setRootState')
+	type SetRootState = PayloadAction<StateShared>
 	const store = configureStore({
-		reducer: (state: RootState = rootStateInitial, action: PayloadAction | SetRootState): RootState => {
+		reducer: (
+			state: StateLocal = localRootStateInitial,
+			action: PayloadAction | SetRootState,
+		): StateLocal => {
 			switch (action.type) {
 				case setRootState.type:
-					return (action as SetRootState).payload
+					return { shared: (action as SetRootState).payload }
 				default:
-					return rootReducer(state, action)
+					return rootReducerLocal(state, action)
 			}
 		},
 		middleware: [...getDefaultMiddleware(), epicMiddleware],
@@ -42,7 +46,7 @@ const syncedStore = (worker: any): EnhancedStore => {
 		switch (msg.kind) {
 			case WorkerMsgKind.Connected:
 				// This is the first message sent by the worker.  It contains the app's
-				// RootState, which is used to initialize the local syncedStore's state.
+				// StateShared, which is used to initialize the local syncedStore's state.
 				// It also contains the LocalClient object for this client, which is
 				// used to initialize the local epics
 				console.log('[syncedStore] Connected to the shared storeWorker')
@@ -67,7 +71,7 @@ const syncedStore = (worker: any): EnhancedStore => {
 				// dispatches are sent to the worker, with the expectation that the worker
 				// will send the action back
 				return (action: PayloadAction) => {
-					worker.port.postMessage(proxyMsgAction(action))
+					worker.port.postMessage(proxyMsg.action(action))
 				}
 			}
 			// everything else is handled locally

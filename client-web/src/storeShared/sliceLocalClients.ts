@@ -1,6 +1,6 @@
 import { createAction, createEntityAdapter, createSlice, EntityState } from '@reduxjs/toolkit'
 
-export const localClientsSliceName = 'localClients'
+export const sliceNameLocalClients = 'localClients'
 
 export type LocalClient = {
 	id: number
@@ -32,24 +32,24 @@ export const populatePort = (lc: LocalClient): LocalClientWithPort => {
 	return { ...lc, port: ports.getPort(lc) }
 }
 
-export const localClientsAdapter = createEntityAdapter<LocalClient>()
-export const localClientsStateInitial = localClientsAdapter.getInitialState()
-export const localClientsSlice = createSlice({
-	name: localClientsSliceName,
-	initialState: localClientsStateInitial,
+export const adapterLocalClients = createEntityAdapter<LocalClient>()
+export const stateInitialLocalClients = adapterLocalClients.getInitialState()
+const sliceLocalClients = createSlice({
+	name: sliceNameLocalClients,
+	initialState: stateInitialLocalClients,
 	reducers: {
-		addOne: localClientsAdapter.addOne,
+		addOne: adapterLocalClients.addOne,
 	},
 })
 
 // localClientAdd takes a port and returns an action to add
 // a corresponding localClient to the store
-export const localClientAdd = createAction(localClientsSlice.actions.addOne.type, (port: MessagePort) => {
+export const localClientAdd = createAction(sliceLocalClients.actions.addOne.type, (port: MessagePort) => {
 	const lc = ports.newLocalClient(port)
 	console.log('[localClients] New local client', lc)
 	return { payload: lc }
 })
 
-export type LocalClientsState = EntityState<LocalClient>
+export type StateLocalClients = EntityState<LocalClient>
 
-export default localClientsSlice.reducer
+export default sliceLocalClients.reducer

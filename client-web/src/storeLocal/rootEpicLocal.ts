@@ -1,8 +1,8 @@
 import { catchError } from 'rxjs/operators'
 import { combineEpics, Epic } from 'redux-observable'
-import { Action$, State$ } from 'store/rootReducer'
-import { LocalClient } from 'store/localClientsSlice'
-import createAudioPlayerEpic from './audioPlayerEpic'
+import { Action$, StateShared$ } from 'storeShared/reducerShared'
+import { LocalClient } from 'storeShared/sliceLocalClients'
+import createAudioPlayerEpic from './epicAudioPlayer'
 
 export default function createRootEpic(thisClient: LocalClient): Epic {
 	console.log('[createRootEpic] Initializing epics', thisClient)
@@ -12,7 +12,7 @@ export default function createRootEpic(thisClient: LocalClient): Epic {
 	}
 	// const rootEpic: Epic = combineEpics(...epics)
 	// Wrap the epics with a global error handler that catches uncaught errors
-	return (action$: Action$, store$: State$, deps: any) =>
+	return (action$: Action$, store$: StateShared$, deps: any) =>
 		combineEpics(...epics)(action$, store$, deps).pipe(
 			// rootEpic(action$, store$, deps).pipe(
 			catchError((err, source) => {

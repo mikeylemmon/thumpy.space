@@ -1,14 +1,14 @@
 // Inspired by https://github.com/burakcan/redux-shared-worker/blob/master/src/wire.worker.js
 import { configureStore, getDefaultMiddleware } from '@reduxjs/toolkit'
 import { createEpicMiddleware } from 'redux-observable'
-import rootReducer from 'store/rootReducer'
-import localClients from 'store/localClientsState'
-import { workerMsgConnected, ProxyMsg, ProxyMsgKind } from 'store/workerAPI'
-import rootEpic from './workerEpics'
+import reducerShared from 'storeShared/reducerShared'
+import { workerMsg, ProxyMsg, ProxyMsgKind } from 'storeShared/apiWorker'
+import rootEpic from './rootEpicWorker'
+import localClients from './apiLocalClients'
 
 const epicMiddleware = createEpicMiddleware()
 const store = configureStore({
-	reducer: rootReducer,
+	reducer: reducerShared,
 	middleware: [...getDefaultMiddleware(), epicMiddleware],
 })
 
@@ -28,7 +28,7 @@ function handleConnect(event: MessageEvent) {
 	const port = event.ports[0]
 	const actionAddLC = localClients.add(port)
 	const lc = actionAddLC.payload
-	port.postMessage(workerMsgConnected(lc, store.getState())) // tell the client which client it is
+	port.postMessage(workerMsg.connected(lc, store.getState())) // tell the client which client it is
 	store.dispatch(actionAddLC) // add client to the store
 	port.onmessage = handleMessage // set the port's message handler
 }

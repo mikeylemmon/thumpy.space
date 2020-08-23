@@ -1,6 +1,6 @@
 import { PayloadAction } from '@reduxjs/toolkit'
-import { RootState } from './rootReducer'
-import { LocalClient } from './localClientsSlice'
+import { StateShared } from './reducerShared'
+import { LocalClient } from './sliceLocalClients'
 
 //
 // Proxy messages are sent from the client to the worker
@@ -14,11 +14,16 @@ export type ProxyMsgAction = {
 	data: ProxyMsgActionData
 }
 export type ProxyMsg = ProxyMsgAction
-export function proxyMsgAction(action: PayloadAction): ProxyMsgAction {
+
+function proxyMsgAction(action: PayloadAction): ProxyMsgAction {
 	return {
 		kind: ProxyMsgKind.Action,
 		data: { action },
 	}
+}
+
+export const proxyMsg = {
+	action: proxyMsgAction,
 }
 
 //
@@ -28,7 +33,7 @@ export enum WorkerMsgKind {
 	Connected = 'connected',
 	Action = 'action',
 }
-export type WorkerMsgConnectedData = { localClient: LocalClient; rootState: RootState }
+export type WorkerMsgConnectedData = { localClient: LocalClient; rootState: StateShared }
 export type WorkerMsgConnected = {
 	kind: WorkerMsgKind.Connected
 	data: WorkerMsgConnectedData
@@ -39,15 +44,22 @@ export type WorkerMsgAction = {
 	data: WorkerMsgActionData
 }
 export type WorkerMsg = WorkerMsgConnected | WorkerMsgAction
-export function workerMsgConnected(lc: LocalClient, rootState: RootState): WorkerMsgConnected {
+
+function workerMsgConnected(lc: LocalClient, rootState: StateShared): WorkerMsgConnected {
 	return {
 		kind: WorkerMsgKind.Connected,
 		data: { localClient: lc, rootState },
 	}
 }
-export function workerMsgAction(action: PayloadAction): WorkerMsgAction {
+
+function workerMsgAction(action: PayloadAction): WorkerMsgAction {
 	return {
 		kind: WorkerMsgKind.Action,
 		data: { action },
 	}
+}
+
+export const workerMsg = {
+	action: workerMsgAction,
+	connected: workerMsgConnected,
 }
