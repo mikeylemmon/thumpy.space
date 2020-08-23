@@ -2,8 +2,8 @@
 import { FeedbackDelay, MembraneSynth } from 'tone'
 import { distinctUntilChanged, filter, ignoreElements, map, tap } from 'rxjs/operators'
 import { Epic } from 'redux-observable'
-import { LocalClient } from 'storeShared/sliceLocalClients'
-import clock from './apiClock'
+import { Client } from 'storeShared/sliceClients'
+import apiClock from './apiClock'
 import { Action$, StateLocal$ } from './rootReducerLocal'
 
 // type AudioState = {
@@ -17,11 +17,10 @@ const synth = new MembraneSynth({
 	oscillator: { type: 'triangle' },
 }).connect(delay)
 
-export default (thisClient: LocalClient): Epic => (action$: Action$, state$: StateLocal$) => {
+export default (thisClient: Client): Epic => (action$: Action$, state$: StateLocal$) => {
 	return state$.pipe(
 		filter(() => thisClient.isAudioPlayer),
-		// map((state: StateLocal) => clock.selector(state)),
-		map(state => clock.selector(state)),
+		map(state => apiClock.selector(state)),
 		distinctUntilChanged(),
 		tap(clockState => {
 			console.log('[audioPlayerEpic]', clockState)

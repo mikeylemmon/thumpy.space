@@ -1,10 +1,10 @@
 import { catchError } from 'rxjs/operators'
 import { combineEpics, Epic } from 'redux-observable'
 import { Action$, StateShared$ } from 'storeShared/reducerShared'
-import { LocalClient } from 'storeShared/sliceLocalClients'
+import { Client } from 'storeShared/sliceClients'
 import createAudioPlayerEpic from './epicAudioPlayer'
 
-export default function createRootEpic(thisClient: LocalClient): Epic {
+export default function createRootEpic(thisClient: Client): Epic {
 	console.log('[createRootEpic] Initializing epics', thisClient)
 	const epics: Epic[] = []
 	if (thisClient.isAudioPlayer) {

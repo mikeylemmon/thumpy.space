@@ -1,14 +1,11 @@
 import { combineReducers, PayloadAction } from '@reduxjs/toolkit'
 import { ActionsObservable, StateObservable } from 'redux-observable'
 import reducerClock, { sliceNameClock, stateInitialClock } from 'storeShared/sliceClock'
-import reducerLocalClients, {
-	sliceNameLocalClients,
-	stateInitialLocalClients,
-} from 'storeShared/sliceLocalClients'
+import reducerClients, { sliceNameClients, stateInitialClients } from 'storeShared/sliceClients'
 
 const reducerShared = combineReducers({
 	[sliceNameClock]: reducerClock,
-	[sliceNameLocalClients]: reducerLocalClients,
+	[sliceNameClients]: reducerClients,
 })
 
 export type StateShared = ReturnType<typeof reducerShared>
@@ -17,7 +14,7 @@ export type Action$ = ActionsObservable<PayloadAction>
 
 export const stateInitialShared: StateShared = {
 	[sliceNameClock]: stateInitialClock,
-	[sliceNameLocalClients]: stateInitialLocalClients,
+	[sliceNameClients]: stateInitialClients,
 }
 
 export default reducerShared

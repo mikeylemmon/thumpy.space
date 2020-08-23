@@ -1,16 +1,11 @@
 // Inspired by https://github.com/burakcan/redux-shared-worker/blob/master/src/wire.js
-import {
-	configureStore,
-	createAction,
-	getDefaultMiddleware,
-	EnhancedStore,
-	PayloadAction,
-} from '@reduxjs/toolkit'
+import { configureStore, getDefaultMiddleware, EnhancedStore, PayloadAction } from '@reduxjs/toolkit'
 import { createEpicMiddleware } from 'redux-observable'
 import { proxyMsg, WorkerMsg, WorkerMsgKind } from 'storeShared/apiWorker'
-import { StateShared } from 'storeShared/reducerShared'
-import rootReducerLocal, { localRootStateInitial, StateLocal } from './rootReducerLocal'
+import rootReducerLocal from './rootReducerLocal'
 import createRootEpic from './rootEpicLocal'
+import apiThisClient from './apiThisClient'
+import apiShared from './apiShared'
 
 // syncedStore connects to the shared store worker and receives up-to-date app
 // state as it's first message from the worker. Instead of handling dispatched
@@ -23,20 +18,8 @@ import createRootEpic from './rootEpicLocal'
 // typescript doesn't have support for SharedWorker.
 const syncedStore = (worker: any): EnhancedStore => {
 	const epicMiddleware = createEpicMiddleware()
-	const setRootState = createAction<StateShared>('setRootState')
-	type SetRootState = PayloadAction<StateShared>
 	const store = configureStore({
-		reducer: (
-			state: StateLocal = localRootStateInitial,
-			action: PayloadAction | SetRootState,
-		): StateLocal => {
-			switch (action.type) {
-				case setRootState.type:
-					return { shared: (action as SetRootState).payload }
-				default:
-					return rootReducerLocal(state, action)
-			}
-		},
+		reducer: rootReducerLocal,
 		middleware: [...getDefaultMiddleware(), epicMiddleware],
 	})
 
@@ -47,11 +30,12 @@ const syncedStore = (worker: any): EnhancedStore => {
 			case WorkerMsgKind.Connected:
 				// This is the first message sent by the worker.  It contains the app's
 				// StateShared, which is used to initialize the local syncedStore's state.
-				// It also contains the LocalClient object for this client, which is
+				// It also contains the Client object for this client, which is
 				// used to initialize the local epics
 				console.log('[syncedStore] Connected to the shared storeWorker')
-				store.dispatch(setRootState(msg.data.rootState))
-				epicMiddleware.run(createRootEpic(msg.data.localClient))
+				store.dispatch(apiShared.connected(msg.data.stateShared))
+				store.dispatch(apiThisClient.update(msg.data.client))
+				epicMiddleware.run(createRootEpic(msg.data.client))
 				return
 			case WorkerMsgKind.Action:
 				// Send the embedded action to the reducer to update app state

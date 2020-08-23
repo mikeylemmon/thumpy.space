@@ -4,15 +4,15 @@ import { combineEpics, ActionsObservable, Epic, StateObservable } from 'redux-ob
 import { catchError, ignoreElements, tap, withLatestFrom } from 'rxjs/operators'
 import { StateShared, Action$, StateShared$ } from 'storeShared/reducerShared'
 import { workerMsg } from 'storeShared/apiWorker'
-import localClients from './apiLocalClients'
+import apiClients from './apiClients'
 
 const epicForwardAction: Epic = (action$: Action$, state$: StateShared$) =>
 	action$.pipe(
 		withLatestFrom(state$),
 		tap(([action, state]) => {
 			console.log('[epicFowardAction]', action.type)
-			for (const lc of localClients.selectWithPort(state)) {
-				lc.port.postMessage(workerMsg.action(action))
+			for (const client of apiClients.selectWithPort(state)) {
+				client.port.postMessage(workerMsg.action(action))
 			}
 		}),
 		// Now throw the stream away so we don't trigger more actions

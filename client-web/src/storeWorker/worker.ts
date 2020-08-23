@@ -4,7 +4,7 @@ import { createEpicMiddleware } from 'redux-observable'
 import reducerShared from 'storeShared/reducerShared'
 import { workerMsg, ProxyMsg, ProxyMsgKind } from 'storeShared/apiWorker'
 import rootEpic from './rootEpicWorker'
-import localClients from './apiLocalClients'
+import apiClients from './apiClients'
 
 const epicMiddleware = createEpicMiddleware()
 const store = configureStore({
@@ -26,10 +26,10 @@ function handleMessage(event: MessageEvent) {
 
 function handleConnect(event: MessageEvent) {
 	const port = event.ports[0]
-	const actionAddLC = localClients.add(port)
-	const lc = actionAddLC.payload
-	port.postMessage(workerMsg.connected(lc, store.getState())) // tell the client which client it is
-	store.dispatch(actionAddLC) // add client to the store
+	const actionAddClient = apiClients.newFromPort(port)
+	const client = actionAddClient.payload
+	port.postMessage(workerMsg.connected(client, store.getState())) // tell the client which client it is
+	store.dispatch(actionAddClient) // add client to the store
 	port.onmessage = handleMessage // set the port's message handler
 }
 
