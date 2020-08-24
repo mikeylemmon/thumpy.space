@@ -35,7 +35,7 @@ const syncedStore = (worker: any): EnhancedStore => {
 				console.log('[syncedStore] Connected to the shared storeWorker')
 				store.dispatch(apiShared.connected(msg.data.stateShared))
 				store.dispatch(apiThisClient.update(msg.data.client))
-				epicMiddleware.run(createRootEpic(msg.data.client))
+				epicMiddleware.run(createRootEpic())
 				return
 			case WorkerMsgKind.Action:
 				// Send the embedded action to the reducer to update app state

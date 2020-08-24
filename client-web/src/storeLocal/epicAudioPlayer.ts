@@ -1,15 +1,10 @@
 // import * as Tone from 'tone'
 import { FeedbackDelay, MembraneSynth } from 'tone'
 import { distinctUntilChanged, filter, ignoreElements, map, tap } from 'rxjs/operators'
-import { Epic } from 'redux-observable'
-import { Client } from 'storeShared/sliceClients'
-import apiClock from './apiClock'
 import { Action$, StateLocal$ } from './rootReducerLocal'
+import apiClock from './apiClock'
+import apiThisClient from './apiThisClient'
 
-// type AudioState = {
-// 	instruments: Tone.IInstrument[]
-// }
-// const audioState = { instruments: [] }
 const delay = new FeedbackDelay('8n.', 0.5).toDestination()
 const synth = new MembraneSynth({
 	octaves: 4,
@@ -17,15 +12,15 @@ const synth = new MembraneSynth({
 	oscillator: { type: 'triangle' },
 }).connect(delay)
 
-export default (thisClient: Client): Epic => (action$: Action$, state$: StateLocal$) => {
+export default (action$: Action$, state$: StateLocal$) => {
 	return state$.pipe(
-		filter(() => thisClient.isAudioPlayer),
-		map(state => apiClock.select(state)),
+		filter(state => apiThisClient.isAudioPlayer.select(state)),
+		map(state => apiClock.paused.select(state)),
 		distinctUntilChanged(),
-		tap(clockState => {
-			console.log('[audioPlayerEpic]', clockState)
-			if (!clockState.paused) {
-				console.log('[audioPlayerEpic] Playing synth')
+		tap(paused => {
+			// console.log('[audioPlayerEpic]', { paused })
+			if (!paused) {
+				// console.log('[audioPlayerEpic] Playing synth')
 				synth.triggerAttackRelease('A1', '4n')
 			}
 		}),

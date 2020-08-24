@@ -1,6 +1,6 @@
 import React from 'react'
 import { useDispatch } from 'react-redux'
-import apiSequences, { Step, Trigger } from 'storeLocal/apiSequence'
+import apiSequences, { Step, Trigger } from 'storeLocal/apiSequences'
 
 type OwnProps = {
 	seqId: string
@@ -13,11 +13,11 @@ const StepView: React.FC<OwnProps> = ({ seqId, step, stepId }) => {
 	const trigs: React.ReactNode[] = []
 	const rows = 8
 	for (let ii = 0; ii < rows; ii++) {
-		const freq = 52 + ii
+		const freq = 52 - ii
 		let trig: Trigger = { freq, unit: 'midi', dur: '8n' }
 		let toggle = apiSequences.trigger.on
 		let isOn = false
-		const found = step.find(tt => tt.freq === freq)
+		const found = step.triggers.find(tt => tt.freq === freq)
 		if (found) {
 			trig = found
 			toggle = apiSequences.trigger.off
@@ -31,12 +31,12 @@ const StepView: React.FC<OwnProps> = ({ seqId, step, stepId }) => {
 					trigger: trig,
 				}),
 			)
-		const hue = ((ii - 1) * 360.0) / 7
+		const hue = ((ii - 0.4) * 360.0) / 7
 		const colA = `hsl(${hue}deg, ${isOn ? 60 : 0}%, ${62 * (isOn ? 0.9 : 0.5)}%)`
 		const colB = `hsl(${hue}deg, ${isOn ? 30 : 0}%, ${25 * (isOn ? 0.9 : 1.7)}%)`
 		const style: any = {
-			marginLeft: stepId === 0 ? 0 : stepId % 4 === 0 ? 8 : 2,
-			marginTop: ii === 0 ? 0 : 2,
+			marginLeft: stepId === 0 ? 0 : stepId % 4 === 0 ? '6px' : '2px',
+			marginTop: ii === 0 ? 0 : '2px',
 			flex: 1,
 			display: 'flex',
 			backgroundColor: colA,
@@ -46,6 +46,10 @@ const StepView: React.FC<OwnProps> = ({ seqId, step, stepId }) => {
 		}
 		trigs.push(<div onClick={onClick} style={style} key={`${seqId}-step${stepId}-trig${trig.freq}`} />)
 	}
-	return <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>{trigs}</div>
+	return (
+		<div style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: '#303030' }}>
+			{trigs}
+		</div>
+	)
 }
 export default StepView

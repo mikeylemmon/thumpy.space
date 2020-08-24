@@ -4,11 +4,14 @@ export const sliceNameSequences = 'sequences'
 
 export type Trigger = {
 	freq: number
-	unit: 'midi' | 'hz' | 'note'
+	// unit: 'midi' | 'hz' | 'note'
+	unit: 'number' | 'midi' | 'hz' | 's' | 'n' | 't' | 'm' | 'i' | 'tr' | 'samples' | undefined
 	dur: string
 }
 
-export type Step = Trigger[]
+export type Step = {
+	triggers: Trigger[]
+}
 
 export type Sequence = {
 	id: string
@@ -37,9 +40,9 @@ const sliceSequences = createSlice({
 				return state
 			}
 			if (!seq.steps[stepId]) {
-				seq.steps[stepId] = []
+				seq.steps[stepId] = { triggers: [] }
 			}
-			seq.steps[stepId].push(trigger)
+			seq.steps[stepId].triggers.push(trigger)
 			return state
 		},
 		triggerOff(state, action: PayloadAction<SeqStepTrigger>) {
@@ -54,7 +57,7 @@ const sliceSequences = createSlice({
 				console.error(`[triggerOff] Cannot remove trigger: no triggers found for step id ${stepId}`)
 				return state
 			}
-			seq.steps[stepId] = step.filter(trig => trig.freq !== trigger.freq)
+			step.triggers = step.triggers.filter(trig => trig.freq !== trigger.freq)
 			return state
 		},
 	},
