@@ -1,17 +1,19 @@
 import React from 'react'
 import ReactDOM from 'react-dom'
 import { Provider } from 'react-redux'
-import storeProxy from './app/storeProxy'
+import storeLocal from 'storeLocal/storeLocal'
 import 'index.css'
 
-const worker = new SharedWorker('./store-worker/worker', {
+// storeWorker is shared across all open windows/tabs and manages the app's state
+const storeWorker = new SharedWorker('storeWorker/worker', {
 	type: 'module',
 	name: 'thump-worker',
 })
-const store = storeProxy(worker)
+// store provides a redux interface to the shared app state as if it was local
+const store = storeLocal(storeWorker)
 
 const render = () => {
-	const App = require('./app/App').default
+	const App = require('app/App').default
 
 	ReactDOM.render(
 		<Provider store={store}>
