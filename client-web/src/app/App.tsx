@@ -1,6 +1,6 @@
 import React from 'react'
 import Clock from 'components/Clock'
-import SequenceList from 'components/sequence/SequenceList'
+import SequenceList from 'components/sequences/SequenceList'
 
 import './App.css'
 

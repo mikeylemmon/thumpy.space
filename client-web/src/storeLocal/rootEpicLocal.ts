@@ -13,10 +13,12 @@ import {
 import { combineEpics, Epic } from 'redux-observable'
 import { Action$, StateLocal$ } from './rootReducerLocal'
 import apiClock from './apiClock'
-import apiSequences, { Sequence, Step } from './apiSequences'
+import apiSequences, { StateSequence, Step } from './apiSequences'
+import apiInstruments from './apiInstruments'
 import apiThisClient from './apiThisClient'
+import Engine from 'engine/Engine'
 
-function epicStartStop(action$: Action$, state$: StateLocal$) {
+function epicStartStop(_unused: Action$, state$: StateLocal$) {
 	return state$.pipe(
 		map(state => apiClock.paused.select(state)),
 		distinctUntilChanged(),
@@ -42,8 +44,12 @@ const synth2 = new MembraneSynth({
 	oscillator: { type: 'triangle' },
 }).connect(delay)
 
-function epicSequences(action$: Action$, state$: StateLocal$) {
+const engine = new Engine()
+console.log('[rootEpicLocal] engine:', engine)
+
+function epicSequences(_unused: Action$, state$: StateLocal$) {
 	return state$.pipe(
+		// TODO: replace isAudioPlayer filter with block that includes teardown on !paused -> paused
 		filter(state => apiThisClient.isAudioPlayer.select(state)),
 		map(state => apiSequences.selectAll(state)),
 		distinctUntilChanged(),
@@ -52,7 +58,7 @@ function epicSequences(action$: Action$, state$: StateLocal$) {
 		mergeMap(seq$ => {
 			console.log('[epicSequences]', 'New sequence pipe')
 			type TickEvent = {
-				seq: Sequence
+				seq: StateSequence
 				step: Step
 			}
 			const tick = (time: number, tickEvt: TickEvent) => {
@@ -60,6 +66,9 @@ function epicSequences(action$: Action$, state$: StateLocal$) {
 				for (const trig of step.triggers) {
 					const ss = seq.id === 'seq-1' ? synth1 : synth2
 					ss.triggerAttackRelease(Frequency(trig.freq, trig.unit).toFrequency(), trig.dur, time)
+					// for (const oo of seq.outputs) {
+					// 	instruments[oo.instrumentId].trigger(oo.inputId, trig)
+					// }
 				}
 			}
 			let sequencer = new ToneSequence(tick, [], '8n').start(0)
@@ -77,6 +86,31 @@ function epicSequences(action$: Action$, state$: StateLocal$) {
 						seq,
 						step,
 					}))
+					engine.updateSequence(seq)
+				}),
+				ignoreElements(),
+			)
+		}),
+		ignoreElements(),
+	)
+}
+
+function epicInstruments(_unused: Action$, state$: StateLocal$) {
+	return state$.pipe(
+		// TODO: replace isAudioPlayer filter with block that includes teardown on !paused -> paused
+		filter(state => apiThisClient.isAudioPlayer.select(state)),
+		map(state => apiInstruments.selectAll(state)),
+		distinctUntilChanged(),
+		mergeMap(insts => from$(insts)), // split into separate events for each inst
+		groupBy(inst => inst.id), // split into separate streams for each inst
+		mergeMap(inst$ => {
+			console.log('[epicInstruments] New instrument pipe')
+			return inst$.pipe(
+				// foreach inst
+				distinctUntilChanged(),
+				tap(inst => {
+					console.log('[epicInstruments] Instrument has changed', inst)
+					engine.updateInstrument(inst)
 				}),
 				ignoreElements(),
 			)
@@ -87,7 +121,7 @@ function epicSequences(action$: Action$, state$: StateLocal$) {
 
 export default function createRootEpic(): Epic {
 	console.log('[createRootEpic] Initializing epics')
-	const epics: Epic[] = [epicStartStop, epicSequences]
+	const epics: Epic[] = [epicStartStop, epicInstruments, epicSequences]
 	// Wrap the epics with a global error handler that catches uncaught errors
 	return (action$: Action$, store$: StateLocal$, deps: any) =>
 		combineEpics(...epics)(action$, store$, deps).pipe(

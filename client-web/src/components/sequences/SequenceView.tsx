@@ -1,8 +1,8 @@
 import React from 'react'
-import { Sequence } from 'storeLocal/apiSequences'
+import { StateSequence } from 'storeLocal/apiSequences'
 import StepView from './StepView'
 
-type OwnProps = { seq: Sequence; posId: number }
+type OwnProps = { seq: StateSequence; posId: number }
 
 const SequenceView: React.FC<OwnProps> = ({ seq, posId }) => {
 	const steps: React.ReactNode[] = []
