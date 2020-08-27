@@ -13,10 +13,16 @@ export type Step = {
 	triggers: Trigger[]
 }
 
-export type Sequence = {
+export type StateSequenceOutput = {
+	instrumentId: string
+	inputId: string
+}
+
+export type StateSequence = {
 	id: string
 	name: string
 	steps: Step[]
+	outputs: StateSequenceOutput[]
 }
 
 export type SeqStepTrigger = {
@@ -25,7 +31,7 @@ export type SeqStepTrigger = {
 	trigger: Trigger
 }
 
-export const adapterSequences = createEntityAdapter<Sequence>()
+export const adapterSequences = createEntityAdapter<StateSequence>()
 export const stateInitialSequences = adapterSequences.getInitialState()
 const sliceSequences = createSlice({
 	name: sliceNameSequences,
@@ -63,7 +69,7 @@ const sliceSequences = createSlice({
 	},
 })
 
-export type StateSequences = EntityState<Sequence>
+export type StateSequences = EntityState<StateSequence>
 
 export const actionsSequences = sliceSequences.actions
 
