@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import apiInstruments from 'storeLocal/apiInstruments'
+import Casio from 'engine/audio/instruments/Casio'
 import DrumMachine from 'engine/audio/instruments/DrumMachine'
 import apiSequences, { Step } from 'storeLocal/apiSequences'
 import apiThisClient from 'storeLocal/apiThisClient'
@@ -16,6 +17,8 @@ const SequenceList: React.FC = () => {
 			return
 		}
 		// Add default instruments
+		const casio = Casio.StateDefault()
+		dispatch(apiInstruments.addOne(casio))
 		const dm = DrumMachine.StateDefault()
 		dispatch(apiInstruments.addOne(dm))
 
@@ -32,7 +35,12 @@ const SequenceList: React.FC = () => {
 				id: 'seq-1',
 				name: 'Sequence 1',
 				steps: emptySteps(),
-				outputs: [],
+				outputs: [
+					{
+						instrumentId: casio.id,
+						inputId: Casio.StateInputs()[0].id,
+					},
+				],
 			}),
 		)
 		dispatch(

@@ -1,4 +1,4 @@
-import { FeedbackDelay, Frequency, MembraneSynth, Sampler, Sequence as ToneSequence, Transport } from 'tone'
+import { Transport } from 'tone'
 import { from as from$ } from 'rxjs'
 import {
 	catchError,
@@ -13,7 +13,7 @@ import {
 import { combineEpics, Epic } from 'redux-observable'
 import { Action$, StateLocal$ } from './rootReducerLocal'
 import apiClock from './apiClock'
-import apiSequences, { StateSequence, Step } from './apiSequences'
+import apiSequences from './apiSequences'
 import apiInstruments from './apiInstruments'
 import apiThisClient from './apiThisClient'
 import Engine from 'engine/Engine'
@@ -30,20 +30,6 @@ function epicStartStop(_unused: Action$, state$: StateLocal$) {
 	)
 }
 
-const delay = new FeedbackDelay('8n.', 0.5).toDestination()
-const synth1 = new Sampler({
-	urls: {
-		A1: 'A1.mp3',
-		A2: 'A2.mp3',
-	},
-	baseUrl: 'https://tonejs.github.io/audio/casio/',
-}).connect(delay)
-const synth2 = new MembraneSynth({
-	octaves: 3,
-	pitchDecay: 0.07,
-	oscillator: { type: 'triangle' },
-}).connect(delay)
-
 const engine = new Engine()
 console.log('[rootEpicLocal] engine:', engine)
 
@@ -55,42 +41,14 @@ function epicSequences(_unused: Action$, state$: StateLocal$) {
 		distinctUntilChanged(),
 		mergeMap(seqs => from$(seqs)), // split into separate events for each seq
 		groupBy(seq => seq.id), // split into separate streams for each seq
-		mergeMap(seq$ => {
-			console.log('[epicSequences]', 'New sequence pipe')
-			type TickEvent = {
-				seq: StateSequence
-				step: Step
-			}
-			const tick = (time: number, tickEvt: TickEvent) => {
-				const { seq, step } = tickEvt
-				for (const trig of step.triggers) {
-					const ss = seq.id === 'seq-1' ? synth1 : synth2
-					ss.triggerAttackRelease(Frequency(trig.freq, trig.unit).toFrequency(), trig.dur, time)
-					// for (const oo of seq.outputs) {
-					// 	instruments[oo.instrumentId].trigger(oo.inputId, trig)
-					// }
-				}
-			}
-			let sequencer = new ToneSequence(tick, [], '8n').start(0)
-
-			let first = true
-			return seq$.pipe(
+		mergeMap(seq$ =>
+			seq$.pipe(
 				// foreach seq
 				distinctUntilChanged(),
-				tap(seq => {
-					console.log('[epicSequences]', seq)
-					if (first) {
-						first = false
-					}
-					sequencer.events = seq.steps.map(step => ({
-						seq,
-						step,
-					}))
-					engine.updateSequence(seq)
-				}),
+				tap(seq => engine.updateSequence(seq)),
 				ignoreElements(),
-			)
-		}),
+			),
+		),
 		ignoreElements(),
 	)
 }

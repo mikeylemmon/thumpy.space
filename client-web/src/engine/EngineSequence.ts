@@ -15,7 +15,7 @@ function seqOutputKey(output: StateSequenceOutput): string {
 	return `${output.instrumentId}-${output.inputId}`
 }
 
-export class EngineSequencer {
+export class EngineSequence {
 	private sequencer: Sequence
 	private outputs: { [key: string]: EngineInstrument }
 
@@ -26,16 +26,17 @@ export class EngineSequencer {
 
 	dispose() {
 		this.sequencer.dispose()
+		console.log('[EngineSequence #dispose] Disposed')
 	}
 
 	update(state: StateSequence) {
 		this.sequencer.events = tickEvents(state)
-		console.log('[EngineSequencer] Updated', state)
+		console.log('[EngineSequence #update] Updated', state)
 	}
 
 	connect(ref: StateSequenceOutput, to: EngineInstrument) {
 		this.outputs[seqOutputKey(ref)] = to
-		console.log('[EngineSequencer] Connected', ref)
+		console.log('[EngineSequence #connect] Connected', ref)
 	}
 
 	private tick = (time: number, tickEvt: TickEvent) => {
@@ -46,7 +47,7 @@ export class EngineSequencer {
 			for (const oo of seq.outputs) {
 				const output = this.outputs[seqOutputKey(oo)]
 				if (!output) {
-					console.error('[EngineSequencer #tick] Unable to find instrument for output', oo)
+					console.error('[EngineSequence #tick] Unable to find instrument for output', oo)
 					continue
 				}
 				output.trigger(time, oo.inputId, trig)
