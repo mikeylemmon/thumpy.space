@@ -1,5 +1,7 @@
-import { Sequence } from 'tone'
+import { Draw, Sequence } from 'tone'
 import { StateSequence, StateSequenceOutput, Step } from 'storeShared/sliceSequences'
+import storeLocal from 'storeLocal/storeLocal'
+import apiSequences from 'storeLocal/apiSequences'
 import { EngineInstrument } from 'engine/EngineInstrument'
 
 type TickEvent = {
@@ -31,16 +33,24 @@ export class EngineSequence {
 
 	update(state: StateSequence) {
 		this.sequencer.events = tickEvents(state)
-		console.log('[EngineSequence #update] Updated', state)
+		// console.log('[EngineSequence #update] Updated', state)
 	}
 
 	connect(ref: StateSequenceOutput, to: EngineInstrument) {
 		this.outputs[seqOutputKey(ref)] = to
-		console.log('[EngineSequence #connect] Connected', ref)
+		// console.log('[EngineSequence #connect] Connected', ref)
 	}
 
 	private tick = (time: number, tickEvt: TickEvent) => {
 		const { seq, step } = tickEvt
+		Draw.schedule(() => {
+			storeLocal.dispatch(
+				apiSequences.currentStep.set({
+					seqId: seq.id,
+					stepId: step.id,
+				}),
+			)
+		}, time)
 		for (const trig of step.triggers) {
 			// const ss = seq.id === 'seq-1' ? synth1 : synth2
 			// ss.triggerAttackRelease(Frequency(trig.freq, trig.unit).toFrequency(), trig.dur, time)

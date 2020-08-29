@@ -29,4 +29,7 @@ export default {
 		on: actionsSequences.triggerOn,
 		off: actionsSequences.triggerOff,
 	},
+	currentStep: {
+		set: actionsSequences.setCurrentStep,
+	},
 }

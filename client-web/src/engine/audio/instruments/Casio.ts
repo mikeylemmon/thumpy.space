@@ -46,7 +46,7 @@ export default class Casio extends EngineInstrument {
 	}
 
 	trigger(time: Time, inputId: string, trig: Trigger): void {
-		console.log('[Casio #trigger] trigger:', time, inputId, trig)
+		// console.log('[Casio #trigger] trigger:', time, inputId, trig)
 		this.synth.triggerAttackRelease(Frequency(trig.freq, trig.unit).toFrequency(), trig.dur, time)
 	}
 

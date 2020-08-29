@@ -10,6 +10,7 @@ export type Trigger = {
 }
 
 export type Step = {
+	id: number
 	triggers: Trigger[]
 }
 
@@ -23,6 +24,12 @@ export type StateSequence = {
 	name: string
 	steps: Step[]
 	outputs: StateSequenceOutput[]
+	currentStep: number
+}
+
+export type SeqStep = {
+	seqId: string
+	stepId: number
 }
 
 export type SeqStepTrigger = {
@@ -46,7 +53,7 @@ const sliceSequences = createSlice({
 				return state
 			}
 			if (!seq.steps[stepId]) {
-				seq.steps[stepId] = { triggers: [] }
+				seq.steps[stepId] = { id: stepId, triggers: [] }
 			}
 			seq.steps[stepId].triggers.push(trigger)
 			return state
@@ -64,6 +71,16 @@ const sliceSequences = createSlice({
 				return state
 			}
 			step.triggers = step.triggers.filter(trig => trig.freq !== trigger.freq)
+			return state
+		},
+		setCurrentStep(state, action: PayloadAction<SeqStep>) {
+			const { seqId, stepId } = action.payload
+			const seq = state.entities[seqId]
+			if (!seq) {
+				console.error(`[setStep] Cannot set step: no sequence found with id ${seqId}`)
+				return state
+			}
+			seq.currentStep = stepId
 			return state
 		},
 	},

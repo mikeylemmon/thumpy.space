@@ -26,7 +26,7 @@ const SequenceList: React.FC = () => {
 		const emptySteps = (): Step[] => {
 			const steps: Step[] = []
 			for (let ii = 0; ii < 16; ii++) {
-				steps.push({ triggers: [] })
+				steps.push({ id: ii, triggers: [] })
 			}
 			return steps
 		}
@@ -41,6 +41,7 @@ const SequenceList: React.FC = () => {
 						inputId: Casio.StateInputs()[0].id,
 					},
 				],
+				currentStep: 0,
 			}),
 		)
 		dispatch(
@@ -54,6 +55,7 @@ const SequenceList: React.FC = () => {
 						inputId: DrumMachine.StateInputs()[0].id,
 					},
 				],
+				currentStep: 0,
 			}),
 		)
 	})

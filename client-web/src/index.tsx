@@ -4,19 +4,11 @@ import { Provider } from 'react-redux'
 import storeLocal from 'storeLocal/storeLocal'
 import 'index.css'
 
-// storeWorker is shared across all open windows/tabs and manages the app's state
-const storeWorker = new SharedWorker('storeWorker/worker', {
-	type: 'module',
-	name: 'thump-worker',
-})
-// store provides a redux interface to the shared app state as if it was local
-const store = storeLocal(storeWorker)
-
 const render = () => {
 	const App = require('app/App').default
 
 	ReactDOM.render(
-		<Provider store={store}>
+		<Provider store={storeLocal}>
 			<App />
 		</Provider>,
 		document.getElementById('root'),
