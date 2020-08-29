@@ -12,7 +12,7 @@ import { proxyMsg, WorkerMsg, WorkerMsgKind } from 'storeShared/apiWorker'
 import rootReducerLocal from './rootReducerLocal'
 import createRootEpic from './rootEpicLocal'
 import apiThisClient, { StateThisClient } from './apiThisClient'
-import apiSequences from './apiSequences'
+// import apiSequences from './apiSequences'
 import apiShared from './apiShared'
 
 const epicMiddleware = createEpicMiddleware()
@@ -73,11 +73,11 @@ function connectToSharedStore(store: EnhancedStore): EnhancedStore {
 				// dispatches are sent to the worker, with the expectation that the worker
 				// will send the action back
 				return (action: PayloadAction) => {
-					switch (action.type) {
-						// Whitelist certain actions to local-only
-						case apiSequences.currentStep.set.type:
-							return target.dispatch(action)
-					}
+					// switch (action.type) {
+					// 	// Blacklist certain actions from posting to the shared store
+					// 	case apiSequences.currentStep.set.type:
+					// 		return target.dispatch(action)
+					// }
 					storeWorker.port.postMessage(proxyMsg.action(action))
 				}
 			}

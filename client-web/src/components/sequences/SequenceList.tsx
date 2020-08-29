@@ -7,6 +7,8 @@ import apiSequences, { Step } from 'storeLocal/apiSequences'
 import apiThisClient from 'storeLocal/apiThisClient'
 import SequenceView from './SequenceView'
 
+const numSteps = 16
+
 const SequenceList: React.FC = () => {
 	const dispatch = useDispatch()
 	const sequences = useSelector(apiSequences.selectAll)
@@ -25,7 +27,7 @@ const SequenceList: React.FC = () => {
 		// Add a default sequence since we're the audio player and none exists yet
 		const emptySteps = (): Step[] => {
 			const steps: Step[] = []
-			for (let ii = 0; ii < 16; ii++) {
+			for (let ii = 0; ii < numSteps; ii++) {
 				steps.push({ id: ii, triggers: [] })
 			}
 			return steps

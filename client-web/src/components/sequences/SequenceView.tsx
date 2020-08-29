@@ -10,7 +10,7 @@ const SequenceView: React.FC<OwnProps> = ({ seq, posId }) => {
 		const step = seq.steps[ii]
 		steps.push(
 			<StepView
-				isCurrent={ii === seq.currentStep}
+				currentStep={seq.currentStep}
 				seqId={seq.id}
 				step={step}
 				stepId={ii}
@@ -43,8 +43,6 @@ const SequenceView: React.FC<OwnProps> = ({ seq, posId }) => {
 				}}
 			>
 				{seq.name}
-				<br />
-				{seq.currentStep}
 			</h4>
 			<div style={{ display: 'flex', flexDirection: 'row', flex: 1 }}>{steps}</div>
 		</div>

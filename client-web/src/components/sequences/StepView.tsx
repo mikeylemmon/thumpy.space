@@ -3,16 +3,17 @@ import { useDispatch } from 'react-redux'
 import apiSequences, { Step, Trigger } from 'storeLocal/apiSequences'
 
 type OwnProps = {
-	isCurrent: boolean
+	currentStep: number
 	seqId: string
 	step: Step
 	stepId: number
 }
 
-const StepView: React.FC<OwnProps> = ({ isCurrent, seqId, step, stepId }) => {
+const StepView: React.FC<OwnProps> = ({ currentStep, seqId, step, stepId }) => {
 	const dispatch = useDispatch()
 	const trigs: React.ReactNode[] = []
 	const rows = 8
+	const isCurrent = stepId === currentStep
 	for (let ii = 0; ii < rows; ii++) {
 		const isSeq1 = seqId === 'seq-1'
 		const freq = (isSeq1 ? 52 : 60) - ii * (isSeq1 ? 1 : 4)
@@ -33,11 +34,11 @@ const StepView: React.FC<OwnProps> = ({ isCurrent, seqId, step, stepId }) => {
 					trigger: trig,
 				}),
 			)
-		const hue = ((ii - 0.4) * 360.0) / 7
+		const hue = ((ii - 0.4) * 360.0) / 8
 		const sat = isOn ? 60 : 0
-		let lgt = 62 * (isOn ? 0.9 : 0.5)
+		let lgt = 62 * (isOn ? 0.9 : 0.45)
 		if (isCurrent) {
-			lgt *= 1.5
+			lgt *= isOn ? 1.5 : 1.3
 		}
 		const colA = `hsl(${hue}deg, ${sat}%, ${lgt}%)`
 		const style: any = {
