@@ -18,6 +18,7 @@ export abstract class EngineInstrument {
 	abstract dispose(): void
 	abstract trigger(time: Time, inputId: string, trig: Trigger): void
 	abstract updateState(inst: StateInstrument): void
+	abstract subengine: SubengineType
 }
 
 export type EngineInstrumentTypeListItem = {

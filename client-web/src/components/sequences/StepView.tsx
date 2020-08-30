@@ -3,17 +3,16 @@ import { useDispatch } from 'react-redux'
 import apiSequences, { Step, Trigger } from 'storeLocal/apiSequences'
 
 type OwnProps = {
-	currentStep: number
+	isCurrentStep: boolean
 	seqId: string
 	step: Step
 	stepId: number
 }
 
-const StepView: React.FC<OwnProps> = ({ currentStep, seqId, step, stepId }) => {
+const StepView: React.FC<OwnProps> = ({ isCurrentStep, seqId, step, stepId }) => {
 	const dispatch = useDispatch()
 	const trigs: React.ReactNode[] = []
 	const rows = 8
-	const isCurrent = stepId === currentStep
 	for (let ii = 0; ii < rows; ii++) {
 		const isSeq1 = seqId === 'seq-1'
 		const freq = (isSeq1 ? 52 : 60) - ii * (isSeq1 ? 1 : 4)
@@ -37,20 +36,21 @@ const StepView: React.FC<OwnProps> = ({ currentStep, seqId, step, stepId }) => {
 		const hue = ((ii - 0.4) * 360.0) / 8
 		const sat = isOn ? 60 : 0
 		let lgt = 62 * (isOn ? 0.9 : 0.45)
-		if (isCurrent) {
+		if (isCurrentStep) {
 			lgt *= isOn ? 1.5 : 1.3
 		}
 		const colA = `hsl(${hue}deg, ${sat}%, ${lgt}%)`
 		const style: any = {
-			marginLeft: stepId === 0 ? 0 : stepId % 4 === 0 ? '6px' : '2px',
-			marginTop: ii === 0 ? 0 : '2px',
+			marginLeft: stepId === 0 ? 0 : stepId % 4 === 0 ? '6px' : 0,
+			borderLeft: stepId === 0 ? 0 : stepId % 4 === 0 ? 0 : '2px solid #333',
+			borderTop: ii === 0 ? 0 : '2px solid #333',
 			flex: 1,
 			display: 'flex',
 			backgroundColor: colA,
 		}
 		if (isOn) {
 			const satI = isOn ? 30 : 0
-			const lgtI = isCurrent ? 27 : 23
+			const lgtI = isCurrentStep ? 27 : 23
 			const colI = `hsl(${hue}deg, ${satI}%, ${lgtI}%)`
 			style.boxShadow = `inset 0 0 10px ${colI}`
 		}

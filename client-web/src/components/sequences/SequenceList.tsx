@@ -1,11 +1,14 @@
 import React, { useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import apiInstruments from 'storeLocal/apiInstruments'
-import Casio from 'engine/audio/instruments/Casio'
-import DrumMachine from 'engine/audio/instruments/DrumMachine'
+import Casio from 'engine/audio/Casio'
+import DrumMachine from 'engine/audio/DrumMachine'
 import apiSequences, { Step } from 'storeLocal/apiSequences'
 import apiThisClient from 'storeLocal/apiThisClient'
 import SequenceView from './SequenceView'
+
+import Circle from 'engine/video/Circle'
+import VideoOutput from 'components/VideoOutput'
 
 const numSteps = 16
 
@@ -13,6 +16,7 @@ const SequenceList: React.FC = () => {
 	const dispatch = useDispatch()
 	const sequences = useSelector(apiSequences.selectAll)
 	const isAudioPlayer = useSelector(apiThisClient.isAudioPlayer.select)
+	const circle = Circle.StateDefault()
 
 	useEffect(() => {
 		if (!isAudioPlayer || sequences.length > 0) {
@@ -23,6 +27,7 @@ const SequenceList: React.FC = () => {
 		dispatch(apiInstruments.addOne(casio))
 		const dm = DrumMachine.StateDefault()
 		dispatch(apiInstruments.addOne(dm))
+		dispatch(apiInstruments.addOne(circle))
 
 		// Add a default sequence since we're the audio player and none exists yet
 		const emptySteps = (): Step[] => {
@@ -41,6 +46,10 @@ const SequenceList: React.FC = () => {
 					{
 						instrumentId: casio.id,
 						inputId: Casio.StateInputs()[0].id,
+					},
+					{
+						instrumentId: circle.id,
+						inputId: Circle.StateInputs()[0].id,
 					},
 				],
 				currentStep: 0,
@@ -68,7 +77,12 @@ const SequenceList: React.FC = () => {
 		const seq = sequences[ii]
 		seqViews.push(<SequenceView seq={seq} key={`seq-${seq.id}`} posId={ii} />)
 	}
-	return <div style={{ display: 'flex', flex: 1, flexDirection: 'column' }}>{seqViews}</div>
+	return (
+		<div style={{ display: 'flex', flex: 1, flexDirection: 'row' }}>
+			<div style={{ display: 'flex', flex: 1, flexDirection: 'column' }}>{seqViews}</div>
+			<VideoOutput instId={circle.id} />
+		</div>
+	)
 }
 
 export default SequenceList

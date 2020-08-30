@@ -10,7 +10,7 @@ const SequenceView: React.FC<OwnProps> = ({ seq, posId }) => {
 		const step = seq.steps[ii]
 		steps.push(
 			<StepView
-				currentStep={seq.currentStep}
+				isCurrentStep={seq.currentStep === ii}
 				seqId={seq.id}
 				step={step}
 				stepId={ii}

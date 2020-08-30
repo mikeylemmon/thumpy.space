@@ -51,8 +51,6 @@ function connectToSharedStore(store: EnhancedStore): EnhancedStore {
 				// used to initialize the local epics
 				console.log('[storeLocal] Connected to the shared storeWorker')
 				store.dispatch(apiShared.connected(msg.data.stateShared))
-				store.dispatch(apiThisClient.update(msg.data.client))
-				epicMiddleware.run(createRootEpic())
 				initStore(store, msg.data.client)
 				return
 			case WorkerMsgKind.Action:
