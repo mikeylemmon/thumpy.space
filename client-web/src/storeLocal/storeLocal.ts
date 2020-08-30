@@ -1,12 +1,3 @@
-// Inspired by https://github.com/burakcan/redux-shared-worker/blob/master/src/wire.js
-import { configureStore, getDefaultMiddleware, EnhancedStore, PayloadAction } from '@reduxjs/toolkit'
-import { createEpicMiddleware } from 'redux-observable'
-import { proxyMsg, WorkerMsg, WorkerMsgKind } from 'storeShared/apiWorker'
-import rootReducerLocal from './rootReducerLocal'
-import createRootEpic from './rootEpicLocal'
-import apiThisClient from './apiThisClient'
-import apiShared from './apiShared'
-
 // storeLocal connects to the shared store worker and receives up-to-date app
 // state as it's first message from the worker. Instead of handling dispatched
 // actions directly, the synced store forwards actions to the worker and only
@@ -14,17 +5,43 @@ import apiShared from './apiShared'
 // In addition to locally dispatched actions, the worker sends actions from
 // other clients, keeping state in sync across all windows/tabs.
 //
-// The worker argument is expected to be a SharedWorker, it's an "any" because
-// typescript doesn't have support for SharedWorker.
-const storeLocal = (worker: any): EnhancedStore => {
-	const epicMiddleware = createEpicMiddleware()
-	const store = configureStore({
-		reducer: rootReducerLocal,
-		middleware: [...getDefaultMiddleware(), epicMiddleware],
+// Inspired by https://github.com/burakcan/redux-shared-worker/blob/master/src/wire.js
+import { configureStore, getDefaultMiddleware, EnhancedStore, PayloadAction } from '@reduxjs/toolkit'
+import { createEpicMiddleware } from 'redux-observable'
+import { proxyMsg, WorkerMsg, WorkerMsgKind } from 'storeShared/apiWorker'
+import rootReducerLocal from './rootReducerLocal'
+import createRootEpic from './rootEpicLocal'
+import apiThisClient, { StateThisClient } from './apiThisClient'
+// import apiSequences from './apiSequences'
+import apiShared from './apiShared'
+
+const epicMiddleware = createEpicMiddleware()
+
+function initStore(store: EnhancedStore, thisClient: StateThisClient) {
+	store.dispatch(apiThisClient.update(thisClient))
+	epicMiddleware.run(createRootEpic())
+	return store
+}
+
+function connectToSharedStore(store: EnhancedStore): EnhancedStore {
+	// storeWorker is shared across all open windows/tabs and manages the app's state
+	const storeWorker = new SharedWorker('storeWorker/worker', {
+		type: 'module',
+		name: 'thump-worker',
 	})
 
+	if (!storeWorker) {
+		console.warn(
+			'Unable to connect to shared store worker, continuing with multi-tab/window support disabled',
+		)
+		return initStore(store, {
+			id: -1,
+			isAudioPlayer: true,
+		})
+	}
+
 	// Handle messages from the worker
-	worker.port.onmessage = (event: MessageEvent) => {
+	storeWorker.port.onmessage = (event: MessageEvent) => {
 		const msg = event.data as WorkerMsg
 		switch (msg.kind) {
 			case WorkerMsgKind.Connected:
@@ -36,6 +53,7 @@ const storeLocal = (worker: any): EnhancedStore => {
 				store.dispatch(apiShared.connected(msg.data.stateShared))
 				store.dispatch(apiThisClient.update(msg.data.client))
 				epicMiddleware.run(createRootEpic())
+				initStore(store, msg.data.client)
 				return
 			case WorkerMsgKind.Action:
 				// Send the embedded action to the reducer to update app state
@@ -55,7 +73,12 @@ const storeLocal = (worker: any): EnhancedStore => {
 				// dispatches are sent to the worker, with the expectation that the worker
 				// will send the action back
 				return (action: PayloadAction) => {
-					worker.port.postMessage(proxyMsg.action(action))
+					// switch (action.type) {
+					// 	// Blacklist certain actions from posting to the shared store
+					// 	case apiSequences.currentStep.set.type:
+					// 		return target.dispatch(action)
+					// }
+					storeWorker.port.postMessage(proxyMsg.action(action))
 				}
 			}
 			// everything else is handled locally
@@ -63,4 +86,12 @@ const storeLocal = (worker: any): EnhancedStore => {
 		},
 	})
 }
+
+const store = configureStore({
+	reducer: rootReducerLocal,
+	middleware: [...getDefaultMiddleware(), epicMiddleware],
+})
+
+const storeLocal = connectToSharedStore(store)
+
 export default storeLocal

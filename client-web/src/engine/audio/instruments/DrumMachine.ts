@@ -44,7 +44,7 @@ export default class DrumMachine extends EngineInstrument {
 	}
 
 	trigger(time: Time, inputId: string, trig: Trigger): void {
-		console.log('[DrumMachine #trigger] trigger:', time, inputId, trig)
+		// console.log('[DrumMachine #trigger] trigger:', time, inputId, trig)
 		this.synth.triggerAttackRelease(Frequency(trig.freq, trig.unit).toFrequency(), trig.dur, time)
 	}
 

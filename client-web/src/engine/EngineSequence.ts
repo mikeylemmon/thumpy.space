@@ -1,5 +1,7 @@
 import { Sequence } from 'tone'
 import { StateSequence, StateSequenceOutput, Step } from 'storeShared/sliceSequences'
+import storeLocal from 'storeLocal/storeLocal'
+import apiSequences from 'storeLocal/apiSequences'
 import { EngineInstrument } from 'engine/EngineInstrument'
 
 type TickEvent = {
@@ -18,10 +20,12 @@ function seqOutputKey(output: StateSequenceOutput): string {
 export class EngineSequence {
 	private sequencer: Sequence
 	private outputs: { [key: string]: EngineInstrument }
+	private state: StateSequence
 
 	constructor(state: StateSequence) {
 		this.sequencer = new Sequence(this.tick, tickEvents(state), '8n').start(0)
 		this.outputs = {}
+		this.state = state
 	}
 
 	dispose() {
@@ -30,20 +34,22 @@ export class EngineSequence {
 	}
 
 	update(state: StateSequence) {
-		this.sequencer.events = tickEvents(state)
-		console.log('[EngineSequence #update] Updated', state)
+		if (this.state.steps !== state.steps) {
+			// Steps updated, reset the sequencer events
+			this.sequencer.events = tickEvents(state)
+		}
+		this.state = state
+		// console.log('[EngineSequence #update] Updated', state)
 	}
 
 	connect(ref: StateSequenceOutput, to: EngineInstrument) {
 		this.outputs[seqOutputKey(ref)] = to
-		console.log('[EngineSequence #connect] Connected', ref)
+		// console.log('[EngineSequence #connect] Connected', ref)
 	}
 
 	private tick = (time: number, tickEvt: TickEvent) => {
 		const { seq, step } = tickEvt
 		for (const trig of step.triggers) {
-			// const ss = seq.id === 'seq-1' ? synth1 : synth2
-			// ss.triggerAttackRelease(Frequency(trig.freq, trig.unit).toFrequency(), trig.dur, time)
 			for (const oo of seq.outputs) {
 				const output = this.outputs[seqOutputKey(oo)]
 				if (!output) {
@@ -53,5 +59,11 @@ export class EngineSequence {
 				output.trigger(time, oo.inputId, trig)
 			}
 		}
+		storeLocal.dispatch(
+			apiSequences.currentStep.set({
+				seqId: seq.id,
+				stepId: step.id,
+			}),
+		)
 	}
 }

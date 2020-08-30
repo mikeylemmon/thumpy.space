@@ -8,7 +8,15 @@ const SequenceView: React.FC<OwnProps> = ({ seq, posId }) => {
 	const steps: React.ReactNode[] = []
 	for (let ii = 0; ii < seq.steps.length; ii++) {
 		const step = seq.steps[ii]
-		steps.push(<StepView seqId={seq.id} step={step} stepId={ii} key={`${seq.id}-step${ii}`} />)
+		steps.push(
+			<StepView
+				currentStep={seq.currentStep}
+				seqId={seq.id}
+				step={step}
+				stepId={ii}
+				key={`${seq.id}-step${ii}`}
+			/>,
+		)
 	}
 	const marginVert = '20px'
 	const marginHoriz = '10px'
