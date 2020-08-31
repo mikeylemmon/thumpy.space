@@ -1,5 +1,6 @@
 import React from 'react'
 import ReactDOM from 'react-dom'
+import { BrowserRouter as Router, Route, Switch } from 'react-router-dom'
 import { Provider } from 'react-redux'
 import storeLocal from 'storeLocal/storeLocal'
 import 'index.css'
@@ -9,7 +10,12 @@ const render = () => {
 
 	ReactDOM.render(
 		<Provider store={storeLocal}>
-			<App />
+			<Router>
+				<Switch>
+					<Route exact path='/:subengine/:instrumentId' component={App} />
+					<Route component={App} />
+				</Switch>
+			</Router>
 		</Provider>,
 		document.getElementById('root'),
 	)

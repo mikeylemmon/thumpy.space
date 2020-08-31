@@ -4,7 +4,21 @@ import SequenceList from 'components/sequences/SequenceList'
 
 import './App.css'
 
-const App: React.FC = () => {
+type OwnProps = {
+	match: {
+		params: {
+			subengine: string
+			instrumentId: string
+		}
+	}
+}
+
+const App: React.FC<OwnProps> = ({
+	match: {
+		params: { subengine, instrumentId },
+	},
+}) => {
+	console.log('[App]', { subengine, instrumentId })
 	return (
 		<div
 			className='App'

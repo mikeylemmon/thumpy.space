@@ -4,7 +4,6 @@ export const sliceNameSequences = 'sequences'
 
 export type Trigger = {
 	freq: number
-	// unit: 'midi' | 'hz' | 'note'
 	unit: 'number' | 'midi' | 'hz' | 's' | 'n' | 't' | 'm' | 'i' | 'tr' | 'samples' | undefined
 	dur: string
 }

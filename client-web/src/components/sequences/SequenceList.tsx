@@ -71,7 +71,6 @@ const SequenceList: React.FC = () => {
 		)
 	})
 
-	// const seqViews = sequences.map(seq => <SequenceView key={seq.id} sequence={seq} />)
 	const seqViews: React.ReactNode[] = []
 	for (let ii = 0; ii < sequences.length; ii++) {
 		const seq = sequences[ii]
