@@ -33,6 +33,8 @@ export default class Circle extends EngineInstrument {
 	public subengine: SubengineType = Circle.Subengine
 
 	private radius: number = 80
+	private width: number = 500
+	private height: number = 500
 
 	constructor(initialState: Partial<StateInstrument> = Circle.StateDefault()) {
 		super()
@@ -54,17 +56,23 @@ export default class Circle extends EngineInstrument {
 		console.log('[Circle #updateState] Received new state', inst)
 	}
 
+	setSize(width: number, height: number) {
+		this.width = width
+		this.height = height
+	}
+
 	sketch = (pp: p5) => {
-		const width = 500
 		pp.setup = () => {
-			console.log('[Circle #sketch.setup] width:', width)
-			pp.createCanvas(width, width)
+			console.log(`[Circle #sketch.setup] ${this.width} x ${this.height}`)
+			pp.createCanvas(this.width, this.height)
 		}
 
 		pp.draw = () => {
 			pp.clear()
-			pp.ellipse(width / 2, width / 2, this.radius, this.radius)
+			pp.ellipse(this.width / 2, this.height / 2, this.radius, this.radius)
 		}
+
+		pp.mousePressed = () => {}
 	}
 }
 

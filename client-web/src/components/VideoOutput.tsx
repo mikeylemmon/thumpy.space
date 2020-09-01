@@ -15,31 +15,35 @@ type OwnProps = {
 const VideoOutput: React.FC<OwnProps> = ({ instId }) => {
 	const ref = useRef<HTMLDivElement>(null)
 	const inst = useSelector((state: StateLocal) => apiInstruments.selectById(state, instId))
+	const msg = useRef<string>(`Loading ${instId}`)
 	useEffect(() => {
 		if (!inst) {
-			console.warn('[VideoOutput #useEffect] No instrument found for id', instId)
+			msg.current = `No instrument found for id ${instId}`
 			return
 		}
-		console.log('[VideoOutput #useEffect]', inst)
 		const engInst = engine.instrumentById(inst.id) as Circle
 		if (!engInst) {
-			console.warn('[VideoOutput #useEffect] No engine instrument for', instId)
+			msg.current = `No engine instrument for ${instId}`
+			console.warn(`[VideoOutput #useEffect] ${msg.current}`)
 			return
 		}
 		if (!ref.current) {
-			console.warn('[VideoOutput #useEffect] No ref for', instId)
+			msg.current = `Internal component error for ${instId}`
+			console.warn(`[VideoOutput #useEffect] No ref for ${instId}`)
 			return
 		}
 		const cur = ref.current as HTMLDivElement
 		if (cur.childNodes[0]) {
-			cur.removeChild(cur.childNodes[0])
+			cur.removeChild(cur.childNodes[0]) // remove previous sketch
 		}
-		const canvas = new window.p5(engInst.sketch, cur)
+		const { clientWidth, clientHeight } = cur
+		engInst.setSize(clientWidth, clientHeight)
+		const sketch = new window.p5(engInst.sketch, cur)
 		return () => {
-			canvas.remove()
+			sketch.remove()
 			console.log('[VideoOutput #useEffect.return]')
 		}
-	}, [inst, instId]) // Only re-run the effect if instrument changes
+	}, [inst, instId]) // Only re-run the effect if instrument or size changes
 	return (
 		<div
 			ref={ref}
@@ -48,9 +52,10 @@ const VideoOutput: React.FC<OwnProps> = ({ instId }) => {
 				flex: 1,
 				alignItems: 'center',
 				justifyContent: 'center',
+				color: 'white',
 			}}
 		>
-			hello
+			{msg.current}
 		</div>
 	)
 }
