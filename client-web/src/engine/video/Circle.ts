@@ -19,10 +19,12 @@ export default class Circle extends EngineInstrument {
 	}
 
 	static StateDefault(): StateInstrument {
+		const idStr = circleId > 0 ? ` ${circleId + 1}` : ''
 		return {
 			id: `${Circle.TypeId}-${circleId}`,
-			name: 'Circle',
+			name: `Circle${idStr}`,
 			typeId: Circle.TypeId,
+			subengine: Circle.Subengine,
 			triggers: Circle.StateInputs(),
 			fields: [],
 		}

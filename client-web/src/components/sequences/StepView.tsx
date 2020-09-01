@@ -47,6 +47,7 @@ const StepView: React.FC<OwnProps> = ({ isCurrentStep, seqId, step, stepId }) =>
 			flex: 1,
 			display: 'flex',
 			backgroundColor: colA,
+			cursor: 'pointer',
 		}
 		if (isOn) {
 			const satI = isOn ? 30 : 0

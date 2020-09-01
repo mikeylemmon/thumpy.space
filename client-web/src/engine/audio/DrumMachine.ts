@@ -18,10 +18,12 @@ export default class DrumMachine extends EngineInstrument {
 	}
 
 	static StateDefault(): StateInstrument {
+		const idStr = drumMachineId > 0 ? ` ${drumMachineId + 1}` : ''
 		return {
 			id: `${DrumMachine.TypeId}-${drumMachineId}`,
-			name: 'Drum Machine',
+			name: `Drum Machine${idStr}`,
 			typeId: DrumMachine.TypeId,
+			subengine: DrumMachine.Subengine,
 			triggers: DrumMachine.StateInputs(),
 			fields: [],
 		}

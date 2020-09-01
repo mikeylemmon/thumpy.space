@@ -18,10 +18,12 @@ export default class Casio extends EngineInstrument {
 	}
 
 	static StateDefault(): StateInstrument {
+		const idStr = casioId > 0 ? ` ${casioId + 1}` : ''
 		return {
 			id: `${Casio.TypeId}-${casioId}`,
-			name: 'Casio',
+			name: `Casio${idStr}`,
 			typeId: Casio.TypeId,
+			subengine: Casio.Subengine,
 			triggers: Casio.StateInputs(),
 			fields: [],
 		}
