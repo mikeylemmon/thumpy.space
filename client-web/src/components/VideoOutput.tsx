@@ -46,7 +46,8 @@ const VideoOutput: React.FC<OwnProps> = ({ instId }) => {
 			style={{
 				display: 'flex',
 				flex: 1,
-				backgroundColor: 'green',
+				alignItems: 'center',
+				justifyContent: 'center',
 			}}
 		>
 			hello

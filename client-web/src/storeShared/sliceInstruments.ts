@@ -23,6 +23,7 @@ export type StateInstrument = {
 	id: string
 	name: string
 	typeId: string
+	subengine: string
 	triggers: StateInstrumentInput[]
 	fields: StateInstrumentField[]
 }

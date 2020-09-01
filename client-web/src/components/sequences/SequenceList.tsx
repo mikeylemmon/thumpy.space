@@ -8,7 +8,6 @@ import apiThisClient from 'storeLocal/apiThisClient'
 import SequenceView from './SequenceView'
 
 import Circle from 'engine/video/Circle'
-import VideoOutput from 'components/VideoOutput'
 
 const numSteps = 16
 
@@ -40,7 +39,7 @@ const SequenceList: React.FC = () => {
 		dispatch(
 			apiSequences.addOne({
 				id: 'seq-1',
-				name: 'Sequence 1',
+				name: 'Casio',
 				steps: emptySteps(),
 				outputs: [
 					{
@@ -58,7 +57,7 @@ const SequenceList: React.FC = () => {
 		dispatch(
 			apiSequences.addOne({
 				id: 'seq-2',
-				name: 'Sequence 2',
+				name: 'Kick',
 				steps: emptySteps(),
 				outputs: [
 					{
@@ -71,7 +70,6 @@ const SequenceList: React.FC = () => {
 		)
 	})
 
-	// const seqViews = sequences.map(seq => <SequenceView key={seq.id} sequence={seq} />)
 	const seqViews: React.ReactNode[] = []
 	for (let ii = 0; ii < sequences.length; ii++) {
 		const seq = sequences[ii]
@@ -80,7 +78,6 @@ const SequenceList: React.FC = () => {
 	return (
 		<div style={{ display: 'flex', flex: 1, flexDirection: 'row' }}>
 			<div style={{ display: 'flex', flex: 1, flexDirection: 'column' }}>{seqViews}</div>
-			<VideoOutput instId={circle.id} />
 		</div>
 	)
 }

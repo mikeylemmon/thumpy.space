@@ -19,10 +19,12 @@ export default class Circle extends EngineInstrument {
 	}
 
 	static StateDefault(): StateInstrument {
+		const idStr = circleId > 0 ? ` ${circleId + 1}` : ''
 		return {
 			id: `${Circle.TypeId}-${circleId}`,
-			name: 'Circle',
+			name: `Circle${idStr}`,
 			typeId: Circle.TypeId,
+			subengine: Circle.Subengine,
 			triggers: Circle.StateInputs(),
 			fields: [],
 		}
@@ -53,15 +55,15 @@ export default class Circle extends EngineInstrument {
 	}
 
 	sketch = (pp: p5) => {
-		// arrow operator so "this" works
+		const width = 500
 		pp.setup = () => {
-			console.log('[Circle #sketch.setup]')
-			pp.createCanvas(200, 200)
+			console.log('[Circle #sketch.setup] width:', width)
+			pp.createCanvas(width, width)
 		}
 
 		pp.draw = () => {
-			pp.background(200, 80, 20)
-			pp.ellipse(100, 100, this.radius, this.radius)
+			pp.clear()
+			pp.ellipse(width / 2, width / 2, this.radius, this.radius)
 		}
 	}
 }
