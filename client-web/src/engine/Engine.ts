@@ -56,7 +56,14 @@ export class Engine {
 
 	updatePaused(paused: boolean) {
 		console.log('[Engine #updatePaused]', paused ? 'stop' : 'start')
-		paused ? Transport.stop() : Transport.start()
+		if (paused) {
+			Transport.stop()
+			for (const seqId in this.sequencers) {
+				this.sequencers[seqId].stop()
+			}
+		} else {
+			Transport.start()
+		}
 	}
 
 	updateInstrument(inst: StateInstrument) {

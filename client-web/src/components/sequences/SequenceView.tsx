@@ -1,16 +1,19 @@
 import React from 'react'
+import { useSelector } from 'react-redux'
 import { StateSequence } from 'storeLocal/apiSequences'
+import apiClock from 'storeLocal/apiClock'
 import StepView from './StepView'
 
 type OwnProps = { seq: StateSequence; posId: number }
 
 const SequenceView: React.FC<OwnProps> = ({ seq, posId }) => {
+	const paused = useSelector(apiClock.paused.select)
 	const steps: React.ReactNode[] = []
 	for (let ii = 0; ii < seq.steps.length; ii++) {
 		const step = seq.steps[ii]
 		steps.push(
 			<StepView
-				isCurrentStep={seq.currentStep === ii}
+				isCurrentStep={!paused && seq.currentStep === ii}
 				seqId={seq.id}
 				step={step}
 				stepId={ii}

@@ -47,6 +47,15 @@ export class EngineSequence {
 		// console.log('[EngineSequence #connect] Connected', ref)
 	}
 
+	stop() {
+		storeLocal.dispatch(
+			apiSequences.currentStep.set({
+				seqId: this.state.id,
+				stepId: 0,
+			}),
+		)
+	}
+
 	private tick = (time: number, tickEvt: TickEvent) => {
 		const { seq, step } = tickEvt
 		for (const trig of step.triggers) {
