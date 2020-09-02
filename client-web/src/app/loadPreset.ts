@@ -3,7 +3,7 @@ import apiInstruments from 'storeLocal/apiInstruments'
 import apiSequences, { Step } from 'storeLocal/apiSequences'
 import Haunted from 'engine/audio/Haunted'
 import Tappy from 'engine/audio/Tappy'
-import Puddleish from 'engine/video/Puddleish'
+import Puddleish, { TriggerDropsId, TriggerWeatherId } from 'engine/video/Puddleish'
 
 // const numSteps = 16
 // const emptySteps = (): Step[] => {
@@ -148,7 +148,7 @@ function loadPreset(dispatch: Dispatch<any>) {
 				},
 				{
 					instrumentId: puddleish.id,
-					inputId: Puddleish.StateInputs()[0].id,
+					inputId: TriggerDropsId,
 				},
 			],
 			currentStep: -1,
@@ -164,6 +164,10 @@ function loadPreset(dispatch: Dispatch<any>) {
 				{
 					instrumentId: tappy.id,
 					inputId: Tappy.StateInputs()[0].id,
+				},
+				{
+					instrumentId: puddleish.id,
+					inputId: TriggerWeatherId,
 				},
 			],
 			currentStep: -1,

@@ -6,13 +6,17 @@ import { Trigger } from 'storeShared/sliceSequences'
 import { EngineInstrument, SubengineType } from 'engine/EngineInstrument'
 import { registerInstrumentType } from 'engine/Engine'
 
-let puddleishId = 0
+let puddleishId = 0,
+	reflections = 5
+
+type Shape = 'circle' | 'square' | 'triangle'
+const shapes: Shape[] = ['circle', 'square', 'triangle']
 
 class SynthNote {
 	trig: Trigger
 	age: number = 0
 	rand: number = Math.random()
-	lifespan: number = Math.floor(this.rand * 90 + 30)
+	lifespan: number = Math.floor(this.rand * 50 + 30)
 	freqNorm: number // frequency normalized to 0-1
 	radius: number
 	dist: number
@@ -20,7 +24,10 @@ class SynthNote {
 	hue: number
 	sat: number
 	lgt: number
-	reflections: number = 5
+	shape: Shape = shapes[Math.floor(this.rand * shapes.length)]
+	spin: number = 0
+	spinVel: number = 0 // velocity at which the shape is spinning (in rads per frame)
+	lighten: number = 0
 
 	constructor(width: number, height: number, trig: Trigger) {
 		this.trig = trig
@@ -29,7 +36,7 @@ class SynthNote {
 		this.sat = 60
 		this.lgt = 56
 		const size = Math.min(width, height)
-		this.radius = (this.rand * size) / 20 + size / 15
+		this.radius = (this.rand * size) / 20 + size / 10
 		this.dist = (this.freqNorm * size * 0.7) / 2 - this.radius + size * 0.2
 		this.theta = Math.random() * 2 * Math.PI
 		console.log('[SynthNote #constructor]', this)
@@ -41,20 +48,56 @@ class SynthNote {
 
 	draw(pp: p5) {
 		this.age++
+		this.spin += this.spinVel
+		this.spinVel *= 0.97
+		this.lighten *= 0.8
 		const aa = this.age / this.lifespan
 		const rad = this.radius * aa + this.radius / 2
 		pp.colorMode(pp.HSL, 360, 100, 100, 1)
-		pp.stroke(this.hue, this.sat, this.lgt, 1.0 - aa)
+		const lgt = this.lgt + this.lighten
+		pp.stroke(this.hue, this.sat, lgt, 1.0 - Math.max(0, aa - 0.3))
 		pp.strokeWeight(10)
 		pp.fill(0, 0)
-		const delta = (Math.PI * 2) / this.reflections
-		for (let ii = 0; ii < this.reflections; ii++) {
-			const xx = pp.width / 2 + Math.sin(this.theta + delta * ii) * this.dist
-			const yy = pp.height / 2 + Math.cos(this.theta + delta * ii) * this.dist
-			pp.ellipse(xx, yy, rad, rad)
+		const delta = (Math.PI * 2) / reflections
+		for (let ii = 0; ii < reflections; ii++) {
+			let rot = this.theta + delta * ii
+			const xx = pp.width / 2 + Math.sin(rot) * this.dist
+			const yy = pp.height / 2 + Math.cos(rot) * this.dist
+			rot += this.spin
+			switch (this.shape) {
+				case 'circle':
+					pp.circle(xx, yy, rad)
+					break
+				case 'square':
+					// pp.square(xx, yy, rad)
+					pp.quad(
+						xx + (Math.sin(rot) * rad) / 2,
+						yy + (Math.cos(rot) * rad) / 2,
+						xx + (Math.sin(rot + Math.PI / 2) * rad) / 2,
+						yy + (Math.cos(rot + Math.PI / 2) * rad) / 2,
+						xx + (Math.sin(rot + Math.PI) * rad) / 2,
+						yy + (Math.cos(rot + Math.PI) * rad) / 2,
+						xx + (Math.sin(rot + (Math.PI * 3) / 2) * rad) / 2,
+						yy + (Math.cos(rot + (Math.PI * 3) / 2) * rad) / 2,
+					)
+					break
+				case 'triangle':
+					pp.triangle(
+						xx + (Math.sin(rot) * rad) / 2,
+						yy + (Math.cos(rot) * rad) / 2,
+						xx + (Math.sin(rot + (Math.PI * 2) / 3) * rad) / 2,
+						yy + (Math.cos(rot + (Math.PI * 2) / 3) * rad) / 2,
+						xx + (Math.sin(rot + (Math.PI * 4) / 3) * rad) / 2,
+						yy + (Math.cos(rot + (Math.PI * 4) / 3) * rad) / 2,
+					)
+					break
+			}
 		}
 	}
 }
+
+export const TriggerDropsId = 'drops'
+export const TriggerWeatherId = 'weather'
 
 // Puddleish statically implements EngineInstrumentStatic
 export default class Puddleish extends EngineInstrument {
@@ -63,7 +106,10 @@ export default class Puddleish extends EngineInstrument {
 	static TypeId: string = 'video-puddleish'
 
 	static StateInputs(): StateInstrumentInput[] {
-		return [{ id: 'trigger', name: 'Trigger' }]
+		return [
+			{ id: TriggerDropsId, name: 'Drops' },
+			{ id: TriggerWeatherId, name: 'Weather' },
+		]
 	}
 
 	static StateDefault(): StateInstrument {
@@ -80,10 +126,10 @@ export default class Puddleish extends EngineInstrument {
 
 	public subengine: SubengineType = Puddleish.Subengine
 
-	private radius: number = 80
-	private width: number = 500
-	private height: number = 500
+	private width: number = 0
+	private height: number = 0
 	private notes: SynthNote[] = []
+	private darkenBg: number = 0
 
 	constructor(initialState: Partial<StateInstrument> = Puddleish.StateDefault()) {
 		super()
@@ -94,11 +140,36 @@ export default class Puddleish extends EngineInstrument {
 		console.log('[Puddleish #dispose] Disposed')
 	}
 
-	trigger(time: Time, _inputId: string, trig: Trigger): void {
+	trigger(time: Time, inputId: string, trig: Trigger): void {
 		Draw.schedule(() => {
-			// this.radius = Math.floor(Math.random() * 15 + (trig.freq - 44) * 20)
-			// console.log('[Puddleish #trigger] trigger:', this.radius, trig.freq)
-			this.addNote(trig)
+			if (inputId === 'drops') {
+				this.addNote(trig)
+				return
+			}
+			// Weather
+			switch (trig.freq) {
+				case 45:
+					this.notes.forEach(nn => (nn.shape = shapes[Math.floor(Math.random() * shapes.length)]))
+					break
+				case 46:
+					this.notes.forEach(nn => (nn.radius -= 25))
+					// this.darkenBg -= 10
+					break
+				case 47:
+				case 48:
+					break
+				case 49:
+					reflections = Math.floor(Math.random() * 8) + 2
+					break
+				case 50:
+				case 51:
+					this.notes.forEach(nn => (nn.lighten += 10))
+					break
+				case 52:
+					const sign = Math.random() > 0.5 ? -1 : 1
+					this.notes.forEach(nn => (nn.spinVel += (sign * Math.PI) / 30))
+					break
+			}
 		}, time)
 	}
 
@@ -122,8 +193,10 @@ export default class Puddleish extends EngineInstrument {
 		}
 
 		pp.draw = () => {
-			pp.clear()
 			this.notes = this.notes.filter(nn => nn.isAlive())
+			this.darkenBg *= 0.9
+			pp.colorMode(pp.HSL, 255, 255, 255, 1)
+			pp.background(0, 0, 0x33 + this.darkenBg)
 			for (const nn of this.notes) {
 				nn.draw(pp)
 			}
