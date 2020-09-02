@@ -40,7 +40,7 @@ const SequenceView: React.FC<OwnProps> = ({ seq, posId }) => {
 	}
 
 	// Put it all together
-	const infoWidth = '150px'
+	const infoWidth = '160px'
 	const marginVert = '20px'
 	const marginHoriz = '10px'
 	const paddingInfoVert = '20px'

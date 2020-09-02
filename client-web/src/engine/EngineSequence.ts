@@ -60,18 +60,27 @@ export class EngineSequence {
 		)
 	}
 
+	warnOnce: boolean = false
 	private tick = (time: number, tickEvt: TickEvent) => {
 		const { seq, step } = tickEvt
+		let someMissing = false
 		for (const trig of step.triggers) {
 			for (const oo of seq.outputs) {
 				const output = this.outputs[seqOutputKey(oo)]
 				if (!output) {
-					console.error('[EngineSequence #tick] Unable to find instrument for output', oo)
+					if (!this.warnOnce) {
+						console.warn('[EngineSequence #tick] Unable to find instrument for output', oo)
+					}
+					someMissing = true
 					continue
 				}
 				output.trigger(time, oo.inputId, trig)
 			}
 		}
+		this.warnOnce = this.warnOnce || someMissing
+
+		// // Updating currentStep (for highlighting the step in the UI) is disabled
+		// // because it was killing peformance
 		// storeLocal.dispatch(
 		// 	apiSequences.currentStep.set({
 		// 		seqId: seq.id,

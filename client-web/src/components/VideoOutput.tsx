@@ -1,9 +1,6 @@
-// import * as p5 from 'p5'
 import React, { useEffect, useRef } from 'react'
 import { useSelector } from 'react-redux'
-// import EngineInstrument from 'engine/EngineInstrument'
-import Circle from 'engine/video/Circle'
-// import apiInstruments, { StateInstrument } from 'storeLocal/apiInstruments'
+import Puddleish from 'engine/video/Puddleish'
 import apiInstruments from 'storeLocal/apiInstruments'
 import { StateLocal } from 'storeLocal/rootReducerLocal'
 import engine from 'engine/Engine'
@@ -21,7 +18,8 @@ const VideoOutput: React.FC<OwnProps> = ({ instId }) => {
 			msg.current = `No instrument found for id ${instId}`
 			return
 		}
-		const engInst = engine.instrumentById(inst.id) as Circle
+		// Currently hardcoded to Puddleish. TODO: formalize video instrument API into an interface
+		const engInst = engine.instrumentById(inst.id) as Puddleish
 		if (!engInst) {
 			msg.current = `No engine instrument for ${instId}`
 			console.warn(`[VideoOutput #useEffect] ${msg.current}`)

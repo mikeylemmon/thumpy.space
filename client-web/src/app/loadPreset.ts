@@ -3,7 +3,7 @@ import apiInstruments from 'storeLocal/apiInstruments'
 import apiSequences, { Step } from 'storeLocal/apiSequences'
 import Haunted from 'engine/audio/Haunted'
 import Tappy from 'engine/audio/Tappy'
-import Circle from 'engine/video/Circle'
+import Puddleish from 'engine/video/Puddleish'
 
 // const numSteps = 16
 // const emptySteps = (): Step[] => {
@@ -128,11 +128,12 @@ const tappySteps = (): Step[] => [
 function loadPreset(dispatch: Dispatch<any>) {
 	const haunted = Haunted.StateDefault()
 	const tappy = Tappy.StateDefault()
-	const circle = Circle.StateDefault()
+	const puddleish = Puddleish.StateDefault()
+	puddleish.name = 'Visualizer'
 
 	dispatch(apiInstruments.addOne(haunted))
 	dispatch(apiInstruments.addOne(tappy))
-	dispatch(apiInstruments.addOne(circle))
+	dispatch(apiInstruments.addOne(puddleish))
 
 	// Add a default sequence since we're the audio player and none exists yet
 	dispatch(
@@ -146,8 +147,8 @@ function loadPreset(dispatch: Dispatch<any>) {
 					inputId: Haunted.StateInputs()[0].id,
 				},
 				{
-					instrumentId: circle.id,
-					inputId: Circle.StateInputs()[0].id,
+					instrumentId: puddleish.id,
+					inputId: Puddleish.StateInputs()[0].id,
 				},
 			],
 			currentStep: -1,
@@ -157,7 +158,7 @@ function loadPreset(dispatch: Dispatch<any>) {
 	dispatch(
 		apiSequences.addOne({
 			id: 'seq-2',
-			name: 'Kicks Loop',
+			name: 'Tappy Loop',
 			steps: tappySteps(),
 			outputs: [
 				{
