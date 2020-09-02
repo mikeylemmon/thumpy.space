@@ -14,8 +14,7 @@ const StepView: React.FC<OwnProps> = ({ isCurrentStep, seqId, step, stepId }) =>
 	const trigs: React.ReactNode[] = []
 	const rows = 8
 	for (let ii = 0; ii < rows; ii++) {
-		const isSeq1 = seqId === 'seq-1'
-		const freq = (isSeq1 ? 52 : 60) - ii * (isSeq1 ? 1 : 4)
+		const freq = 52 - ii
 		let trig: Trigger = { freq, unit: 'midi', dur: '8n' }
 		let toggle = apiSequences.trigger.on
 		let isOn = false

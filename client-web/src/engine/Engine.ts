@@ -30,6 +30,7 @@ export class Engine {
 
 	constructor() {
 		console.log('[engine #constructor] instruments:', ...Engine.InstrumentTypes())
+		Transport.bpm.value = 92
 	}
 
 	dispose() {
@@ -61,12 +62,18 @@ export class Engine {
 			for (const seqId in this.sequencers) {
 				this.sequencers[seqId].stop()
 			}
+			for (const instId in this.instruments) {
+				this.instruments[instId].stop()
+			}
 		} else {
 			// FIXME: This causes weirdness (mutliple play-points) when a new window is
 			// opened while the transport is already playing in another window. A
 			// current workaround is implemented in InstrumentView by dispatching a
 			// pause action when opening a new window
 			Transport.start()
+			for (const instId in this.instruments) {
+				this.instruments[instId].start()
+			}
 		}
 	}
 

@@ -23,7 +23,11 @@ export class EngineSequence {
 	private state: StateSequence
 
 	constructor(state: StateSequence) {
-		this.sequencer = new Sequence(this.tick, tickEvents(state), '8n').start(0)
+		this.sequencer = new Sequence(
+			this.tick,
+			tickEvents(state),
+			state.id === 'seq-1' ? '8n' : '16n', // TODO: parameterize in StateSequence
+		).start(0)
 		this.outputs = {}
 		this.state = state
 	}
@@ -68,11 +72,11 @@ export class EngineSequence {
 				output.trigger(time, oo.inputId, trig)
 			}
 		}
-		storeLocal.dispatch(
-			apiSequences.currentStep.set({
-				seqId: seq.id,
-				stepId: step.id,
-			}),
-		)
+		// storeLocal.dispatch(
+		// 	apiSequences.currentStep.set({
+		// 		seqId: seq.id,
+		// 		stepId: step.id,
+		// 	}),
+		// )
 	}
 }

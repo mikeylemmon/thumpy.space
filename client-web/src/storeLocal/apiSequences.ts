@@ -37,16 +37,18 @@ export type SeqOutWithInst = StateSequenceOutput & {
 }
 
 const selectById = memoize((seqId: string) => (state: StateLocal) => selectors.selectById(state, seqId))
-const selectOutputs = (seqId: string) =>
-	createSelector<StateLocal, StateSequence, StateInstrumentSlice, SeqOutWithInst[]>(
-		[selectById(seqId), apiInstruments.slice.select],
-		(seq: StateSequence, instrumentsSlice: StateInstrumentSlice) => {
-			console.log('[apiSequences #selectOutputs]', seq)
-			if (!seq) {
-				console.error(`[apiSequences #selectOutputs] No sequence found for id ${seqId}`)
-				return []
-			}
-			return seq.outputs.map(
+const selectByIdOutputs = memoize((seqId: string) =>
+	createSelector<StateLocal, StateSequence, StateSequenceOutput[]>(
+		[selectById(seqId)],
+		(seq: StateSequence) => seq.outputs,
+	),
+)
+
+const selectOutputs = (seqId: string) => {
+	return createSelector<StateLocal, StateSequenceOutput[], StateInstrumentSlice, SeqOutWithInst[]>(
+		[selectByIdOutputs(seqId), apiInstruments.slice.select],
+		(outs: StateSequenceOutput[], instrumentsSlice: StateInstrumentSlice) => {
+			return outs.map(
 				(seqOut: StateSequenceOutput): SeqOutWithInst => ({
 					...seqOut,
 					instrument: apiInstruments.slice.selectors.selectById(
@@ -57,7 +59,8 @@ const selectOutputs = (seqId: string) =>
 			)
 		},
 	)
-// ) as (seqId: string) => Selector<StateLocal, StateSequenceOutput[]>
+}
+const mSelectOutputs = memoize(selectOutputs) as typeof selectOutputs
 
 export default {
 	selectAll: selectors.selectAll,
@@ -72,7 +75,7 @@ export default {
 	},
 	id: (seqId: string) => ({
 		outputs: {
-			selectAll: selectOutputs(seqId),
+			selectAll: mSelectOutputs(seqId),
 		},
 	}),
 }

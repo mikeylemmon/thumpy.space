@@ -22,22 +22,25 @@ const InstrumentView: React.FC<OwnProps> = ({ inst, posId }) => {
 		case inst.subengine === 'video':
 			// Video instruments include a link to open the video output in a new tab/window
 			extra = (
-				<Link
-					to={`/video/${inst.id}`}
-					target='_blank'
-					style={{ color: 'white', textDecoration: 'underline' }}
-					title={'Use shift+click to open the video output in a new window'}
-					onClick={() => {
-						if (!paused) {
-							// Work around a bug that causes weirdness (multiple play-points) when a
-							// new window is opened while the transport is playing. See related FIXME
-							// in Engine.ts#updatePaused
-							togglePaused()
-						}
-					}}
-				>
-					shift+click to open
-				</Link>
+				<>
+					{': '}
+					<Link
+						to={`/video/${inst.id}`}
+						target='_blank'
+						style={{ color: 'white', textDecoration: 'underline' }}
+						title={'Use shift+click to open the video output in a new window'}
+						onClick={() => {
+							if (!paused) {
+								// Work around a bug that causes weirdness (multiple play-points) when a
+								// new window is opened while the transport is playing. See related FIXME
+								// in Engine.ts#updatePaused
+								togglePaused()
+							}
+						}}
+					>
+						shift+click to open
+					</Link>
+				</>
 			)
 			break
 		case !isAudioPlayer && inst.subengine === 'audio':
@@ -65,8 +68,8 @@ const InstrumentView: React.FC<OwnProps> = ({ inst, posId }) => {
 			}}
 		>
 			<div>
-				<b>{inst.name}</b> ({inst.subengine}
-				{extra ? [': ', extra] : null})
+				<b key='name'>{inst.name}</b> ({inst.subengine}
+				{extra ? extra : null})
 				{extra2
 					? [<div style={{ marginTop: '5pt', fontSize: '10pt', color: '#EEE' }}>{extra2}</div>]
 					: null}
