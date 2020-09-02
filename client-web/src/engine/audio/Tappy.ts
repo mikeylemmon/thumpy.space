@@ -72,16 +72,16 @@ export default class Tappy extends EngineInstrument {
 		}).connect(filter.Q)
 		this.synth = new Sampler({
 			urls: {
-				45: 'Bass-Drum--BD--E808_BD-long--09.wav',
-				46: 'Bass-Drum--BD--E808_BD-long--03.wav',
-				47: 'Bass-Drum--BD--E808_BD-short--09.wav',
-				48: 'Bass-Drum--BD--E808_BD-long--08.wav',
-				49: 'Bass-Drum--BD--E808_BD-long--10.wav',
-				40: 'Bass-Drum--BD--E808_BD-long--05.wav',
-				51: 'Bass-Drum--BD--E808_BD-short--11.wav',
-				52: 'Bass-Drum--BD--E808_BD-short--12.wav',
+				45: 'Bass-Drum--BD--E808_BD-long--09.mp3',
+				46: 'Bass-Drum--BD--E808_BD-long--03.mp3',
+				47: 'Bass-Drum--BD--E808_BD-short--09.mp3',
+				48: 'Bass-Drum--BD--E808_BD-long--08.mp3',
+				49: 'Bass-Drum--BD--E808_BD-long--10.mp3',
+				40: 'Bass-Drum--BD--E808_BD-long--05.mp3',
+				51: 'Bass-Drum--BD--E808_BD-short--11.mp3',
+				52: 'Bass-Drum--BD--E808_BD-short--12.mp3',
 			},
-			baseUrl: '/samples/808/',
+			baseUrl: '/samples/tappy/',
 			onload: () => {
 				this.loaded = true
 			},
