@@ -1,6 +1,6 @@
 import React from 'react'
 import { useSelector } from 'react-redux'
-import { StateSequence } from 'storeLocal/apiSequences'
+import apiSequences, { StateSequence } from 'storeLocal/apiSequences'
 import apiClock from 'storeLocal/apiClock'
 import StepView from './StepView'
 
@@ -21,8 +21,27 @@ const SequenceView: React.FC<OwnProps> = ({ seq, posId }) => {
 			/>,
 		)
 	}
+	const selOuts = apiSequences.id(seq.id).outputs.selectAll
+	const outputs = useSelector(selOuts)
+	const outList: React.ReactNode[] = []
+	for (let ii = 0; ii < outputs.length; ii++) {
+		const seqOut = outputs[ii]
+		const seqOutInst = seqOut.instrument
+		const outName = seqOutInst
+			? `${seqOutInst.name} (${seqOut.inputId})`
+			: `${seqOut.instrumentId} (missing)`
+		outList.push(<li key={`${seq.id}-out-${ii}`}>{outName}</li>)
+	}
 	const marginVert = '20px'
 	const marginHoriz = '10px'
+	const paddingInfoVert = '20px'
+	const paddingInfoHoriz = '20px'
+	const outView =
+		outputs.length > 0 ? (
+			<ul style={{ color: '#DDD', margin: '10px 0', padding: `0 ${paddingInfoHoriz}` }}>{outList}</ul>
+		) : (
+			'none'
+		)
 	return (
 		<div
 			style={{
@@ -36,17 +55,18 @@ const SequenceView: React.FC<OwnProps> = ({ seq, posId }) => {
 				backgroundColor: '#222',
 			}}
 		>
-			<h4
+			<div
 				style={{
 					display: 'flex',
-					padding: '1rem',
-					color: 'white',
-					fontWeight: 'bold',
-					width: '6rem',
+					flexDirection: 'column',
+					padding: `${paddingInfoVert} ${paddingInfoHoriz}`,
+					width: '160px',
 				}}
 			>
-				{seq.name}
-			</h4>
+				<h3 style={{ color: 'white', fontWeight: 'bold' }}>{seq.name}</h3>
+				<span style={{ color: '#CCC', fontSize: '9pt' }}>OUTPUTS:</span>
+				{outView}
+			</div>
 			<div style={{ display: 'flex', flexDirection: 'row', flex: 1 }}>{steps}</div>
 		</div>
 	)

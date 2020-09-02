@@ -39,7 +39,7 @@ const SequenceList: React.FC = () => {
 		dispatch(
 			apiSequences.addOne({
 				id: 'seq-1',
-				name: 'Casio',
+				name: 'Keys Loop',
 				steps: emptySteps(),
 				outputs: [
 					{
@@ -57,7 +57,7 @@ const SequenceList: React.FC = () => {
 		dispatch(
 			apiSequences.addOne({
 				id: 'seq-2',
-				name: 'Kick',
+				name: 'Kick Loop',
 				steps: emptySteps(),
 				outputs: [
 					{

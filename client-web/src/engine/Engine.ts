@@ -62,6 +62,10 @@ export class Engine {
 				this.sequencers[seqId].stop()
 			}
 		} else {
+			// FIXME: This causes weirdness (mutliple play-points) when a new window is
+			// opened while the transport is already playing in another window. A
+			// current workaround is implemented in InstrumentView by dispatching a
+			// pause action when opening a new window
 			Transport.start()
 		}
 	}
