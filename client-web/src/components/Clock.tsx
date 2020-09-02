@@ -10,7 +10,7 @@ const Clock: React.FC = () => {
 		dispatch(apiClock.paused.toggle())
 	}
 	const paused = useSelector(apiClock.paused.select)
-	const txt = paused ? 'PLAY' : 'PAUSE'
+	const txt = paused ? 'PLAY' : 'STOP'
 	return (
 		<div
 			style={{

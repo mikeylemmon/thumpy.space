@@ -20,12 +20,12 @@ const App: React.FC<OwnProps> = ({
 		params: { subengine, instrumentId },
 	},
 }) => {
-	console.log('[App]', { subengine, instrumentId })
-	const children = [<Clock />]
+	// console.log('[App]', { subengine, instrumentId })
+	const children = [<Clock key='clock' />]
 	if (subengine === 'video' && instrumentId) {
-		children.unshift(<VideoOutput instId={instrumentId} />)
+		children.unshift(<VideoOutput key='video-output' instId={instrumentId} />)
 	} else {
-		children.unshift(<SequenceList />, <InstrumentList />)
+		children.unshift(<SequenceList key='sequences' />, <InstrumentList key='instruments' />)
 	}
 	return (
 		<div

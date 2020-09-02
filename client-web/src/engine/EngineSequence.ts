@@ -23,7 +23,11 @@ export class EngineSequence {
 	private state: StateSequence
 
 	constructor(state: StateSequence) {
-		this.sequencer = new Sequence(this.tick, tickEvents(state), '8n').start(0)
+		this.sequencer = new Sequence(
+			this.tick,
+			tickEvents(state),
+			state.id === 'seq-1' ? '8n' : '16n', // TODO: parameterize in StateSequence
+		).start(0)
 		this.outputs = {}
 		this.state = state
 	}
@@ -47,23 +51,41 @@ export class EngineSequence {
 		// console.log('[EngineSequence #connect] Connected', ref)
 	}
 
+	stop() {
+		storeLocal.dispatch(
+			apiSequences.currentStep.set({
+				seqId: this.state.id,
+				stepId: 0,
+			}),
+		)
+	}
+
+	warnOnce: boolean = false
 	private tick = (time: number, tickEvt: TickEvent) => {
 		const { seq, step } = tickEvt
+		let someMissing = false
 		for (const trig of step.triggers) {
 			for (const oo of seq.outputs) {
 				const output = this.outputs[seqOutputKey(oo)]
 				if (!output) {
-					console.error('[EngineSequence #tick] Unable to find instrument for output', oo)
+					if (!this.warnOnce) {
+						console.warn('[EngineSequence #tick] Unable to find instrument for output', oo)
+					}
+					someMissing = true
 					continue
 				}
 				output.trigger(time, oo.inputId, trig)
 			}
 		}
-		storeLocal.dispatch(
-			apiSequences.currentStep.set({
-				seqId: seq.id,
-				stepId: step.id,
-			}),
-		)
+		this.warnOnce = this.warnOnce || someMissing
+
+		// // Updating currentStep (for highlighting the step in the UI) is disabled
+		// // because it was killing peformance
+		// storeLocal.dispatch(
+		// 	apiSequences.currentStep.set({
+		// 		seqId: seq.id,
+		// 		stepId: step.id,
+		// 	}),
+		// )
 	}
 }
