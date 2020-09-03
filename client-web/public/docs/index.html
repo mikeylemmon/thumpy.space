@@ -1,0 +1,787 @@
+<!doctype html>
+<html class="default no-js">
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<title>thump-web-client</title>
+	<meta name="description" content="Documentation for thump-web-client">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="stylesheet" href="assets/css/main.css">
+</head>
+<body>
+<header>
+	<div class="tsd-page-toolbar">
+		<div class="container">
+			<div class="table-wrap">
+				<div class="table-cell" id="tsd-search" data-index="assets/js/search.json" data-base=".">
+					<div class="field">
+						<label for="tsd-search-field" class="tsd-widget search no-caption">Search</label>
+						<input id="tsd-search-field" type="text" />
+					</div>
+					<ul class="results">
+						<li class="state loading">Preparing search index...</li>
+						<li class="state failure">The search index is not available</li>
+					</ul>
+					<a href="index.html" class="title">thump-web-client</a>
+				</div>
+				<div class="table-cell" id="tsd-widgets">
+					<div id="tsd-filter">
+						<a href="#" class="tsd-widget options no-caption" data-toggle="options">Options</a>
+						<div class="tsd-filter-group">
+							<div class="tsd-select" id="tsd-filter-visibility">
+								<span class="tsd-select-label">All</span>
+								<ul class="tsd-select-list">
+									<li data-value="public">Public</li>
+									<li data-value="protected">Public/Protected</li>
+									<li data-value="private" class="selected">All</li>
+								</ul>
+							</div>
+							<input type="checkbox" id="tsd-filter-inherited" checked />
+							<label class="tsd-widget" for="tsd-filter-inherited">Inherited</label>
+							<input type="checkbox" id="tsd-filter-externals" checked />
+							<label class="tsd-widget" for="tsd-filter-externals">Externals</label>
+							<input type="checkbox" id="tsd-filter-only-exported" />
+							<label class="tsd-widget" for="tsd-filter-only-exported">Only exported</label>
+						</div>
+					</div>
+					<a href="#" class="tsd-widget menu no-caption" data-toggle="menu">Menu</a>
+				</div>
+			</div>
+		</div>
+	</div>
+	<div class="tsd-page-title">
+		<div class="container">
+			<ul class="tsd-breadcrumb">
+				<li>
+					<a href="globals.html">Globals</a>
+				</li>
+			</ul>
+			<h1>thump-web-client</h1>
+		</div>
+	</div>
+</header>
+<div class="container container-main">
+	<div class="row">
+		<div class="col-8 col-content">
+			<div class="tsd-panel tsd-typography">
+				<a href="#thump--an-in-browser-davw" id="thump--an-in-browser-davw" style="color: inherit; text-decoration: none;">
+					<h1>Thump | An in-browser D[A/V]W</h1>
+				</a>
+				<p>Mikey Lemmon | Minor Assignment 1 | CMPO 385</p>
+				<a href="#instructions" id="instructions" style="color: inherit; text-decoration: none;">
+					<h2>Instructions</h2>
+				</a>
+				<p>To run the app, target your favorite static server at the &quot;minor-assignment-1&quot; directory. E.g. using the <a href="https://www.npmjs.com/package/serve">serve</a> command:</p>
+				<pre><code>$ serve -s minor-assignment-<span class="hljs-number">1</span>
+┌───────────────────────────────────────────────────┐
+│                                                   │
+│   Serving!                                        │
+│                                                   │
+│   - <span class="hljs-keyword">Local</span>:            http:<span class="hljs-comment">//localhost:5000       │</span>
+│   - <span class="hljs-keyword">On</span> Your Network:  http:<span class="hljs-comment">//192.168.0.174:5000   │</span>
+│                                                   │
+│   Copied <span class="hljs-keyword">local</span> address <span class="hljs-keyword">to</span> clipboard!              │
+│                                                   │
+└───────────────────────────────────────────────────┘</code></pre>
+				<blockquote>
+					<p>NOTE: The &quot;Docs&quot; link at the bottom-right of the app may or may not work depending on the configuration of your static server. If the link is opening a blank page, can point your static server to the docs folder directly to be able to view the docs (e.g. <code>$ serve -s minor-assignment-1/docs</code>)</p>
+				</blockquote>
+				<p>Open the root address for the server (<a href="http://localhost:5000">http://localhost:5000</a> in the example above) and you should see some sequencer grids and a &quot;PLAY&quot; button at the bottom of the screen. Press &quot;PLAY&quot; and you should hear the sequencer patterns playing.</p>
+				<p>In the bottom right of the screen, just above the &quot;PLAY&quot; bar, you should see a &quot;Visualizer&quot; block in the &quot;Instruments&quot; section — hold <Shift> and click the link that says &quot;shift+click to open&quot; to open a new page for the video generator that is connected to the sequencers. Click &quot;PLAY&quot; in the new window and you should see some kaleidoscopic shapes start matching the music. Alter the sequencer patterns in the first tab and you should be able to see and hear the results of your changes.</p>
+				<blockquote>
+					<p>NOTE: Due to some specifics of browser audio permissions and the way Tone.js works, for the video view to activate you have to press &quot;PLAY&quot; at least once in the video view (rather than the sequencer view). After that, PLAY/STOP can be triggered from any open tab/window.</p>
+				</blockquote>
+				<a href="#core-technologies" id="core-technologies" style="color: inherit; text-decoration: none;">
+					<h2>Core technologies</h2>
+				</a>
+				<ul>
+					<li><a href="https://www.typescriptlang.org/">TypeScript</a>: TypeScript is a strongly-typed superset of JavaScript, and is used in the app to make the assumptions of the app&#39;s internal APIs more explicit and declarative. VS Code has support for TypeScript builtin, so autocompletion tips include type annotations automatically.<ul>
+							<li>Still TODO: The app&#39;s source code is not yet taking advantage of TypeScript/VSCode&#39;s support for the JSDoc comment format, converting to JSDoc style for comments would improve IDE integration further (code commenting in general could definitely be improved).</li>
+						</ul>
+					</li>
+					<li><a href="https://reactjs.org/">React</a>: A popular JavaScript UI framework<ul>
+							<li><a href="https://create-react-app.dev/">create-react-app</a>: This project was initialized with create-react-app to provide the base developer tooling environment (development build server, production builds, etc)</li>
+						</ul>
+					</li>
+					<li><a href="https://redux.js.org/">Redux</a>: A popular &quot;state container&quot;. Redux is used in the app to manage the app state, including playing/stopped, the sequencers and their patters, the instruments (both audio and video), and the connections between the two. <a href="https://redux-toolkit.js.org/">Redux Toolkit</a> is used to reduce boilerplate code and implement common redux patterns.<ul>
+							<li><a href="https://redux-observable.js.org/">redux-observable</a> and <a href="https://rxjs-dev.firebaseapp.com/">rxjs</a> (<a href="http://reactivex.io/">ReactiveX</a>): redux-observable is used in the app to construct reactive pipelines (&quot;epics&quot;) that respond to changes in state (e.g. sending start/stop commands to Tone via the apps &quot;engine&quot; API)</li>
+							<li><a href="https://developer.mozilla.org/en-US/docs/Web/API/SharedWorker">SharedWorker</a>: App state is divided into &quot;shared&quot; and &quot;local&quot; state, with local being data specific to the current tab, and &quot;shared&quot; being synced across all open tabs/windows. A SharedWorker manages the shared state, relaying actions to all open tabs when changes occur.<ul>
+									<li><a href="https://react-redux.js.org/">react-redux</a>: React bindings for Redux, enabling React components to easily get state from the Redux store.</li>
+								</ul>
+							</li>
+						</ul>
+					</li>
+					<li><a href="https://tonejs.github.io/">Tone.js</a>: Tone.js is used to enable high-precision event triggering based on sequencer patterns, and is also used to implement the audio instruments.<ul>
+							<li><a href="https://p5js.org/">p5.js</a>: p5 backs the video instrument engine.</li>
+						</ul>
+					</li>
+				</ul>
+				<a href="#a-rough-guide-to-the-source-code" id="a-rough-guide-to-the-source-code" style="color: inherit; text-decoration: none;">
+					<h2>A rough guide to the source code</h2>
+				</a>
+				<ul>
+					<li><strong>README.md</strong> — a link to this file</li>
+					<li><strong>minor-assignment-1/</strong> — a &quot;production build&quot; of the app</li>
+					<li><strong>client-web/</strong> — source code for the app, initialized with create-react-app<ul>
+							<li><strong>README.md</strong> — this file</li>
+							<li><strong>public/</strong> — static files that get packaged into the root directory of the build<ul>
+									<li><strong>docs/</strong> — auto-generated documentation for the app&#39;s code. Not super-useful currently (partly due to a dearth of JSDoc code comments), VS Code&#39;s built-in TypeScript support seems to be a better way to get the same level of information.</li>
+									<li><strong>samples/tappy/</strong> — audio files for the &quot;Tappy&quot; instrument</li>
+								</ul>
+							</li>
+							<li><strong>src/</strong> — the meat of the app<ul>
+									<li><strong>index.tsx</strong> — the entry-point for the application, binds the redux store and path routing to the app</li>
+									<li><strong>app/</strong><ul>
+											<li><strong>App.tsx</strong> — the app&#39;s root UI component, renders either the sequencers or the video output depending on the URL path</li>
+											<li><strong>loadPresets.ts</strong> — exports a function that loads a preset scene into the app</li>
+										</ul>
+									</li>
+									<li><strong>components/</strong> — the React components that comprise the UI</li>
+									<li><strong>engine/</strong> — The app&#39;s &quot;engine&quot; instantiates the app&#39;s state, managing the transport, sequencers, and instruments. The engine is &quot;local&quot; to the current tab/window<ul>
+											<li><strong>Engine.ts</strong> — defines and exports the root-level engine, which provides an API that state observers (see &quot;stateLocal/&quot; below) use to keep the engine up-to-date with state changes. The engine will skip instantiation of audio instruments if it is informed that this client is not an audio player, ensuring that only one tab/window outputs audio</li>
+											<li><strong>EngineInstrument.ts</strong> — defines the engine&#39;s instrument API</li>
+											<li><strong>EngineSequence.ts</strong> — defines and implements the engine&#39;s sequence API (unlike instruments, there is currently only one type of sequence). An EngineSequence manages a Tone.Sequence, updating the sequence events when state changes (e.g. when a user toggles a trigger in the sequence pattern)</li>
+											<li><strong>audio/</strong> — implementations of EngineInstrument that convert triggers into sound. Currently only two instruments are implemented: &quot;Haunted&quot;, a fat synth that&#39;s maybe a bit too Stranger Things; and &quot;Tappy&quot;, a weird sample-based drum machine</li>
+											<li><strong>video/</strong> — implementations of EngineInstrument that define a p5 sketch and convert triggers into visuals. Currently there is only one video instrument, &quot;Puddleish&quot;<ul>
+													<li>Still TODO: formalize the p5 sketch API into an EngineInstrumentVideo interface so that the VideoOutput component doesn&#39;t need to hardcode a typecast to Puddlish</li>
+												</ul>
+											</li>
+											<li><strong>old-instruments/</strong> — instruments that were created during testing but are not currently being used</li>
+										</ul>
+									</li>
+									<li><strong>storeLocal/</strong> — the Redux state store that backs the app<ul>
+											<li><strong>storeLocal.ts</strong> — instantiates and exports the local store. Internally, it connects to the &quot;storeWorker&quot; (a SharedWorker that manages the shared state store) and proxies actions to the worker</li>
+											<li><strong>rootReducerLocal.ts</strong> — defines the top-level reducer and state types</li>
+											<li><strong>rootEpicLocal.ts</strong> — defines rxjs observable pipelines that watch state changes and update the <strong>engine</strong> when important changes occur (e.g. a sequence pattern was updated, play/pause, etc)</li>
+											<li><strong>api[Type].ts</strong> — &quot;api&quot; files provide high-level APIs for accessing and updating state. Memoized <a href="https://github.com/reduxjs/reselect">&quot;selectors&quot;</a> are defined in api files to provide UI components and other state consumers performant access to derived state (selectors have a tiered approach to caching data that enables them to avoid recomputing derived data if the source state hasn&#39;t changed)</li>
+											<li><strong>slice[Type].ts</strong> — &quot;slice&quot; files define reducers and actions that manage a subset (&quot;slice&quot;) of app state</li>
+										</ul>
+									</li>
+									<li><strong>storeShared/</strong> — a root reducer and slices for the shared state, used by both storeLocal and storeWorker<ul>
+											<li><strong>apiWorker.ts</strong> — defines the storeWorker API, used by storeLocal and storeWorker for sending and receiving messages</li>
+											<li><strong>reducerShared.ts</strong> — reducer and state types for the shared state</li>
+											<li><strong>slice[Type].ts</strong> — reducers and actions that manage a subset (&quot;slice&quot;) of shared state</li>
+										</ul>
+									</li>
+									<li><strong>storeWorker/</strong> — the shared state worker, runs as a SharedWorker<ul>
+											<li><strong>worker.ts</strong> — entry-point for the worker, instantiates the shared store and defines connection and message handlers for communicating with clients</li>
+											<li><strong>rootEpicWorker.ts</strong> — defines an rxjs observable pipeline that fans-out action events to all the clients</li>
+										</ul>
+									</li>
+								</ul>
+							</li>
+						</ul>
+					</li>
+				</ul>
+				<a href="#developer-tooling" id="developer-tooling" style="color: inherit; text-decoration: none;">
+					<h2>Developer tooling</h2>
+				</a>
+				<p>This project was bootstrapped with <a href="https://github.com/facebook/create-react-app">Create React App</a>.</p>
+				<p>In the project directory, you can run:</p>
+				<a href="#yarn-start" id="yarn-start" style="color: inherit; text-decoration: none;">
+					<h3><code>yarn start</code></h3>
+				</a>
+				<p>Runs the app in the development mode.<br />
+				Open <a href="http://localhost:3000">http://localhost:3000</a> to view it in the browser.</p>
+				<p>The page will reload if you make edits.<br />
+				You will also see any lint errors in the console.</p>
+				<a href="#yarn-build" id="yarn-build" style="color: inherit; text-decoration: none;">
+					<h3><code>yarn build</code></h3>
+				</a>
+				<p>Builds the app for production to the <code>build</code> folder.<br />
+				It correctly bundles React in production mode and optimizes the build for the best performance.</p>
+				<p>The build is minified and the filenames include the hashes.<br />
+				Your app is ready to be deployed!</p>
+				<p>See the section about <a href="https://facebook.github.io/create-react-app/docs/deployment">deployment</a> for more information.</p>
+			</div>
+		</div>
+		<div class="col-4 col-menu menu-sticky-wrap menu-highlight">
+			<nav class="tsd-navigation primary">
+				<ul>
+					<li class="globals  ">
+						<a href="globals.html"><em>Globals</em></a>
+					</li>
+				</ul>
+			</nav>
+			<nav class="tsd-navigation secondary menu-sticky">
+				<ul class="before-current">
+					<li class=" tsd-kind-enum">
+						<a href="enums/proxymsgkind.html" class="tsd-kind-icon">Proxy<wbr>Msg<wbr>Kind</a>
+					</li>
+					<li class=" tsd-kind-enum">
+						<a href="enums/workermsgkind.html" class="tsd-kind-icon">Worker<wbr>Msg<wbr>Kind</a>
+					</li>
+					<li class=" tsd-kind-class">
+						<a href="classes/casio.html" class="tsd-kind-icon">Casio</a>
+					</li>
+					<li class=" tsd-kind-class">
+						<a href="classes/circle.html" class="tsd-kind-icon">Circle</a>
+					</li>
+					<li class=" tsd-kind-class">
+						<a href="classes/drummachine.html" class="tsd-kind-icon">Drum<wbr>Machine</a>
+					</li>
+					<li class=" tsd-kind-class">
+						<a href="classes/engine.html" class="tsd-kind-icon">Engine</a>
+					</li>
+					<li class=" tsd-kind-class">
+						<a href="classes/engineinstrument.html" class="tsd-kind-icon">Engine<wbr>Instrument</a>
+					</li>
+					<li class=" tsd-kind-class">
+						<a href="classes/enginesequence.html" class="tsd-kind-icon">Engine<wbr>Sequence</a>
+					</li>
+					<li class=" tsd-kind-class">
+						<a href="classes/haunted.html" class="tsd-kind-icon">Haunted</a>
+					</li>
+					<li class=" tsd-kind-class">
+						<a href="classes/ports.html" class="tsd-kind-icon">Ports</a>
+					</li>
+					<li class=" tsd-kind-class">
+						<a href="classes/puddleish.html" class="tsd-kind-icon">Puddleish</a>
+					</li>
+					<li class=" tsd-kind-class">
+						<a href="classes/synthnote.html" class="tsd-kind-icon">Synth<wbr>Note</a>
+					</li>
+					<li class=" tsd-kind-class">
+						<a href="classes/synthetickick.html" class="tsd-kind-icon">Synthetic<wbr>Kick</a>
+					</li>
+					<li class=" tsd-kind-class">
+						<a href="classes/tappy.html" class="tsd-kind-icon">Tappy</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/engineinstrumentstatic.html" class="tsd-kind-icon">Engine<wbr>Instrument<wbr>Static</a>
+					</li>
+					<li class=" tsd-kind-interface tsd-is-external">
+						<a href="interfaces/unitmap.html" class="tsd-kind-icon">Unit<wbr>Map</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="globals.html#action_" class="tsd-kind-icon">Action$</a>
+					</li>
+					<li class=" tsd-kind-type-alias tsd-is-external">
+						<a href="globals.html#audiorange" class="tsd-kind-icon">Audio<wbr>Range</a>
+					</li>
+					<li class=" tsd-kind-type-alias tsd-is-external">
+						<a href="globals.html#bpm" class="tsd-kind-icon">BPM</a>
+					</li>
+					<li class=" tsd-kind-type-alias tsd-is-external">
+						<a href="globals.html#barsbeatssixteenths" class="tsd-kind-icon">Bars<wbr>Beats<wbr>Sixteenths</a>
+					</li>
+					<li class=" tsd-kind-type-alias tsd-is-external">
+						<a href="globals.html#cents" class="tsd-kind-icon">Cents</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="globals.html#client" class="tsd-kind-icon">Client</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="globals.html#clientwithport" class="tsd-kind-icon">Client<wbr>With<wbr>Port</a>
+					</li>
+					<li class=" tsd-kind-type-alias tsd-is-external">
+						<a href="globals.html#decibels" class="tsd-kind-icon">Decibels</a>
+					</li>
+					<li class=" tsd-kind-type-alias tsd-is-external">
+						<a href="globals.html#degrees" class="tsd-kind-icon">Degrees</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="globals.html#engineinstrumenttypelist" class="tsd-kind-icon">Engine<wbr>Instrument<wbr>Type<wbr>List</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="globals.html#engineinstrumenttypelistitem" class="tsd-kind-icon">Engine<wbr>Instrument<wbr>Type<wbr>List<wbr>Item</a>
+					</li>
+					<li class=" tsd-kind-type-alias tsd-is-external">
+						<a href="globals.html#frequency" class="tsd-kind-icon">Frequency</a>
+					</li>
+					<li class=" tsd-kind-type-alias tsd-is-external">
+						<a href="globals.html#gainfactor" class="tsd-kind-icon">Gain<wbr>Factor</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="globals.html#hauntedsynth" class="tsd-kind-icon">Haunted<wbr>Synth</a>
+					</li>
+					<li class=" tsd-kind-type-alias tsd-is-external">
+						<a href="globals.html#hertz" class="tsd-kind-icon">Hertz</a>
+					</li>
+					<li class=" tsd-kind-type-alias tsd-is-external">
+						<a href="globals.html#interval" class="tsd-kind-icon">Interval</a>
+					</li>
+					<li class=" tsd-kind-type-alias tsd-is-external">
+						<a href="globals.html#midinote" class="tsd-kind-icon">Midi<wbr>Note</a>
+					</li>
+					<li class=" tsd-kind-type-alias tsd-is-external">
+						<a href="globals.html#milliseconds" class="tsd-kind-icon">Milliseconds</a>
+					</li>
+					<li class=" tsd-kind-type-alias tsd-is-external">
+						<a href="globals.html#normalrange" class="tsd-kind-icon">Normal<wbr>Range</a>
+					</li>
+					<li class=" tsd-kind-type-alias tsd-is-external">
+						<a href="globals.html#note" class="tsd-kind-icon">Note</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="globals.html#ownprops" class="tsd-kind-icon">Own<wbr>Props</a>
+					</li>
+					<li class=" tsd-kind-type-alias tsd-is-external">
+						<a href="globals.html#positive" class="tsd-kind-icon">Positive</a>
+					</li>
+					<li class=" tsd-kind-type-alias tsd-is-external">
+						<a href="globals.html#poweroftwo" class="tsd-kind-icon">Power<wbr>OfTwo</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="globals.html#proxymsg" class="tsd-kind-icon">Proxy<wbr>Msg</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="globals.html#proxymsgaction" class="tsd-kind-icon">Proxy<wbr>Msg<wbr>Action</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="globals.html#proxymsgactiondata" class="tsd-kind-icon">Proxy<wbr>Msg<wbr>Action<wbr>Data</a>
+					</li>
+					<li class=" tsd-kind-type-alias tsd-is-external">
+						<a href="globals.html#radians" class="tsd-kind-icon">Radians</a>
+					</li>
+					<li class=" tsd-kind-type-alias tsd-is-external">
+						<a href="globals.html#samples" class="tsd-kind-icon">Samples</a>
+					</li>
+					<li class=" tsd-kind-type-alias tsd-is-external">
+						<a href="globals.html#seconds" class="tsd-kind-icon">Seconds</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="globals.html#seqoutwithinst" class="tsd-kind-icon">Seq<wbr>Out<wbr>With<wbr>Inst</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="globals.html#seqstep" class="tsd-kind-icon">Seq<wbr>Step</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="globals.html#seqsteptrigger" class="tsd-kind-icon">Seq<wbr>Step<wbr>Trigger</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="globals.html#shape" class="tsd-kind-icon">Shape</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="globals.html#stateclients" class="tsd-kind-icon">State<wbr>Clients</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="globals.html#stateclock" class="tsd-kind-icon">State<wbr>Clock</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="globals.html#stateinstrument" class="tsd-kind-icon">State<wbr>Instrument</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="globals.html#stateinstrumentfield" class="tsd-kind-icon">State<wbr>Instrument<wbr>Field</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="globals.html#stateinstrumentfieldbase" class="tsd-kind-icon">State<wbr>Instrument<wbr>Field<wbr>Base</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="globals.html#stateinstrumentfieldfloat" class="tsd-kind-icon">State<wbr>Instrument<wbr>Field<wbr>Float</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="globals.html#stateinstrumentinput" class="tsd-kind-icon">State<wbr>Instrument<wbr>Input</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="globals.html#stateinstrumentslice" class="tsd-kind-icon">State<wbr>Instrument<wbr>Slice</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="globals.html#stateinstruments" class="tsd-kind-icon">State<wbr>Instruments</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="globals.html#statelocal" class="tsd-kind-icon">State<wbr>Local</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="globals.html#statelocal_" class="tsd-kind-icon">State<wbr>Local$</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="globals.html#statesequence" class="tsd-kind-icon">State<wbr>Sequence</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="globals.html#statesequenceoutput" class="tsd-kind-icon">State<wbr>Sequence<wbr>Output</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="globals.html#statesequences" class="tsd-kind-icon">State<wbr>Sequences</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="globals.html#stateshared" class="tsd-kind-icon">State<wbr>Shared</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="globals.html#stateshared_" class="tsd-kind-icon">State<wbr>Shared$</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="globals.html#statethisclient" class="tsd-kind-icon">State<wbr>This<wbr>Client</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="globals.html#step" class="tsd-kind-icon">Step</a>
+					</li>
+					<li class=" tsd-kind-type-alias tsd-is-external">
+						<a href="globals.html#subdivision" class="tsd-kind-icon">Subdivision</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="globals.html#subenginetype" class="tsd-kind-icon">Subengine<wbr>Type</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="globals.html#tickevent" class="tsd-kind-icon">Tick<wbr>Event</a>
+					</li>
+					<li class=" tsd-kind-type-alias tsd-is-external">
+						<a href="globals.html#ticks" class="tsd-kind-icon">Ticks</a>
+					</li>
+					<li class=" tsd-kind-type-alias tsd-is-external">
+						<a href="globals.html#time" class="tsd-kind-icon">Time</a>
+					</li>
+					<li class=" tsd-kind-type-alias tsd-is-external">
+						<a href="globals.html#timeobject" class="tsd-kind-icon">Time<wbr>Object</a>
+					</li>
+					<li class=" tsd-kind-type-alias tsd-is-external">
+						<a href="globals.html#timesignature" class="tsd-kind-icon">Time<wbr>Signature</a>
+					</li>
+					<li class=" tsd-kind-type-alias tsd-is-external">
+						<a href="globals.html#transporttime" class="tsd-kind-icon">Transport<wbr>Time</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="globals.html#trigger" class="tsd-kind-icon">Trigger</a>
+					</li>
+					<li class=" tsd-kind-type-alias tsd-is-external">
+						<a href="globals.html#unit" class="tsd-kind-icon">Unit</a>
+					</li>
+					<li class=" tsd-kind-type-alias tsd-is-external">
+						<a href="globals.html#unitname" class="tsd-kind-icon">Unit<wbr>Name</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="globals.html#workermsg" class="tsd-kind-icon">Worker<wbr>Msg</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="globals.html#workermsgaction" class="tsd-kind-icon">Worker<wbr>Msg<wbr>Action</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="globals.html#workermsgactiondata" class="tsd-kind-icon">Worker<wbr>Msg<wbr>Action<wbr>Data</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="globals.html#workermsgconnected" class="tsd-kind-icon">Worker<wbr>Msg<wbr>Connected</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="globals.html#workermsgconnecteddata" class="tsd-kind-icon">Worker<wbr>Msg<wbr>Connected<wbr>Data</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="globals.html#triggerdropsid" class="tsd-kind-icon">Trigger<wbr>Drops<wbr>Id</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="globals.html#triggerweatherid" class="tsd-kind-icon">Trigger<wbr>Weather<wbr>Id</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="globals.html#actionnewfromport" class="tsd-kind-icon">action<wbr>New<wbr>From<wbr>Port</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="globals.html#actionsclock" class="tsd-kind-icon">actions<wbr>Clock</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="globals.html#actionsinstruments" class="tsd-kind-icon">actions<wbr>Instruments</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="globals.html#actionssequences" class="tsd-kind-icon">actions<wbr>Sequences</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="globals.html#actionsshared" class="tsd-kind-icon">actions<wbr>Shared</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="globals.html#actionsthisclient" class="tsd-kind-icon">actions<wbr>This<wbr>Client</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="globals.html#adapterclients" class="tsd-kind-icon">adapter<wbr>Clients</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="globals.html#adapterinstruments" class="tsd-kind-icon">adapter<wbr>Instruments</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="globals.html#adaptersequences" class="tsd-kind-icon">adapter<wbr>Sequences</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="globals.html#casioid" class="tsd-kind-icon">casio<wbr>Id</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="globals.html#circleid" class="tsd-kind-icon">circle<wbr>Id</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="globals.html#drummachineid" class="tsd-kind-icon">drum<wbr>Machine<wbr>Id</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="globals.html#engine" class="tsd-kind-icon">engine</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="globals.html#epicmiddleware" class="tsd-kind-icon">epic<wbr>Middleware</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="globals.html#epics" class="tsd-kind-icon">epics</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="globals.html#hauntedid" class="tsd-kind-icon">haunted<wbr>Id</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="globals.html#instrumenttypes" class="tsd-kind-icon">instrument<wbr>Types</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="globals.html#mselectoutputs" class="tsd-kind-icon">m<wbr>Select<wbr>Outputs</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="globals.html#ports" class="tsd-kind-icon">ports</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="globals.html#puddleishid" class="tsd-kind-icon">puddleish<wbr>Id</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="globals.html#reducershared" class="tsd-kind-icon">reducer<wbr>Shared</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="globals.html#reflections" class="tsd-kind-icon">reflections</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="globals.html#rootreducerlocal" class="tsd-kind-icon">root<wbr>Reducer<wbr>Local</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="globals.html#selectbyid" class="tsd-kind-icon">select<wbr>ById</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="globals.html#selectbyidoutputs" class="tsd-kind-icon">select<wbr>ById<wbr>Outputs</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="globals.html#selectclients" class="tsd-kind-icon">select<wbr>Clients</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="globals.html#selectclientswithport" class="tsd-kind-icon">select<wbr>Clients<wbr>With<wbr>Port</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="globals.html#selectclock" class="tsd-kind-icon">select<wbr>Clock</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="globals.html#selectisaudioplayer" class="tsd-kind-icon">select<wbr>IsAudio<wbr>Player</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="globals.html#selectpaused" class="tsd-kind-icon">select<wbr>Paused</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="globals.html#selectors" class="tsd-kind-icon">selectors</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="globals.html#shapes" class="tsd-kind-icon">shapes</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="globals.html#sliceclients" class="tsd-kind-icon">slice<wbr>Clients</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="globals.html#sliceclock" class="tsd-kind-icon">slice<wbr>Clock</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="globals.html#sliceinstruments" class="tsd-kind-icon">slice<wbr>Instruments</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="globals.html#slicenameclients" class="tsd-kind-icon">slice<wbr>Name<wbr>Clients</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="globals.html#slicenameclock" class="tsd-kind-icon">slice<wbr>Name<wbr>Clock</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="globals.html#slicenameinstruments" class="tsd-kind-icon">slice<wbr>Name<wbr>Instruments</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="globals.html#slicenamesequences" class="tsd-kind-icon">slice<wbr>Name<wbr>Sequences</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="globals.html#slicenameshared" class="tsd-kind-icon">slice<wbr>Name<wbr>Shared</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="globals.html#slicenamethisclient" class="tsd-kind-icon">slice<wbr>Name<wbr>This<wbr>Client</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="globals.html#slicesequences" class="tsd-kind-icon">slice<wbr>Sequences</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="globals.html#sliceshared" class="tsd-kind-icon">slice<wbr>Shared</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="globals.html#slicethisclient" class="tsd-kind-icon">slice<wbr>This<wbr>Client</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="globals.html#stateinitialclients" class="tsd-kind-icon">state<wbr>Initial<wbr>Clients</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="globals.html#stateinitialinstruments" class="tsd-kind-icon">state<wbr>Initial<wbr>Instruments</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="globals.html#stateinitialsequences" class="tsd-kind-icon">state<wbr>Initial<wbr>Sequences</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="globals.html#store" class="tsd-kind-icon">store</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="globals.html#storelocal" class="tsd-kind-icon">store<wbr>Local</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="globals.html#subengines" class="tsd-kind-icon">subengines</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="globals.html#synthetickickid" class="tsd-kind-icon">synthetic<wbr>Kick<wbr>Id</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="globals.html#tappyid" class="tsd-kind-icon">tappy<wbr>Id</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="globals.html#app" class="tsd-kind-icon">App</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="globals.html#clock" class="tsd-kind-icon">Clock</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="globals.html#instrumentlist" class="tsd-kind-icon">Instrument<wbr>List</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="globals.html#instrumentview" class="tsd-kind-icon">Instrument<wbr>View</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="globals.html#sequencelist" class="tsd-kind-icon">Sequence<wbr>List</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="globals.html#sequenceview" class="tsd-kind-icon">Sequence<wbr>View</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="globals.html#stepview" class="tsd-kind-icon">Step<wbr>View</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="globals.html#videooutput" class="tsd-kind-icon">Video<wbr>Output</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="globals.html#connecttosharedstore" class="tsd-kind-icon">connect<wbr>ToShared<wbr>Store</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="globals.html#createrootepic" class="tsd-kind-icon">create<wbr>Root<wbr>Epic</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="globals.html#epicforwardaction" class="tsd-kind-icon">epic<wbr>Forward<wbr>Action</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="globals.html#epicinstruments" class="tsd-kind-icon">epic<wbr>Instruments</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="globals.html#epicisaudioplayer" class="tsd-kind-icon">epic<wbr>IsAudio<wbr>Player</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="globals.html#epicsequences" class="tsd-kind-icon">epic<wbr>Sequences</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="globals.html#epicstartstop" class="tsd-kind-icon">epic<wbr>Start<wbr>Stop</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="globals.html#handleconnect" class="tsd-kind-icon">handle<wbr>Connect</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="globals.html#handlemessage" class="tsd-kind-icon">handle<wbr>Message</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="globals.html#hauntedsteps" class="tsd-kind-icon">haunted<wbr>Steps</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="globals.html#initstore" class="tsd-kind-icon">init<wbr>Store</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="globals.html#loadpreset" class="tsd-kind-icon">load<wbr>Preset</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="globals.html#memoize" class="tsd-kind-icon">memoize</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="globals.html#populateport" class="tsd-kind-icon">populate<wbr>Port</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="globals.html#proxymsgaction" class="tsd-kind-icon">proxy<wbr>Msg<wbr>Action</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="globals.html#registerinstrumenttype" class="tsd-kind-icon">register<wbr>Instrument<wbr>Type</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="globals.html#render" class="tsd-kind-icon">render</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="globals.html#rootepic" class="tsd-kind-icon">root<wbr>Epic</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="globals.html#run" class="tsd-kind-icon">run</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="globals.html#selectoutputs" class="tsd-kind-icon">select<wbr>Outputs</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="globals.html#selectshared" class="tsd-kind-icon">select<wbr>Shared</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="globals.html#selectslice" class="tsd-kind-icon">select<wbr>Slice</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="globals.html#selectthisclient" class="tsd-kind-icon">select<wbr>This<wbr>Client</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="globals.html#seqoutputkey" class="tsd-kind-icon">seq<wbr>Output<wbr>Key</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="globals.html#tappysteps" class="tsd-kind-icon">tappy<wbr>Steps</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="globals.html#tickevents" class="tsd-kind-icon">tick<wbr>Events</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="globals.html#workermsgaction" class="tsd-kind-icon">worker<wbr>Msg<wbr>Action</a>
+					</li>
+					<li class=" tsd-kind-function">
+						<a href="globals.html#workermsgconnected" class="tsd-kind-icon">worker<wbr>Msg<wbr>Connected</a>
+					</li>
+					<li class=" tsd-kind-object-literal">
+						<a href="globals.html#actionsclients" class="tsd-kind-icon">actions<wbr>Clients</a>
+					</li>
+					<li class=" tsd-kind-object-literal">
+						<a href="globals.html#localrootstateinitial" class="tsd-kind-icon">local<wbr>Root<wbr>State<wbr>Initial</a>
+					</li>
+					<li class=" tsd-kind-object-literal">
+						<a href="globals.html#proxymsg" class="tsd-kind-icon">proxy<wbr>Msg</a>
+					</li>
+					<li class=" tsd-kind-object-literal">
+						<a href="globals.html#stateinitialclock" class="tsd-kind-icon">state<wbr>Initial<wbr>Clock</a>
+					</li>
+					<li class=" tsd-kind-object-literal">
+						<a href="globals.html#stateinitialshared" class="tsd-kind-icon">state<wbr>Initial<wbr>Shared</a>
+					</li>
+					<li class=" tsd-kind-object-literal">
+						<a href="globals.html#stateinitialthisclient" class="tsd-kind-icon">state<wbr>Initial<wbr>This<wbr>Client</a>
+					</li>
+					<li class=" tsd-kind-object-literal">
+						<a href="globals.html#workermsg" class="tsd-kind-icon">worker<wbr>Msg</a>
+					</li>
+				</ul>
+			</nav>
+		</div>
+	</div>
+</div>
+<footer class="with-border-bottom">
+	<div class="container">
+		<h2>Legend</h2>
+		<div class="tsd-legend-group">
+			<ul class="tsd-legend">
+				<li class="tsd-kind-constructor tsd-parent-kind-interface"><span class="tsd-kind-icon">Constructor</span></li>
+				<li class="tsd-kind-property tsd-parent-kind-interface"><span class="tsd-kind-icon">Property</span></li>
+				<li class="tsd-kind-method tsd-parent-kind-interface"><span class="tsd-kind-icon">Method</span></li>
+			</ul>
+			<ul class="tsd-legend">
+				<li class="tsd-kind-constructor tsd-parent-kind-class"><span class="tsd-kind-icon">Constructor</span></li>
+				<li class="tsd-kind-property tsd-parent-kind-class"><span class="tsd-kind-icon">Property</span></li>
+				<li class="tsd-kind-method tsd-parent-kind-class"><span class="tsd-kind-icon">Method</span></li>
+			</ul>
+			<ul class="tsd-legend">
+				<li class="tsd-kind-property tsd-parent-kind-class tsd-is-private"><span class="tsd-kind-icon">Private property</span></li>
+				<li class="tsd-kind-method tsd-parent-kind-class tsd-is-private"><span class="tsd-kind-icon">Private method</span></li>
+			</ul>
+			<ul class="tsd-legend">
+				<li class="tsd-kind-property tsd-parent-kind-class tsd-is-static"><span class="tsd-kind-icon">Static property</span></li>
+				<li class="tsd-kind-method tsd-parent-kind-class tsd-is-static"><span class="tsd-kind-icon">Static method</span></li>
+			</ul>
+			<ul class="tsd-legend">
+				<li class="tsd-kind-method tsd-parent-kind-class tsd-is-inherited"><span class="tsd-kind-icon">Inherited method</span></li>
+			</ul>
+		</div>
+	</div>
+</footer>
+<div class="container tsd-generator">
+	<p>Generated using <a href="https://typedoc.org/" target="_blank">TypeDoc</a></p>
+</div>
+<div class="overlay"></div>
+<script src="assets/js/main.js"></script>
+</body>
+</html>

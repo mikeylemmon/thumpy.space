@@ -19,6 +19,6 @@
 	"include": ["src"],
 	"typedocOptions": {
 		"mode": "file",
-		"out": "docs"
+		"out": "public/docs"
 	}
 }

@@ -34,6 +34,18 @@ const Clock: React.FC = () => {
 			>
 				{txt}
 			</button>
+			<a
+				href='/docs/index.html'
+				style={{
+					position: 'absolute',
+					right: '20px',
+					bottom: '25px',
+					color: 'white',
+					textDecoration: 'underline',
+				}}
+			>
+				Docs
+			</a>
 		</div>
 	)
 }
