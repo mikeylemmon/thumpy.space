@@ -5,12 +5,14 @@ import reducerShared from 'storeShared/reducerShared'
 import { workerMsg, ProxyMsg, ProxyMsgKind } from 'storeShared/apiWorker'
 import rootEpic from './rootEpicWorker'
 import apiClients from './apiClients'
+import WSClient from 'serverApi/WSClient'
 
 const epicMiddleware = createEpicMiddleware()
 const store = configureStore({
 	reducer: reducerShared,
 	middleware: [...getDefaultMiddleware(), epicMiddleware],
 })
+let wsClient: WSClient
 
 function handleMessage(event: MessageEvent) {
 	const msg = event.data as ProxyMsg
@@ -43,7 +45,8 @@ function run() {
 
 	epicMiddleware.run(rootEpic)
 
-	let connID = 0
+	wsClient = new WSClient(ctx)
+
 	ctx.onconnect = handleConnect
 }
 

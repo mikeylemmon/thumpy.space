@@ -44,12 +44,13 @@ export default class Haunted extends EngineInstrument {
 	public subengine: SubengineType = Haunted.Subengine
 
 	private synth: HauntedSynth
-	private autoFilter: AutoFilter
+	// private autoFilter: AutoFilter
 
 	constructor(initialState: Partial<StateInstrument> = Haunted.StateDefault()) {
 		super()
 		console.log('[Haunted #constructor]', initialState)
-		const gain = new Gain(0.5).toDestination()
+		// const gain = new Gain(0.5).toDestination()
+		const gain = new Gain(0.3).toDestination()
 		const reverb = new Reverb({
 			decay: 4,
 			wet: 0.6,
@@ -75,7 +76,7 @@ export default class Haunted extends EngineInstrument {
 			wet: 0.7,
 		}).connect(autoPanner)
 		autoWah.Q.value = 0.4
-		this.autoFilter = new AutoFilter('10m').connect(autoWah)
+		// this.autoFilter = new AutoFilter('10m').connect(autoWah)
 		this.synth = new PolySynth(Synth, {
 			oscillator: {
 				type: 'fatsawtooth',
@@ -83,20 +84,22 @@ export default class Haunted extends EngineInstrument {
 				spread: 30,
 			},
 			envelope: {
-				attack: 0.05,
+				attack: 0.02,
 				decay: 0.1,
 				sustain: 0.7,
-				release: 1.0,
+				// release: 1.0,
+				release: 0.2,
 			},
 			volume: -5,
-		}).connect(this.autoFilter)
+		}).connect(autoWah)
+		// }).connect(this.autoFilter)
 	}
 
 	start(): void {
-		this.autoFilter.start()
+		// this.autoFilter.start()
 	}
 	stop(): void {
-		this.autoFilter.stop()
+		// this.autoFilter.stop()
 	}
 
 	dispose(): void {

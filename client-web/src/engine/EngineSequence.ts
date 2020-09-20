@@ -1,12 +1,38 @@
-import { Sequence } from 'tone'
-import { StateSequence, StateSequenceOutput, Step } from 'storeShared/sliceSequences'
+import { immediate, now, Sequence, Transport } from 'tone'
+import * as Tone from 'tone'
+import { StateSequence, StateSequenceOutput, Step, Trigger } from 'storeShared/sliceSequences'
 import storeLocal from 'storeLocal/storeLocal'
 import apiSequences from 'storeLocal/apiSequences'
 import { EngineInstrument } from 'engine/EngineInstrument'
+import WSClient from 'serverApi/WSClient'
 
 type TickEvent = {
 	seq: StateSequence
 	step: Step
+}
+
+type MidiInputChannel = {
+	eventMap: any // {...}
+	eventsSuspended: boolean
+	input: any // Input
+	number: number
+}
+type MidiNote = {
+	_number: number
+	_duration: number
+	_rawAttack: number
+	_rawRelease: number
+}
+type MidiNoteEvent = {
+	attack: number
+	data: number[]
+	note: MidiNote
+	rawAttack: number
+	// rawData: UintArray
+	rawData: number[]
+	target: MidiInputChannel
+	timestamp: number
+	type: string
 }
 
 function tickEvents(seq: StateSequence): TickEvent[] {
@@ -23,13 +49,80 @@ export class EngineSequence {
 	private state: StateSequence
 
 	constructor(state: StateSequence) {
+		const isSeq1 = state.id === 'seq-1'
 		this.sequencer = new Sequence(
 			this.tick,
 			tickEvents(state),
-			state.id === 'seq-1' ? '8n' : '16n', // TODO: parameterize in StateSequence
+			isSeq1 ? '8n' : '16n', // TODO: parameterize in StateSequence
 		).start(0)
 		this.outputs = {}
 		this.state = state
+
+		if (!isSeq1) {
+			return
+		}
+
+		const wsClient = new WSClient(window, {
+			clock: {
+				onSynced: () => {
+					const nn = wsClient.now()
+					const ts = (Tone.context.rawContext as any)._nativeAudioContext.getOutputTimestamp()
+					const correctedTs = wsClient.clock.correct(ts.performanceTime)
+					console.log('[EngineSequence #ctor] clock synced:', nn, nn - correctedTs, ts.contextTime)
+				},
+			},
+		})
+
+		window.Tone = Tone
+
+		// Listen for midi input and forward note triggers to outputs
+		const { WebMidi } = window
+		console.log('WebMidi', WebMidi)
+		WebMidi.enable()
+			.then(() => {
+				const { inputs, outputs } = WebMidi
+				console.log('WebMidi enabled')
+				console.log('WebMidi inputs', inputs)
+				console.log('WebMidi outputs', outputs)
+				for (const input of inputs) {
+					input.addListener(
+						'noteon',
+						(evt: MidiNoteEvent) => {
+							const { data, target, timestamp } = evt
+							// if (conn.readyState === WebSocket.OPEN) {
+							// 	conn.send(JSON.stringify({ data, timestamp }))
+							// } else {
+							// 	console.warn('Not sending note, websocket is not open')
+							// }
+							// // const { attack, data, note, target } = evt
+							const tickEvt = {
+								seq: this.state,
+								step: {
+									id: -1,
+									triggers: [
+										{
+											freq: data[1],
+											unit: 'midi',
+											dur: '8n',
+										} as Trigger,
+									],
+								},
+							}
+							const off = Transport.now() - Transport.immediate()
+							const plusAlt = Transport.getSecondsAtTime('+2n')
+							const tgt = plusAlt - off
+							console.warn({ off, plusAlt, tgt })
+							console.log('New note', now(), timestamp, target.number, evt.data, tickEvt)
+							Transport.schedule((time: number) => {
+								console.warn('Play note', time, target.number, evt.data, tickEvt)
+								this.tick(time, tickEvt)
+							}, tgt)
+						},
+						{ channels: [...Array(16).keys()].map(x => x + 1) },
+					)
+				}
+			})
+			.catch((err: Error) => console.error(err))
 	}
 
 	dispose() {

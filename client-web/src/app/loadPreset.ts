@@ -5,33 +5,33 @@ import Haunted from 'engine/audio/Haunted'
 import Tappy from 'engine/audio/Tappy'
 import Puddleish, { TriggerDropsId, TriggerWeatherId } from 'engine/video/Puddleish'
 
-// const numSteps = 16
-// const emptySteps = (): Step[] => {
-// 	const steps: Step[] = []
-// 	for (let ii = 0; ii < numSteps; ii++) {
-// 		steps.push({ id: ii, triggers: [] })
-// 	}
-// 	return steps
-// }
+const numSteps = 16
+const emptySteps = (): Step[] => {
+	const steps: Step[] = []
+	for (let ii = 0; ii < numSteps; ii++) {
+		steps.push({ id: ii, triggers: [] })
+	}
+	return steps
+}
 
-const hauntedSteps = (): Step[] => [
-	{ id: 0, triggers: [{ freq: 45, unit: 'midi', dur: '8n' }] },
-	{ id: 1, triggers: [{ freq: 48, unit: 'midi', dur: '8n' }] },
-	{ id: 2, triggers: [{ freq: 52, unit: 'midi', dur: '8n' }] },
-	{ id: 3, triggers: [{ freq: 45, unit: 'midi', dur: '8n' }] },
-	{ id: 4, triggers: [{ freq: 48, unit: 'midi', dur: '8n' }] },
-	{ id: 5, triggers: [{ freq: 52, unit: 'midi', dur: '8n' }] },
-	{ id: 6, triggers: [{ freq: 46, unit: 'midi', dur: '8n' }] },
-	{ id: 7, triggers: [{ freq: 50, unit: 'midi', dur: '8n' }] },
-	{ id: 8, triggers: [{ freq: 45, unit: 'midi', dur: '8n' }] },
-	{ id: 9, triggers: [{ freq: 48, unit: 'midi', dur: '8n' }] },
-	{ id: 10, triggers: [{ freq: 52, unit: 'midi', dur: '8n' }] },
-	{ id: 11, triggers: [{ freq: 45, unit: 'midi', dur: '8n' }] },
-	{ id: 12, triggers: [{ freq: 48, unit: 'midi', dur: '8n' }] },
-	{ id: 13, triggers: [{ freq: 52, unit: 'midi', dur: '8n' }] },
-	{ id: 14, triggers: [{ freq: 46, unit: 'midi', dur: '8n' }] },
-	{ id: 15, triggers: [{ freq: 50, unit: 'midi', dur: '8n' }] },
-]
+const hauntedSteps = (): Step[] => emptySteps()
+// 	{ id: 0, triggers: [{ freq: 45, unit: 'midi', dur: '8n' }] },
+// 	{ id: 1, triggers: [{ freq: 48, unit: 'midi', dur: '8n' }] },
+// 	{ id: 2, triggers: [{ freq: 52, unit: 'midi', dur: '8n' }] },
+// 	{ id: 3, triggers: [{ freq: 45, unit: 'midi', dur: '8n' }] },
+// 	{ id: 4, triggers: [{ freq: 48, unit: 'midi', dur: '8n' }] },
+// 	{ id: 5, triggers: [{ freq: 52, unit: 'midi', dur: '8n' }] },
+// 	{ id: 6, triggers: [{ freq: 46, unit: 'midi', dur: '8n' }] },
+// 	{ id: 7, triggers: [{ freq: 50, unit: 'midi', dur: '8n' }] },
+// 	{ id: 8, triggers: [{ freq: 45, unit: 'midi', dur: '8n' }] },
+// 	{ id: 9, triggers: [{ freq: 48, unit: 'midi', dur: '8n' }] },
+// 	{ id: 10, triggers: [{ freq: 52, unit: 'midi', dur: '8n' }] },
+// 	{ id: 11, triggers: [{ freq: 45, unit: 'midi', dur: '8n' }] },
+// 	{ id: 12, triggers: [{ freq: 48, unit: 'midi', dur: '8n' }] },
+// 	{ id: 13, triggers: [{ freq: 52, unit: 'midi', dur: '8n' }] },
+// 	{ id: 14, triggers: [{ freq: 46, unit: 'midi', dur: '8n' }] },
+// 	{ id: 15, triggers: [{ freq: 50, unit: 'midi', dur: '8n' }] },
+// ]
 
 const tappySteps = (): Step[] => [
 	{

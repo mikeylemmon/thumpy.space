@@ -39,7 +39,7 @@ class SynthNote {
 		this.radius = (this.rand * size) / 20 + size / 10
 		this.dist = (this.freqNorm * size * 0.7) / 2 - this.radius + size * 0.2
 		this.theta = Math.random() * 2 * Math.PI
-		console.log('[SynthNote #constructor]', this)
+		// console.log('[SynthNote #constructor]', this)
 	}
 
 	isAlive(): boolean {
