@@ -140,7 +140,11 @@ export default class WSClock {
 		return nn + this.correction + this.correction2 * c2gain
 	}
 
-	correct(perfTime: number) {
+	toGlobal(perfTime: number) {
 		return perfTime + this.correction + this.correction2
+	}
+
+	toLocal(globalTime: number) {
+		return globalTime - this.correction - this.correction2
 	}
 }

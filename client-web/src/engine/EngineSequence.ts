@@ -2,6 +2,7 @@ import { immediate, now, Sequence, Transport } from 'tone'
 import * as Tone from 'tone'
 import { StateSequence, StateSequenceOutput, Step, Trigger } from 'storeShared/sliceSequences'
 import storeLocal from 'storeLocal/storeLocal'
+import { EventType } from 'storeShared/sliceSequences'
 import apiSequences from 'storeLocal/apiSequences'
 import { EngineInstrument } from 'engine/EngineInstrument'
 import WSClient from 'serverApi/WSClient'
@@ -62,16 +63,49 @@ export class EngineSequence {
 			return
 		}
 
+		let timeGlobalToTone = (globalTime: number) => {
+			return globalTime
+		}
+		let timeToneToGlobal = (toneTime: number) => {
+			return toneTime
+		}
+
+		window.now = () => {
+			timeToneToGlobal(timeGlobalToTone(wsClient.now()))
+			timeGlobalToTone(timeToneToGlobal(Tone.immediate()))
+			timeGlobalToTone(timeToneToGlobal(Tone.now()))
+		}
+
 		const wsClient = new WSClient(window, {
 			clock: {
-				onSynced: () => {
-					const nn = wsClient.now()
-					const ts = (Tone.context.rawContext as any)._nativeAudioContext.getOutputTimestamp()
-					const correctedTs = wsClient.clock.correct(ts.performanceTime)
-					console.log('[EngineSequence #ctor] clock synced:', nn, nn - correctedTs, ts.contextTime)
-				},
+				onSynced: window.now,
 			},
 		})
+
+		timeGlobalToTone = (globalTime: number) => {
+			const rawCtx = Tone.context.rawContext as any
+			const { contextTime, performanceTime } = rawCtx._nativeAudioContext.getOutputTimestamp()
+			const lt = wsClient.clock.toLocal(globalTime)
+			const delta = lt - performanceTime
+			const toneTime = contextTime + delta / 1000
+			console.log(
+				'[EngineSequence #timeGlobalToTone]',
+				globalTime,
+				'>',
+				toneTime * 1000,
+				`(d:${(toneTime - contextTime) * 1000})`,
+			)
+			return toneTime
+		}
+		timeToneToGlobal = (toneTime: number) => {
+			const rawCtx = Tone.context.rawContext as any
+			const { contextTime, performanceTime } = rawCtx._nativeAudioContext.getOutputTimestamp()
+			const delta = toneTime - contextTime
+			const pt = performanceTime + delta * 1000
+			const globalTime = wsClient.clock.toGlobal(pt)
+			console.log('[EngineSequence #timeToneToGlobal]', toneTime * 1000, '>', globalTime)
+			return globalTime
+		}
 
 		window.Tone = Tone
 
@@ -84,7 +118,71 @@ export class EngineSequence {
 				console.log('WebMidi enabled')
 				console.log('WebMidi inputs', inputs)
 				console.log('WebMidi outputs', outputs)
+				const allChannels = [...Array(16).keys()].map(x => x + 1)
 				for (const input of inputs) {
+					for (const eventName of [
+						'songposition',
+						'songselect',
+						'sysex',
+						'timecode',
+						'tunerequest',
+						// 'clock',
+						'start',
+						'continue',
+						'stop',
+						'activesensing',
+						'reset',
+						'opened',
+						'closed',
+						'disconnected',
+						// 'midimessage',
+						'unknownmidimessage',
+					]) {
+						input.addListener(eventName, (evt: any) => {
+							if (
+								(eventName === 'midimessage' && evt.data[0] === 248) ||
+								eventName === 'clock'
+							) {
+								return
+							}
+							const { data } = evt
+							console.log('[MIDI] Received', eventName, data, evt)
+						})
+					}
+					for (const eventName of [
+						// 'channelaftertouch',
+						'controlchange',
+						'keyaftertouch',
+						'noteoff',
+						'noteon',
+						// 'nrpn',
+						'pitchbend',
+						// 'programchange',
+						// 'channelmode',
+					]) {
+						input.addListener(
+							eventName,
+							(evt: any) => {
+								const { attack, data, note, target, value } = evt
+								// const { data, target } = evt
+								const { number: channel } = target || {}
+								console.log(`[MIDI] Received (${channel})`, eventName, data, evt)
+								storeLocal.dispatch(
+									apiSequences.event.add({
+										seqId: state.id,
+										event: {
+											timestamp: wsClient.now(),
+											raw: data,
+											kind: eventName as EventType,
+											value: value || attack,
+											note: note && note._number,
+										},
+									}),
+								)
+							},
+							{ channels: allChannels },
+						)
+					}
 					input.addListener(
 						'noteon',
 						(evt: MidiNoteEvent) => {
@@ -103,7 +201,7 @@ export class EngineSequence {
 										{
 											freq: data[1],
 											unit: 'midi',
-											dur: '8n',
+											dur: '16n',
 										} as Trigger,
 									],
 								},
@@ -112,13 +210,14 @@ export class EngineSequence {
 							const plusAlt = Transport.getSecondsAtTime('+2n')
 							const tgt = plusAlt - off
 							console.warn({ off, plusAlt, tgt })
-							console.log('New note', now(), timestamp, target.number, evt.data, tickEvt)
-							Transport.schedule((time: number) => {
-								console.warn('Play note', time, target.number, evt.data, tickEvt)
-								this.tick(time, tickEvt)
-							}, tgt)
+							// console.log('New note', now(), timestamp, target.number, evt.data, tickEvt)
+							this.tick(Tone.immediate(), tickEvt)
+							// Transport.schedule((time: number) => {
+							// 	console.warn('Play note', time, target.number, evt.data, tickEvt)
+							// 	this.tick(time, tickEvt)
+							// }, tgt)
 						},
-						{ channels: [...Array(16).keys()].map(x => x + 1) },
+						{ channels: allChannels },
 					)
 				}
 			})

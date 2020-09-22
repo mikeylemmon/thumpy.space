@@ -140,6 +140,7 @@ function loadPreset(dispatch: Dispatch<any>) {
 		apiSequences.addOne({
 			id: 'seq-1',
 			name: 'Synth Loop',
+			events: [],
 			steps: hauntedSteps(),
 			outputs: [
 				{
@@ -159,6 +160,7 @@ function loadPreset(dispatch: Dispatch<any>) {
 		apiSequences.addOne({
 			id: 'seq-2',
 			name: 'Tappy Loop',
+			events: [],
 			steps: tappySteps(),
 			outputs: [
 				{

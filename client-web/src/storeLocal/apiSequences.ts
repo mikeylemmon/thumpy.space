@@ -66,6 +66,10 @@ export default {
 	selectAll: selectors.selectAll,
 	selectById: selectors.selectById,
 	addOne: actionsSequences.addOne,
+	event: {
+		add: actionsSequences.eventAdd,
+		delete: actionsSequences.eventDelete,
+	},
 	trigger: {
 		on: actionsSequences.triggerOn,
 		off: actionsSequences.triggerOff,
