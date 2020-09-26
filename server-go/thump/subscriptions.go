@@ -17,8 +17,10 @@ type Subscription struct {
 type Event struct {
 	Kind       string
 	FromClient int
+	Clock      *api.ClockOpts
 	User       *api.User
 	Users      []*api.User
+	Raw        []byte
 }
 
 func NewSubscription(cid int) *Subscription {
@@ -45,6 +47,22 @@ func runSubscriptionLoop() {
 			delete(subs, sub.ClientId)
 			log.Info().Int(`clientId`, sub.ClientId).Msg(`Removed subscription`)
 		case evt := <-events:
+			if evt.Clock != nil {
+				for _, sub := range subs {
+					if sub.ClientId == evt.FromClient {
+						continue // don't send clock update back to event source
+					}
+					sub.Messages <- evt.Raw
+				}
+				continue
+			}
+			if evt.Raw != nil {
+				for _, sub := range subs {
+					sub.Messages <- evt.Raw
+				}
+				log.Info().Str(`kind`, evt.Kind).Int(`from`, evt.FromClient).Int(`numClients`, len(subs)).Msg(`Sent raw event`)
+				continue
+			}
 			if evt.User != nil {
 				// special case for user updates
 				handleEventUserUpdate(evt)

@@ -6,14 +6,17 @@ import (
 )
 
 const (
+	WS_USER_EVENT  = `user/event`
 	WS_USER_UPDATE = `user/update`
 	WS_USERS_ALL   = `user/all`
 )
 
 type User struct {
-	Name       string `json:"name"`
-	Instrument string `json:"instrument"`
-	Input      string `json:"input"`
+	ClientId    int     `json:"clientId"`
+	Name        string  `json:"name"`
+	Instrument  string  `json:"instrument"`
+	InputDevice string  `json:"inputDevice"`
+	Offset      float64 `json:"offset"`
 }
 
 func ParseUserUpdate(body string) (*User, error) {

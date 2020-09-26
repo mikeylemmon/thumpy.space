@@ -1,13 +1,17 @@
 import * as p5 from 'p5'
 import * as Tone from 'tone'
-import WSClient from './serverApi/WSClient'
-import { userUpdateReq, User } from './serverApi/serverApi'
+import WSClient, { DONT_REOPEN } from './serverApi/WSClient'
+import { userEventReq, userUpdateReq, User, UserEvent } from './serverApi/serverApi'
+import { clockUpdateReq, ClockOpts } from './serverApi/serverClock'
 import MIDI, { MidiEvent, MidiEventCC, MidiEventNote, MidiEventPitchbend } from './MIDI'
+import { piano, eightOhEight } from './instruments'
 
 type Instruments = {
-	piano: Tone.Sampler
-	piano2: Tone.Sampler
+	eightOhEight: ReturnType<typeof eightOhEight>
+	piano: ReturnType<typeof piano>
 }
+
+const userInputsY = 40
 
 export default class Sketch {
 	width: number = 0
@@ -16,23 +20,32 @@ export default class Sketch {
 	started: boolean = false
 	syncing: boolean = true
 	instruments: Instruments = {
-		piano: instPiano(),
-		piano2: instPiano(),
+		eightOhEight: eightOhEight(),
+		piano: piano(),
 	}
 	ws: WSClient
 	midi: MIDI
 	pp: p5 | null = null
 	user: User = {
+		clientId: 0,
 		name: '',
 		instrument: '',
-		input: '',
+		inputDevice: '',
+		// offset: 3.9,
+		offset: 0,
+	}
+	clockOpts: ClockOpts = {
+		bpm: 95,
 	}
 
+	nameCustomized: boolean = false
+
 	inputs: {
-		user?: any
-		userCustomized?: boolean
+		name?: any
 		instrument?: any
-		midi?: any
+		inputDevice?: any
+		offset?: any
+		bpm?: any
 	} = {}
 
 	constructor() {
@@ -41,9 +54,12 @@ export default class Sketch {
 			clock: {
 				onSynced: () => {
 					this.syncing = false
+					this.setupInputsBPM()
 				},
 			},
 			onClientId: this.setupInputsUser,
+			onClockUpdate: this.onClockUpdate,
+			onUserEvent: this.onUserEvent,
 		})
 		this.midi = new MIDI({
 			onMessage: this.onMIDI,
@@ -51,6 +67,11 @@ export default class Sketch {
 		})
 		window.now = this.now
 		window.Tone = Tone
+		window.me = this
+	}
+
+	destroy = () => {
+		this.ws.conn.close(DONT_REOPEN, 'sketch destroyed')
 	}
 
 	now = () => {
@@ -74,13 +95,13 @@ export default class Sketch {
 		const lt = this.ws.clock.toLocal(globalTime)
 		const delta = lt - performanceTime
 		const toneTime = contextTime + delta / 1000
-		console.log(
-			'[Sketch #timeGlobalToTone]',
-			globalTime,
-			'>',
-			toneTime * 1000,
-			`(d:${(toneTime - contextTime) * 1000})`,
-		)
+		// console.log(
+		// 	'[Sketch #timeGlobalToTone]',
+		// 	globalTime,
+		// 	'>',
+		// 	toneTime * 1000,
+		// 	`(d:${(toneTime - contextTime) * 1000})`,
+		// )
 		return toneTime
 	}
 
@@ -90,7 +111,7 @@ export default class Sketch {
 		const delta = toneTime - contextTime
 		const pt = performanceTime + delta * 1000
 		const globalTime = this.ws.clock.toGlobal(pt)
-		console.log('[Sketch #timeToneToGlobal]', toneTime * 1000, '>', globalTime)
+		// console.log('[Sketch #timeToneToGlobal]', toneTime * 1000, '>', globalTime)
 		return globalTime
 	}
 
@@ -116,10 +137,11 @@ export default class Sketch {
 		const inUser = this.setupInputsUser(this.ws.clientId)
 
 		const inInst = pp.createSelect() as any
-		inInst.position(inUser.x + inUser.width + 10, 20)
+		inInst.position(inUser.x + inUser.width + 10, userInputsY)
 		for (const instName in this.instruments) {
 			inInst.option(instName)
 		}
+		inInst.size(100)
 		inInst.changed(() => {
 			console.log('[Sketch #inputs.instrument] Changed:', inInst.value())
 			this.user.instrument = inInst.value()
@@ -128,34 +150,52 @@ export default class Sketch {
 		this.inputs.instrument = inInst
 		this.user.instrument = inInst.value()
 
-		if (this.midi.enabled && !this.inputs.midi) {
+		if (this.midi.enabled && !this.inputs.inputDevice) {
 			this.setupInputsMidi(this.midi.webMidi)
 		}
 	}
 
 	setupInputsUser = (clientId: number): any => {
+		this.user.clientId = clientId
 		if (!this.pp) {
 			console.warn(
 				'[Sketch #setupInputsUser] Attempted to setup user input before sketch was initialized',
 			)
 			return
 		}
-		if (this.inputs.user && this.inputs.userCustomized) {
+		if (this.inputs.name && this.nameCustomized) {
 			// Don't re-create the input if the user has already customized their name
 			return
 		}
 		const inUser = this.pp.createInput(`User ${this.ws.clientId + 1}`) as any
-		inUser.position(20, 20)
+		inUser.size(80)
+		inUser.position(20, userInputsY)
 		inUser.input(() => {
-			console.log('[Sketch #inputs.user] Changed:', inUser.value())
-			this.inputs.userCustomized = true
+			console.log('[Sketch #inputs.name] Changed:', inUser.value())
+			this.nameCustomized = true
 			this.user.name = inUser.value()
 			this.sendUserUpdate()
 		})
-		this.inputs.user = inUser
+		this.inputs.name = inUser
 		this.user.name = inUser.value()
-		this.sendUserUpdate()
-		return inUser
+
+		const inOffset = this.pp.createInput(`${this.user.offset}`) as any
+		inOffset.size(50)
+		inOffset.position(inUser.x + inUser.width + 10, userInputsY)
+		const setOffset = () => {
+			const off = parseFloat(inOffset.value())
+			if (!Number.isNaN(off)) {
+				this.user.offset = off
+				this.sendUserUpdate()
+			}
+		}
+		inOffset.input(() => {
+			console.log('[Sketch #inputs.offset] Changed:', inOffset.value())
+			setOffset()
+		})
+		this.inputs.offset = inOffset
+		setOffset()
+		return inOffset
 	}
 
 	setupInputsMidi = (webMidi: any) => {
@@ -165,7 +205,7 @@ export default class Sketch {
 		const { inputs } = webMidi
 		const inMidi = this.pp.createSelect() as any
 		const inInst = this.inputs.instrument
-		inMidi.position(inInst.x + inInst.width + 50, 20)
+		inMidi.position(inInst.x + inInst.width + 10, userInputsY)
 		for (const input of inputs) {
 			const { _midiInput } = input
 			if (!_midiInput) {
@@ -177,25 +217,58 @@ export default class Sketch {
 		inMidi.option('keyboard')
 		inMidi.changed(() => {
 			console.log('[Sketch #setupInputsMidi] Changed:', inMidi.value())
-			this.user.input = inMidi.value()
+			this.user.inputDevice = inMidi.value()
 			this.sendUserUpdate()
 		})
-		this.inputs.midi = inMidi
-		this.user.input = inMidi.value()
+		this.inputs.inputDevice = inMidi
+		this.user.inputDevice = inMidi.value()
+	}
+
+	setupInputsBPM = () => {
+		if (!this.pp) {
+			return
+		}
+		const inBPM = this.pp.createSlider(30, 200, this.clockOpts.bpm) as any
+		inBPM.position(20, this.pp.height - 40)
+		inBPM.size(this.pp.width / 2)
+		inBPM.input(() => {
+			console.log('[Sketch #setupInputsBPM] Changed:', inBPM.value())
+			this.clockOpts.bpm = inBPM.value()
+			this.sendClockUpdate(this.clockOpts)
+		})
+		this.inputs.bpm = inBPM
 	}
 
 	sendUserUpdate = () => {
 		const { conn } = this.ws
 		if (!conn || conn.readyState !== WebSocket.OPEN) {
-			console.error("[Sketch #sendUserUpdate] Can't send user update, websocket connection is not open")
+			console.warn("[Sketch #sendUserUpdate] Can't send user update, websocket connection is not open")
 			return
 		}
 		conn.send(userUpdateReq(this.user))
 	}
 
+	sendClockUpdate = (clk: ClockOpts) => {
+		const { conn } = this.ws
+		if (!conn || conn.readyState !== WebSocket.OPEN) {
+			console.warn("[Sketch #sendUserUpdate] Can't send bpm update, websocket connection is not open")
+			return
+		}
+		conn.send(clockUpdateReq(clk))
+	}
+
+	onClockUpdate = (clk: ClockOpts) => {
+		this.clockOpts = clk
+		if (!this.inputs.bpm) {
+			return
+		}
+		this.inputs.bpm.value(clk.bpm)
+	}
+
 	draw = (pp: p5) => {
 		const nn = this.nn++
 		pp.background((nn / 3) % 255, (nn / 2) % 255, nn % 255)
+		this.drawLabels(pp)
 		if (this.syncing) {
 			this.drawSyncing(pp)
 			return
@@ -203,6 +276,42 @@ export default class Sketch {
 		if (!this.started) {
 			this.drawClickToStart(pp)
 			return
+		}
+	}
+
+	drawLabels = (pp: p5) => {
+		pp.textSize(12)
+		pp.fill(255)
+		pp.strokeWeight(1)
+		pp.stroke(0)
+		pp.textAlign(pp.LEFT, pp.BOTTOM)
+		pp.textStyle(pp.BOLD)
+		for (const key in this.inputs) {
+			const input = (this.inputs as any)[key]
+			const xx = input.x + 3
+			const yy = input.y - 5
+			switch (true) {
+				case key === 'offset':
+					const off = parseFloat(input.value())
+					let msg = ``
+					if (Number.isNaN(off)) {
+						// Show the user that they have an invalid value
+						pp.fill(255, 0, 0)
+						msg = ` (NaN!)`
+					}
+					pp.text(`${key.toUpperCase()}${msg}${'\n'}(in beats)`, xx, yy)
+					if (Number.isNaN(off)) {
+						// put fill color back
+						pp.fill(255)
+					}
+					break
+				case key in this.user:
+					pp.text(key.toUpperCase(), xx, yy)
+					break
+				default:
+					pp.text(`${key.toUpperCase()}: ${input.value()}`, xx, yy)
+					break
+			}
 		}
 	}
 
@@ -239,30 +348,69 @@ export default class Sketch {
 		console.log('[Sketch #mousePressed] Started Tone')
 	}
 
-	onMIDI = (eventName: string, evt: MidiEvent) => {
-		// const { attack, data, note, target, value } = evt
-		const { data, target } = evt
-		const { number: channel } = target || {}
-		switch (eventName) {
+	offsetMs = () => {
+		if (!this.inputs.bpm) {
+			return 0
+		}
+		const bps = this.inputs.bpm.value() / 60
+		const beatMs = 1000.0 / bps
+		return beatMs * this.user.offset
+	}
+
+	onMIDI = (inputName: string, eventName: string, evt: MidiEvent) => {
+		if (inputName !== this.user.inputDevice) {
+			return
+		}
+		const uevt = {
+			clientId: this.user.clientId,
+			instrument: this.user.instrument,
+			midiEvent: evt,
+			timestamp: this.ws.now() + this.offsetMs(),
+			// timestamp: this.timeToneToGlobal(Tone.immediate()) + this.offsetMs(),
+		}
+		const { conn } = this.ws
+		if (!conn || conn.readyState !== WebSocket.OPEN) {
+			this.onUserEvent(uevt)
+			return
+		}
+		// this.onUserEvent({
+		// 	clientId: this.user.clientId,
+		// 	instrument: this.user.instrument,
+		// 	midiEvent: evt,
+		// 	timestamp: this.ws.now(),
+		// 	// timestamp: this.ws.now() + this.offsetMs(),
+		// 	// timestamp: this.timeToneToGlobal(Tone.immediate()),
+		// })
+		conn.send(userEventReq(uevt))
+	}
+
+	onUserEvent = (evt: UserEvent) => {
+		const { clientId, instrument, midiEvent, timestamp } = evt
+		const { data, channel, kind } = midiEvent
+		const inst = (this.instruments as any)[instrument]
+		if (!inst) {
+			console.error('[Sketch #onUserEvent] Unable to find instrument', instrument)
+		}
+		switch (kind) {
 			case 'noteon': {
-				const nn = evt as MidiEventNote
-				this.instruments.piano.triggerAttack(
-					Tone.Frequency(nn.note._number, 'midi').toFrequency(),
-					Tone.immediate(),
+				const nn = midiEvent as MidiEventNote
+				inst.triggerAttack(
+					Tone.Frequency(nn.note, 'midi').toFrequency(),
+					this.timeGlobalToTone(timestamp),
 					nn.attack,
 				)
 				break
 			}
 			case 'noteoff': {
-				const nn = evt as MidiEventNote
-				this.instruments.piano.triggerRelease(
-					Tone.Frequency(nn.note._number, 'midi').toFrequency(),
-					Tone.immediate(),
+				const nn = midiEvent as MidiEventNote
+				inst.triggerRelease(
+					Tone.Frequency(nn.note, 'midi').toFrequency(),
+					this.timeGlobalToTone(timestamp),
 				)
 				break
 			}
 			case 'controlchange': {
-				const cc = evt as MidiEventCC
+				const cc = midiEvent as MidiEventCC
 				console.log(
 					`[Sketch #onMIDI] CC event on channel ${channel}:`,
 					cc.controller.number,
@@ -272,17 +420,12 @@ export default class Sketch {
 				break
 			}
 			case 'pitchbend': {
-				const pb = evt as MidiEventPitchbend
+				const pb = midiEvent as MidiEventPitchbend
 				console.log(`[Sketch #onMIDI] Pitchbend event on channel ${channel}:`, pb.value)
 				break
 			}
 			default:
-				console.warn(
-					`[Sketch #onMIDI] Unhandled MIDI event on channel ${channel}:`,
-					eventName,
-					data,
-					evt,
-				)
+				console.warn(`[Sketch #onMIDI] Unhandled MIDI event on channel ${channel}:`, kind, data, evt)
 				break
 		}
 	}

@@ -81,28 +81,22 @@ func handleWSConn(conn net.Conn) {
 	var errBreaker error
 
 	go func() {
-		clockOriginBytes, err := api.HandleClockOrigin()
-		if err != nil {
+		if err := api.SendClockOrigin(conn); err != nil {
 			log.Error().Err(err).Msg(`Failed to send clock origin`)
 			errBreaker = err
 			return
 		}
-		if err := wsutil.WriteServerMessage(conn, ws.OpText, clockOriginBytes); err != nil {
-			log.Error().Err(err).Msg(`Failed to send clock origin`)
-			errBreaker = err
-			return
-		}
-		clientIdBytes, err := api.HandleClientId(cid)
-		if err != nil {
+		if err := api.SendClientId(conn, cid); err != nil {
 			log.Error().Err(err).Msg(`Failed to send clientId`)
 			errBreaker = err
 			return
 		}
-		if err := wsutil.WriteServerMessage(conn, ws.OpText, clientIdBytes); err != nil {
-			log.Error().Err(err).Msg(`Failed to send clientId`)
+		if err := api.SendClockUpdate(conn); err != nil {
+			log.Error().Err(err).Msg(`Failed to send clock settings`)
 			errBreaker = err
 			return
 		}
+
 		nErrs := 0
 		for {
 			select {
@@ -169,6 +163,25 @@ func handleWSConn(conn net.Conn) {
 				Kind:       head,
 				FromClient: cid,
 				User:       user,
+			}
+		case api.WS_USER_EVENT:
+			events <- Event{
+				Kind:       head,
+				FromClient: cid,
+				Raw:        bites,
+			}
+		case api.WS_CLOCK_UPDATE:
+			clk, err := api.ParseClockUpdate(body)
+			if err != nil {
+				log.Error().Err(err).Str(`body`, body).Msg(`Failed to parse clock update`)
+				continue
+			}
+			api.ClockUpdate(clk)
+			events <- Event{
+				Kind:       head,
+				FromClient: cid,
+				Clock:      clk,
+				Raw:        bites,
 			}
 		default:
 			log.Debug().
