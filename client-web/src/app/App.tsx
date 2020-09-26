@@ -1,31 +1,9 @@
 import React from 'react'
-import Clock from 'components/Clock'
-import SequenceList from 'components/sequences/SequenceList'
-import InstrumentList from 'components/instruments/InstrumentList'
 import VideoOutput from 'components/VideoOutput'
 
 import './App.css'
 
-type OwnProps = {
-	match: {
-		params: {
-			subengine: string
-			instrumentId: string
-		}
-	}
-}
-
-const App: React.FC<OwnProps> = ({
-	match: {
-		params: { subengine, instrumentId },
-	},
-}) => {
-	const children = [<Clock key='clock' />]
-	if (subengine === 'video' && instrumentId) {
-		children.unshift(<VideoOutput key='video-output' instId={instrumentId} />)
-	} else {
-		children.unshift(<SequenceList key='sequences' />, <InstrumentList key='instruments' />)
-	}
+const App: React.FC = () => {
 	return (
 		<div
 			className='App'
@@ -40,7 +18,7 @@ const App: React.FC<OwnProps> = ({
 				bottom: 0,
 			}}
 		>
-			{children}
+			<VideoOutput />
 		</div>
 	)
 }

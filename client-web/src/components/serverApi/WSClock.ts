@@ -1,4 +1,4 @@
-import { clockNowReq, ClockNowResp, ClockOriginResp } from 'serverApi/serverClock'
+import { clockNowReq, ClockNowResp, ClockOriginResp } from './serverClock'
 
 const SYNC_PERIOD_INITIAL_MS = 500,
 	SYNC_INITIAL_NUM = 6, // number of times to use initial period
@@ -51,7 +51,7 @@ export default class WSClock {
 
 	onClockOrigin(body: string) {
 		const resp: ClockOriginResp = JSON.parse(body)
-		const { originMs } = resp || {}
+		const { originMs } = resp
 		if (!originMs) {
 			console.error('[workerClock #onClockOrigin] Received empty response')
 			return

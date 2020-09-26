@@ -44,6 +44,8 @@ func mainAction(cc *cli.Context) error {
 	port := cc.String(`port`)
 	log.Info().Str(`port`, port).Msg(`listening for client connections`)
 
+	go runSubscriptionLoop()
+
 	http.ListenAndServe(`:`+port, http.HandlerFunc(handleWS))
 
 	log.Info().Msg(`Goodbye`)
@@ -61,32 +63,60 @@ func handleWS(w http.ResponseWriter, r *http.Request) {
 	go handleWSConn(conn)
 }
 
-var clientID = 0
+var clientId = 0
 
 func handleWSConn(conn net.Conn) {
-	cid := clientID
-	clientID++
-	log := log.With().Int(`clientID`, cid).Logger()
+	cid := clientId
+	clientId++
+	log := log.With().Int(`clientId`, cid).Logger()
 	log.Info().Msg(`New client connection`)
 
-	defer conn.Close()
+	sub := NewSubscription(cid)
+	addSub <- sub
+	defer func() {
+		conn.Close()
+		rmSub <- sub
+	}()
 	quit := make(chan struct{})
 	var errBreaker error
 
 	go func() {
-		clockOrigin, err := api.HandleClockOrigin()
+		clockOriginBytes, err := api.HandleClockOrigin()
 		if err != nil {
 			log.Error().Err(err).Msg(`Failed to send clock origin`)
 			errBreaker = err
 			return
 		}
-		if err := wsutil.WriteServerMessage(conn, ws.OpText, clockOrigin); err != nil {
+		if err := wsutil.WriteServerMessage(conn, ws.OpText, clockOriginBytes); err != nil {
 			log.Error().Err(err).Msg(`Failed to send clock origin`)
 			errBreaker = err
 			return
 		}
+		clientIdBytes, err := api.HandleClientId(cid)
+		if err != nil {
+			log.Error().Err(err).Msg(`Failed to send clientId`)
+			errBreaker = err
+			return
+		}
+		if err := wsutil.WriteServerMessage(conn, ws.OpText, clientIdBytes); err != nil {
+			log.Error().Err(err).Msg(`Failed to send clientId`)
+			errBreaker = err
+			return
+		}
+		nErrs := 0
 		for {
 			select {
+			case bites := <-sub.Messages:
+				if err := wsutil.WriteServerMessage(conn, ws.OpText, bites); err != nil {
+					log.Error().Err(err).Msg(`Failed to send client message`)
+					nErrs++
+					if nErrs > 5 {
+						log.Error().Msg(`Failed to send too many times, closing connection`)
+						errBreaker = err
+						return
+					}
+				}
+				// log.Debug().Str(`raw`, string(bites)).Msg(`Sent event`)
 			case <-quit:
 				return
 				// case <-time.After(7 * time.Second):
@@ -129,6 +159,17 @@ func handleWSConn(conn net.Conn) {
 				continue
 			}
 			wsutil.WriteServerMessage(conn, ws.OpText, resp)
+		case api.WS_USER_UPDATE:
+			user, err := api.ParseUserUpdate(body)
+			if err != nil {
+				log.Error().Err(err).Str(`body`, body).Msg(`Failed to parse user update`)
+				continue
+			}
+			events <- Event{
+				Kind:       head,
+				FromClient: cid,
+				User:       user,
+			}
 		default:
 			log.Debug().
 				Interface(`op`, op).

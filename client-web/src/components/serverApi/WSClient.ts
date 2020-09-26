@@ -1,9 +1,18 @@
-import { WS_HEADER_END, WS_URL } from 'serverApi/serverApi'
-import { WS_CLOCK_NOW, WS_CLOCK_ORIGIN } from 'serverApi/serverClock'
+import {
+	parseClientId,
+	parseUsersAll,
+	User,
+	WS_CLIENT_ID,
+	WS_HEADER_END,
+	WS_URL,
+	WS_USERS_ALL,
+} from './serverApi'
+import { WS_CLOCK_NOW, WS_CLOCK_ORIGIN } from './serverClock'
 import WSClock, { WSClockOptions } from './WSClock'
 
 export type WSClientOptions = {
 	clock: Partial<WSClockOptions>
+	onClientId?: (clientId: number) => any
 }
 
 export default class WSClient {
@@ -11,13 +20,14 @@ export default class WSClient {
 	clock: WSClock
 	global: any
 	options: WSClientOptions
+	clientId: number = 0
+	users: User[] = []
 
 	constructor(global: any, options: Partial<WSClientOptions> = {}) {
 		this.global = global
 		this.options = options as WSClientOptions
 		this.conn = this.newConn()
 		this.clock = new WSClock(this.global, this.conn, this.options.clock)
-		setInterval(this.reopen, 5000)
 	}
 
 	reopen = () => {
@@ -33,9 +43,10 @@ export default class WSClient {
 		const conn = new WebSocket(WS_URL)
 		conn.onclose = (evt: CloseEvent) => {
 			console.warn('WebSocket closed', evt)
+			setTimeout(this.reopen, 5000)
 		}
 		conn.onopen = (evt: Event) => {
-			console.warn('WebSocket opened', evt)
+			console.log('WebSocket opened', evt)
 		}
 		conn.onerror = (evt: Event) => {
 			console.error('WebSocket error', evt)
@@ -51,9 +62,7 @@ export default class WSClient {
 			case WS_CLOCK_NOW:
 			case WS_CLOCK_ORIGIN:
 				if (!this.clock) {
-					console.error(
-						'[WorkerWSClient #onMessage] No local clock ready to handle server clock message',
-					)
+					console.error('[WSClient #onMessage] No local clock ready to handle server clock message')
 					return
 				}
 				if (head === WS_CLOCK_ORIGIN) {
@@ -62,8 +71,19 @@ export default class WSClient {
 					this.clock.onClockNow(body)
 				}
 				break
+			case WS_CLIENT_ID:
+				this.clientId = parseClientId(body)
+				console.log('[WSClient #onMessage] Received clientId', this.clientId)
+				if (this.options.onClientId) {
+					this.options.onClientId(this.clientId)
+				}
+				break
+			case WS_USERS_ALL:
+				this.users = parseUsersAll(body)
+				console.log('[WSClient #onMessage] Received users', this.users)
+				break
 			default:
-				console.log('[WorkerWSClient #onMessage] Unhandled message', { head, body, parts }, evt)
+				console.log('[WSClient #onMessage] Unhandled message', { head, body, parts }, evt)
 				break
 		}
 	}
