@@ -113,6 +113,14 @@ export default class WSClient {
 		}
 		return this.clock.now()
 	}
+
+	getUser = (clientId: number) => {
+		for (const uu of this.users) {
+			if (uu.clientId === clientId) {
+				return uu
+			}
+		}
+	}
 }
 
 // split function with remainder

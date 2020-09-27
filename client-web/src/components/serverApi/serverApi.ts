@@ -17,6 +17,8 @@ export type User = {
 	instrument: string
 	inputDevice: string
 	offset: number
+	posX: number
+	posY: number
 }
 
 export const WS_USER_UPDATE = 'user/update'

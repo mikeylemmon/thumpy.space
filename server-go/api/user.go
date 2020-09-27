@@ -16,6 +16,8 @@ type User struct {
 	Instrument  string  `json:"instrument"`
 	InputDevice string  `json:"inputDevice"`
 	Offset      float64 `json:"offset"`
+	PosX        float64 `json:"posX"`
+	PosY        float64 `json:"posY"`
 }
 
 type MidiEventController struct {

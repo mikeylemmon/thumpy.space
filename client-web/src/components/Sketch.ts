@@ -5,6 +5,7 @@ import { userEventReq, userUpdateReq, User, UserEvent } from './serverApi/server
 import { clockUpdateReq, ClockOpts } from './serverApi/serverClock'
 import MIDI, { MidiEvent, MidiEventCC, MidiEventNote, MidiEventPitchbend } from './MIDI'
 import { piano, eightOhEight } from './instruments'
+import VisualNotes from './VisualNotes'
 
 type Instruments = {
 	eightOhEight: ReturnType<typeof eightOhEight>
@@ -17,11 +18,12 @@ export default class Sketch {
 	width: number = 0
 	height: number = 0
 	nn: number = 0
+	visualNotes: VisualNotes = new VisualNotes()
 	started: boolean = false
 	syncing: boolean = true
 	instruments: Instruments = {
-		eightOhEight: eightOhEight(),
 		piano: piano(),
+		eightOhEight: eightOhEight(),
 	}
 	ws: WSClient
 	midi: MIDI
@@ -31,8 +33,9 @@ export default class Sketch {
 		name: '',
 		instrument: '',
 		inputDevice: '',
-		// offset: 3.9,
-		offset: 0,
+		offset: 2,
+		posX: Math.random() * 0.8 + 0.1,
+		posY: Math.random() * 0.6 + 0.2,
 	}
 	clockOpts: ClockOpts = {
 		bpm: 95,
@@ -65,7 +68,6 @@ export default class Sketch {
 			onMessage: this.onMIDI,
 			onEnabled: this.setupInputsMidi,
 		})
-		window.now = this.now
 		window.Tone = Tone
 		window.me = this
 	}
@@ -74,34 +76,12 @@ export default class Sketch {
 		this.ws.conn.close(DONT_REOPEN, 'sketch destroyed')
 	}
 
-	now = () => {
-		this.nowTestGlobal(this.ws.now())
-		this.nowTestTone(Tone.immediate())
-		this.nowTestTone(Tone.now())
-	}
-
-	nowTestGlobal = (nn: number) => {
-		const tt = this.timeToneToGlobal(this.timeGlobalToTone(nn))
-		console.log('[Sketch #nowTestGlobal] diff:', nn - tt)
-	}
-	nowTestTone = (nn: number) => {
-		const tt = this.timeGlobalToTone(this.timeToneToGlobal(nn))
-		console.log('[Sketch #nowTestTone] diff:', nn - tt)
-	}
-
 	timeGlobalToTone = (globalTime: number) => {
 		const rawCtx = Tone.context.rawContext as any
 		const { contextTime, performanceTime } = rawCtx._nativeAudioContext.getOutputTimestamp()
 		const lt = this.ws.clock.toLocal(globalTime)
 		const delta = lt - performanceTime
 		const toneTime = contextTime + delta / 1000
-		// console.log(
-		// 	'[Sketch #timeGlobalToTone]',
-		// 	globalTime,
-		// 	'>',
-		// 	toneTime * 1000,
-		// 	`(d:${(toneTime - contextTime) * 1000})`,
-		// )
 		return toneTime
 	}
 
@@ -131,6 +111,8 @@ export default class Sketch {
 		console.log(`[Sketch #setup] ${this.width} x ${this.height}`)
 		pp.createCanvas(this.width, this.height)
 		this.setupInputs(pp)
+		this.user.posX = Math.random() * 0.8 + 0.1
+		this.user.posY = Math.random() * 0.6 + 0.2
 	}
 
 	setupInputs = (pp: p5) => {
@@ -239,43 +221,39 @@ export default class Sketch {
 		this.inputs.bpm = inBPM
 	}
 
-	sendUserUpdate = () => {
-		const { conn } = this.ws
-		if (!conn || conn.readyState !== WebSocket.OPEN) {
-			console.warn("[Sketch #sendUserUpdate] Can't send user update, websocket connection is not open")
-			return
-		}
-		conn.send(userUpdateReq(this.user))
-	}
-
-	sendClockUpdate = (clk: ClockOpts) => {
-		const { conn } = this.ws
-		if (!conn || conn.readyState !== WebSocket.OPEN) {
-			console.warn("[Sketch #sendUserUpdate] Can't send bpm update, websocket connection is not open")
-			return
-		}
-		conn.send(clockUpdateReq(clk))
-	}
-
-	onClockUpdate = (clk: ClockOpts) => {
-		this.clockOpts = clk
-		if (!this.inputs.bpm) {
-			return
-		}
-		this.inputs.bpm.value(clk.bpm)
-	}
-
 	draw = (pp: p5) => {
-		const nn = this.nn++
-		pp.background((nn / 3) % 255, (nn / 2) % 255, nn % 255)
-		this.drawLabels(pp)
-		if (this.syncing) {
-			this.drawSyncing(pp)
-			return
+		let loading = false
+		for (const instName in this.instruments) {
+			const inst = (this.instruments as any)[instName]
+			loading = loading || !inst.loaded
 		}
-		if (!this.started) {
-			this.drawClickToStart(pp)
-			return
+		pp.background(0x33)
+		this.visualNotes.draw(pp)
+		this.drawLabels(pp)
+		this.drawUsers(pp)
+		if (loading) {
+			this.drawMessage(pp, 'Loading instruments...')
+		} else if (this.syncing) {
+			this.drawMessage(pp, 'Syncing clock with server...')
+		} else if (!this.started) {
+			this.drawMessage(pp, 'Click to enable audio')
+		}
+	}
+
+	drawUsers = (pp: p5) => {
+		pp.strokeWeight(0)
+		pp.textAlign(pp.CENTER, pp.CENTER)
+		for (const user of this.ws.users) {
+			const xx = user.posX * pp.width
+			const yy = user.posY * pp.height
+			pp.fill(255)
+			pp.textSize(14)
+			pp.textStyle(pp.BOLD)
+			pp.text(user.name, xx, yy)
+			pp.fill(200)
+			pp.textSize(11)
+			pp.textStyle(pp.ITALIC)
+			pp.text(`${user.instrument} (@${user.offset})`, xx, yy + 18)
 		}
 	}
 
@@ -315,24 +293,13 @@ export default class Sketch {
 		}
 	}
 
-	drawSyncing = (pp: p5) => {
-		pp.fill(0)
-		pp.stroke(120)
-		pp.strokeWeight(2)
+	drawMessage = (pp: p5, msg: string) => {
+		pp.fill(200)
+		pp.strokeWeight(0)
 		pp.textSize(20)
 		pp.textAlign(pp.CENTER, pp.CENTER)
 		pp.textStyle(pp.BOLDITALIC)
-		pp.text('Syncing clock with server...', pp.width / 2, pp.height / 2)
-	}
-
-	drawClickToStart = (pp: p5) => {
-		pp.fill(0)
-		pp.stroke(120)
-		pp.strokeWeight(5)
-		pp.textSize(32)
-		pp.textAlign(pp.CENTER, pp.CENTER)
-		pp.textStyle(pp.BOLD)
-		pp.text('CLICK TO START', pp.width / 2, pp.height / 2)
+		pp.text(msg, pp.width / 2, pp.height / 2)
 	}
 
 	mousePressed = (pp: p5) => {
@@ -341,6 +308,42 @@ export default class Sketch {
 			this.started = true
 			return
 		}
+		// Update user position if click is in the center area
+		if (pp.mouseX < pp.width * 0.1 || pp.mouseX > pp.width * 0.9) {
+			return
+		}
+		if (pp.mouseY < pp.height * 0.2 || pp.mouseY > pp.height * 0.8) {
+			return
+		}
+		this.user.posX = pp.mouseX / pp.width
+		this.user.posY = pp.mouseY / pp.height
+		this.sendUserUpdate()
+	}
+
+	sendUserUpdate = () => {
+		const { conn } = this.ws
+		if (!conn || conn.readyState !== WebSocket.OPEN) {
+			console.warn("[Sketch #sendUserUpdate] Can't send user update, websocket connection is not open")
+			return
+		}
+		conn.send(userUpdateReq(this.user))
+	}
+
+	sendClockUpdate = (clk: ClockOpts) => {
+		const { conn } = this.ws
+		if (!conn || conn.readyState !== WebSocket.OPEN) {
+			console.warn("[Sketch #sendUserUpdate] Can't send bpm update, websocket connection is not open")
+			return
+		}
+		conn.send(clockUpdateReq(clk))
+	}
+
+	onClockUpdate = (clk: ClockOpts) => {
+		this.clockOpts = clk
+		if (!this.inputs.bpm) {
+			return
+		}
+		this.inputs.bpm.value(clk.bpm)
 	}
 
 	startTone = () => {
@@ -381,26 +384,31 @@ export default class Sketch {
 		const inst = (this.instruments as any)[instrument]
 		if (!inst) {
 			console.error('[Sketch #onUserEvent] Unable to find instrument', instrument)
+			return
 		}
 		if (inst.loaded === false) {
 			return // don't send events if instrument hasn't finished loading
 		}
+		const tt = this.timeGlobalToTone(timestamp)
+		if (tt - Tone.immediate() < -1) {
+			return
+		}
 		switch (kind) {
 			case 'noteon': {
 				const nn = midiEvent as MidiEventNote
-				inst.triggerAttack(
-					Tone.Frequency(nn.note, 'midi').toFrequency(),
-					this.timeGlobalToTone(timestamp),
-					nn.attack,
-				)
+				inst.triggerAttack(Tone.Frequency(nn.note, 'midi').toFrequency(), tt, nn.attack)
+				let user = this.user
+				if (clientId !== user.clientId) {
+					const uu = this.ws.getUser(clientId)
+					user = uu || user
+				}
+				Tone.Draw.schedule(() => this.visualNotes.noteon(evt, user), tt)
 				break
 			}
 			case 'noteoff': {
 				const nn = midiEvent as MidiEventNote
-				inst.triggerRelease(
-					Tone.Frequency(nn.note, 'midi').toFrequency(),
-					this.timeGlobalToTone(timestamp),
-				)
+				inst.triggerRelease(Tone.Frequency(nn.note, 'midi').toFrequency(), tt)
+				Tone.Draw.schedule(() => this.visualNotes.noteoff(evt), tt)
 				break
 			}
 			case 'controlchange': {

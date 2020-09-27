@@ -110,5 +110,5 @@ func handleEventUserUpdate(evt Event) {
 		}
 		sub.Messages <- msg
 	}
-	log.Info().Interface(`evt`, evt).Int(`numClients`, len(subs)).Msg(`Sent event`)
+	// log.Info().Interface(`evt`, evt).Int(`numClients`, len(subs)).Msg(`Sent event`)
 }
