@@ -12,6 +12,7 @@ declare global {
 		now: any
 		Tone: any
 		syncs: any
+		me: any
 	}
 	interface Navigator {
 		requestMIDIAccess: any

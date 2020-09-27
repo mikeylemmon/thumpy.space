@@ -16,9 +16,11 @@ const VideoOutput: React.FC = () => {
 			elem.removeChild(elem.childNodes[0]) // remove previous sketch
 		}
 		const { clientWidth, clientHeight } = elem
-		sk.current.setSize(clientWidth, clientHeight)
-		const sketch = new window.p5(sk.current.sketch, elem)
+		const skObj = sk.current
+		skObj.setSize(clientWidth, clientHeight)
+		const sketch = new window.p5(skObj.sketch, elem)
 		return () => {
+			skObj.destroy()
 			sketch.remove()
 			console.log('[VideoOutput #useEffect.return]')
 		}

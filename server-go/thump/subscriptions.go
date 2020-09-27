@@ -17,14 +17,23 @@ type Subscription struct {
 type Event struct {
 	Kind       string
 	FromClient int
+	Clock      *api.ClockOpts
 	User       *api.User
 	Users      []*api.User
+	Raw        []byte
 }
 
 func NewSubscription(cid int) *Subscription {
 	return &Subscription{
 		ClientId: cid,
 		Messages: make(chan []byte),
+	}
+}
+
+func NewRoboSubscription(cid int) *Subscription {
+	return &Subscription{
+		ClientId: cid,
+		Messages: nil,
 	}
 }
 
@@ -45,22 +54,35 @@ func runSubscriptionLoop() {
 			delete(subs, sub.ClientId)
 			log.Info().Int(`clientId`, sub.ClientId).Msg(`Removed subscription`)
 		case evt := <-events:
+			if evt.Clock != nil {
+				api.UpdateClock(evt.Clock)
+				for _, sub := range subs {
+					if sub.ClientId == evt.FromClient {
+						continue // don't send clock update back to event source
+					}
+					if sub.Messages == nil {
+						continue // skip robo subscriptions
+					}
+					sub.Messages <- evt.Raw // forward the raw message to all other users
+				}
+				continue
+			}
+			if evt.Raw != nil {
+				for _, sub := range subs {
+					if sub.Messages == nil {
+						continue // skip robo subscriptions
+					}
+					sub.Messages <- evt.Raw
+				}
+				// log.Info().Str(`kind`, evt.Kind).Int(`from`, evt.FromClient).Int(`numClients`, len(subs)).Msg(`Sent raw event`)
+				continue
+			}
 			if evt.User != nil {
 				// special case for user updates
 				handleEventUserUpdate(evt)
 				continue
 			}
 			log.Error().Interface(`evt`, evt).Msg(`Received unsupported event type`)
-			// bites, err := json.Marshal(evt)
-			// if err != nil {
-			// 	log.Error().Err(err).Interface(`evt`, evt).Msg(`Failed to encode event`)
-			// 	continue
-			// }
-			// msg := []byte(evt.Kind + api.WS_HEADER_END + string(bites))
-			// for _, sub := range subs {
-			// 	sub.Messages <- msg
-			// }
-			// log.Info().Interface(`evt`, evt).Int(`numClients`, len(subs)).Msg(`Sent event`)
 		}
 	}
 }
@@ -83,7 +105,10 @@ func handleEventUserUpdate(evt Event) {
 	}
 	msg := []byte(api.WS_USERS_ALL + api.WS_HEADER_END + string(bites))
 	for _, sub := range subs {
+		if sub.Messages == nil {
+			continue // skip robo subscriptions
+		}
 		sub.Messages <- msg
 	}
-	log.Info().Interface(`evt`, evt).Int(`numClients`, len(subs)).Msg(`Sent event`)
+	log.Info().Interface(`user`, evt.User).Int(`numClients`, len(subs)).Msg(`Sent user update`)
 }

@@ -1,4 +1,7 @@
-export const WS_URL = 'ws://localhost:38883'
+import { MidiEvent } from '../MIDI'
+
+// export const WS_URL = 'ws://localhost:38883'
+export const WS_URL = 'ws://207.38.86.97:25468'
 export const WS_HEADER_END = '#'
 
 export const WS_CLIENT_ID = 'client/id'
@@ -10,9 +13,13 @@ export function parseClientId(body: string): number {
 }
 
 export type User = {
+	clientId: number
 	name: string
 	instrument: string
-	input: string
+	inputDevice: string
+	offset: number
+	posX: number
+	posY: number
 }
 
 export const WS_USER_UPDATE = 'user/update'
@@ -25,4 +32,22 @@ export function parseUsersAll(body: string): User[] {
 
 export function userUpdateReq(user: User): string {
 	return WS_USER_UPDATE + WS_HEADER_END + JSON.stringify(user)
+}
+
+export type UserEvent = {
+	clientId: number
+	instrument: string
+	midiEvent: MidiEvent
+	timestamp: number
+}
+
+export const WS_USER_EVENT = 'user/event'
+
+export function parseUserEvent(body: string): UserEvent {
+	const resp: UserEvent = JSON.parse(body)
+	return resp
+}
+
+export function userEventReq(evt: UserEvent): string {
+	return WS_USER_EVENT + WS_HEADER_END + JSON.stringify(evt)
 }
