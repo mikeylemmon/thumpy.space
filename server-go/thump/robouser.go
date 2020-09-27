@@ -12,7 +12,7 @@ func runRoboUser1() {
 	cid := nextClientId()
 	user := &api.User{
 		ClientId:    cid,
-		Name:        `robouser`,
+		Name:        `the-server`,
 		Instrument:  `eightOhEight`,
 		InputDevice: `metronome`,
 		Offset:      8,

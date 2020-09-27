@@ -1,6 +1,7 @@
 import { MidiEvent } from '../MIDI'
 
-export const WS_URL = 'ws://localhost:38883'
+// export const WS_URL = 'ws://localhost:38883'
+export const WS_URL = 'ws://207.38.86.97:25468'
 export const WS_HEADER_END = '#'
 
 export const WS_CLIENT_ID = 'client/id'

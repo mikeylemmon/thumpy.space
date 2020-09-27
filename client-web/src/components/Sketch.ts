@@ -304,7 +304,8 @@ export default class Sketch {
 
 	mousePressed = (pp: p5) => {
 		if (!this.started) {
-			this.startTone()
+			Tone.start()
+			console.log('[Sketch #mousePressed] Started Tone')
 			this.started = true
 			return
 		}
@@ -346,20 +347,6 @@ export default class Sketch {
 		this.inputs.bpm.value(clk.bpm)
 	}
 
-	startTone = () => {
-		Tone.start()
-		console.log('[Sketch #mousePressed] Started Tone')
-	}
-
-	offsetMs = () => {
-		if (!this.inputs.bpm) {
-			return 0
-		}
-		const bps = this.inputs.bpm.value() / 60
-		const beatMs = 1000.0 / bps
-		return beatMs * this.user.offset
-	}
-
 	onMIDI = (inputName: string, eventName: string, evt: MidiEvent) => {
 		if (inputName !== this.user.inputDevice) {
 			return
@@ -376,6 +363,15 @@ export default class Sketch {
 			return
 		}
 		conn.send(userEventReq(uevt))
+	}
+
+	offsetMs = () => {
+		if (!this.inputs.bpm) {
+			return 0
+		}
+		const bps = this.inputs.bpm.value() / 60
+		const beatMs = 1000.0 / bps
+		return beatMs * this.user.offset
 	}
 
 	onUserEvent = (evt: UserEvent) => {

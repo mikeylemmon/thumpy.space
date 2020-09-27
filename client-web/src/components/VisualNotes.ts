@@ -83,19 +83,17 @@ class VisualNote {
 			const cc = close * close
 			const outerDist = dd - (this.radius + other.radius)
 			if (outerDist < 0) {
+				// notes bounce off each other if they're touching
 				this.velx += (weightVC * sx * (cc * 3 - ddx)) / cc
 				this.vely += (weightVC * sy * (cc * 3 - ddy)) / cc
 			} else if (outerDist < close) {
-				// this.velx += (weightC * (sx * (close - ddx))) / close
-				// this.vely += (weightC * (sy * (close - ddy))) / close
+				// notes repel each other a little if they're not touching but still close
 				this.velx += (weightC * sx * ddx) / cc
 				this.vely += (weightC * sy * ddy) / cc
-			} else {
-				// notes from the same instrument gravitate towards each other,
-				// notes from different instruments repell a bit
-				const charge = other.evt.instrument === this.evt.instrument ? 1 : -0.2
-				this.velx -= weightF * charge * sx * ddx
-				this.vely -= weightF * charge * sy * ddy
+			} else if (other.evt.instrument === this.evt.instrument) {
+				// notes from the same instrument spring towards each other when they're far away
+				this.velx -= weightF * sx * ddx
+				this.vely -= weightF * sy * ddy
 			}
 		}
 		// bounce off the walls
