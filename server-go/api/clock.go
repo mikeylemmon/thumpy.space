@@ -35,22 +35,17 @@ var (
 	origin = nanoToMs(time.Now().UnixNano())
 )
 
-func ClockUpdate(clk *ClockOpts) {
+func UpdateClock(clk *ClockOpts) {
 	Clock = *clk
 }
 
+func Now() float64 { return nanoToMs(time.Now().UnixNano()) - origin }
+
 func HandleClockNow() ([]byte, error) {
-	now := time.Now()
-	nowMs := nanoToMs(now.UnixNano())
-	resp, err := json.Marshal(ClockNowResp{
-		// NowMs: nowMs,
-		// NowMs: nanoToMs(now.UnixNano()),
-		NowMs: nowMs - origin,
-	})
+	resp, err := json.Marshal(ClockNowResp{NowMs: Now()})
 	if err != nil {
 		return nil, err
 	}
-	// log.Debug().Float64(`now`, nowMs-origin).Msg(`Sending now`)
 	return []byte(WS_CLOCK_NOW + WS_HEADER_END + string(resp)), nil
 }
 

@@ -1,17 +1,6 @@
-// type MidiInputChannel = {
-// 	eventMap: any // {...}
-// 	eventsSuspended: boolean
-// 	input: any // Input
-// 	number: number
-// }
-
 type FieldsShared = {
 	data: number[]
-	// rawData: number[]
-	// target: MidiInputChannel
-	// target: { number: number }
 	channel: number
-	// timestamp: number
 	kind: string
 }
 
@@ -19,20 +8,10 @@ type FieldsNote = {
 	attack?: number
 	note: number
 	release?: number
-	// note: {
-	// 	_number: number
-	// 	// _duration: number
-	// 	// _rawAttack: number
-	// 	// _rawRelease: number
-	// }
-	// // rawAttack: number
-	// // rawRelease?: number
-	// release?: number
 }
 
 type FieldsCC = {
 	value: number // 0 - 1 (data[2])
-	// rawValue: number // 0 - 127
 	controller: {
 		number: number // (data[1])
 		name: string
@@ -41,13 +20,11 @@ type FieldsCC = {
 
 type FieldsPitchbend = {
 	value: number // 0 - 1 (data[2])
-	// rawValue: number // 0 - 127
 }
 
 export type MidiEventNote = FieldsShared & FieldsNote
 export type MidiEventCC = FieldsShared & FieldsCC
 export type MidiEventPitchbend = FieldsShared & FieldsPitchbend
-// export type MidiEvent = MidiEventCC | MidiEventNote | MidiEventPitchbend | FieldsShared
 export type MidiEvent = FieldsShared & FieldsCC & FieldsNote & FieldsPitchbend
 export function newMidiEvent(evt: any): MidiEvent {
 	return {

@@ -2,7 +2,6 @@ package api
 
 import (
 	"encoding/json"
-	// "github.com/rs/zerolog/log"
 )
 
 const (
@@ -17,6 +16,29 @@ type User struct {
 	Instrument  string  `json:"instrument"`
 	InputDevice string  `json:"inputDevice"`
 	Offset      float64 `json:"offset"`
+}
+
+type MidiEventController struct {
+	Number int    `json:"number"`
+	Name   string `json:"name"`
+}
+
+type MidiEvent struct {
+	Data       []int                `json:"data"`
+	Channel    int                  `json:"channel"`
+	Kind       string               `json:"kind"`
+	Attack     float64              `json:"attack,omitempty"`
+	Note       int                  `json:"note,omitempty"`
+	Release    float64              `json:"release,omitempty"`
+	Value      float64              `json:"value,omitempty"`
+	Controller *MidiEventController `json:"controller,omitempty"`
+}
+
+type UserEvent struct {
+	ClientId   int        `json:"clientId"`
+	Instrument string     `json:"instrument"`
+	MidiEvent  *MidiEvent `json:"midiEvent"`
+	Timestamp  float64    `json:"timestamp"`
 }
 
 func ParseUserUpdate(body string) (*User, error) {

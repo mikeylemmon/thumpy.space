@@ -167,7 +167,7 @@ export default class Sketch {
 			// Don't re-create the input if the user has already customized their name
 			return
 		}
-		const inUser = this.pp.createInput(`User ${this.ws.clientId + 1}`) as any
+		const inUser = this.pp.createInput(`User ${this.ws.clientId}`) as any
 		inUser.size(80)
 		inUser.position(20, userInputsY)
 		inUser.input(() => {
@@ -232,7 +232,7 @@ export default class Sketch {
 		inBPM.position(20, this.pp.height - 40)
 		inBPM.size(this.pp.width / 2)
 		inBPM.input(() => {
-			console.log('[Sketch #setupInputsBPM] Changed:', inBPM.value())
+			// console.log('[Sketch #setupInputsBPM] Changed:', inBPM.value())
 			this.clockOpts.bpm = inBPM.value()
 			this.sendClockUpdate(this.clockOpts)
 		})
@@ -366,21 +366,12 @@ export default class Sketch {
 			instrument: this.user.instrument,
 			midiEvent: evt,
 			timestamp: this.ws.now() + this.offsetMs(),
-			// timestamp: this.timeToneToGlobal(Tone.immediate()) + this.offsetMs(),
 		}
 		const { conn } = this.ws
 		if (!conn || conn.readyState !== WebSocket.OPEN) {
 			this.onUserEvent(uevt)
 			return
 		}
-		// this.onUserEvent({
-		// 	clientId: this.user.clientId,
-		// 	instrument: this.user.instrument,
-		// 	midiEvent: evt,
-		// 	timestamp: this.ws.now(),
-		// 	// timestamp: this.ws.now() + this.offsetMs(),
-		// 	// timestamp: this.timeToneToGlobal(Tone.immediate()),
-		// })
 		conn.send(userEventReq(uevt))
 	}
 
@@ -390,6 +381,9 @@ export default class Sketch {
 		const inst = (this.instruments as any)[instrument]
 		if (!inst) {
 			console.error('[Sketch #onUserEvent] Unable to find instrument', instrument)
+		}
+		if (inst.loaded === false) {
+			return // don't send events if instrument hasn't finished loading
 		}
 		switch (kind) {
 			case 'noteon': {
@@ -429,43 +423,4 @@ export default class Sketch {
 				break
 		}
 	}
-}
-
-function instPiano() {
-	return new Tone.Sampler({
-		urls: {
-			A0: 'A0.mp3',
-			C1: 'C1.mp3',
-			'D#1': 'Ds1.mp3',
-			'F#1': 'Fs1.mp3',
-			A1: 'A1.mp3',
-			C2: 'C2.mp3',
-			'D#2': 'Ds2.mp3',
-			'F#2': 'Fs2.mp3',
-			A2: 'A2.mp3',
-			C3: 'C3.mp3',
-			'D#3': 'Ds3.mp3',
-			'F#3': 'Fs3.mp3',
-			A3: 'A3.mp3',
-			C4: 'C4.mp3',
-			'D#4': 'Ds4.mp3',
-			'F#4': 'Fs4.mp3',
-			A4: 'A4.mp3',
-			C5: 'C5.mp3',
-			'D#5': 'Ds5.mp3',
-			'F#5': 'Fs5.mp3',
-			A5: 'A5.mp3',
-			C6: 'C6.mp3',
-			'D#6': 'Ds6.mp3',
-			'F#6': 'Fs6.mp3',
-			A6: 'A6.mp3',
-			C7: 'C7.mp3',
-			'D#7': 'Ds7.mp3',
-			'F#7': 'Fs7.mp3',
-			A7: 'A7.mp3',
-			C8: 'C8.mp3',
-		},
-		release: 1,
-		baseUrl: 'https://tonejs.github.io/audio/salamander/',
-	}).toDestination()
 }
