@@ -1,5 +1,6 @@
 import * as p5 from 'p5'
 import * as Tone from 'tone'
+import AudioKeys from 'audiokeys'
 import WSClient, { DONT_REOPEN } from './serverApi/WSClient'
 import { userEventReq, userUpdateReq, User, UserEvent } from './serverApi/serverApi'
 import { clockUpdateReq, ClockOpts } from './serverApi/serverClock'
@@ -13,12 +14,23 @@ type Instruments = {
 	eightOhEight: ReturnType<typeof eightOhEight>
 }
 
+type AudioKeysEvent = {
+	// the midi number of the note
+	note: number
+	// the keyCode of the key being pressed down
+	keyCode: number
+	// the frequency of the note
+	frequency: number
+	// on note down: the current velocity (this can only be set when rows = 1)
+	// on note up: 0
+	velocity: number
+}
+
 const userInputsY = 40
 
 export default class Sketch {
 	width: number = 0
 	height: number = 0
-	nn: number = 0
 	visualNotes: VisualNotes = new VisualNotes()
 	started: boolean = false
 	syncing: boolean = true
@@ -29,6 +41,7 @@ export default class Sketch {
 	}
 	ws: WSClient
 	midi: MIDI
+	audioKeys: AudioKeys
 	pp: p5 | null = null
 	user: User = {
 		clientId: 0,
@@ -42,9 +55,6 @@ export default class Sketch {
 	clockOpts: ClockOpts = {
 		bpm: 95,
 	}
-
-	nameCustomized: boolean = false
-
 	inputs: {
 		name?: any
 		instrument?: any
@@ -52,6 +62,7 @@ export default class Sketch {
 		offset?: any
 		bpm?: any
 	} = {}
+	nameCustomized: boolean = false
 
 	constructor() {
 		console.log('[Sketch #ctor]')
@@ -66,6 +77,9 @@ export default class Sketch {
 			onClockUpdate: this.onClockUpdate,
 			onUserEvent: this.onUserEvent,
 		})
+		this.audioKeys = new AudioKeys({ polyphony: Infinity })
+		this.audioKeys.down(this.keyPressed)
+		this.audioKeys.up(this.keyReleased)
 		this.midi = new MIDI({
 			onMessage: this.onMIDI,
 			onEnabled: this.setupInputsMidi,
@@ -107,6 +121,8 @@ export default class Sketch {
 		pp.setup = () => this.setup(pp)
 		pp.draw = () => this.draw(pp)
 		pp.mousePressed = () => this.mousePressed(pp)
+		// pp.keyPressed = () => this.keyPressed(pp)
+		// pp.keyReleased = () => this.keyReleased(pp)
 	}
 
 	setup = (pp: p5) => {
@@ -160,6 +176,10 @@ export default class Sketch {
 			this.user.name = inUser.value()
 			this.sendUserUpdate()
 		})
+		inUser.elt.onfocus = () => (inUser.focused = true)
+		inUser.elt.onblur = () => (inUser.focused = false)
+		inUser.elt.focus()
+		inUser.elt.select()
 		this.inputs.name = inUser
 		this.user.name = inUser.value()
 
@@ -177,6 +197,10 @@ export default class Sketch {
 			console.log('[Sketch #inputs.offset] Changed:', inOffset.value())
 			setOffset()
 		})
+		inOffset.elt.onfocus = () => (inOffset.focused = true)
+		inOffset.elt.onblur = () => (inOffset.focused = false)
+		inOffset.elt.focus()
+		inOffset.elt.select()
 		this.inputs.offset = inOffset
 		setOffset()
 		return inOffset
@@ -198,6 +222,7 @@ export default class Sketch {
 			}
 			inMidi.option(_midiInput.name)
 		}
+		inMidi.option('keyboard')
 		inMidi.changed(() => {
 			console.log('[Sketch #setupInputsMidi] Changed:', inMidi.value())
 			this.user.inputDevice = inMidi.value()
@@ -322,6 +347,35 @@ export default class Sketch {
 		this.sendUserUpdate()
 	}
 
+	keyboardInputDisabled = () => {
+		if (this.user.inputDevice !== 'keyboard') {
+			return true
+		}
+		// Ignore keyboard if inputs are focused
+		const { name, offset } = this.inputs
+		return (name && name.focused) || (offset && offset.focused)
+	}
+	keyPressed = (evt: AudioKeysEvent) => {
+		const { note, velocity } = evt
+		if (this.keyboardInputDisabled()) {
+			console.log('Ignoring keyPressed', note, velocity)
+			return
+		}
+		console.log('Handling keyPressed', note, velocity)
+		const midiEvt = { kind: 'noteon', note: note, attack: velocity / 128.0 } as MidiEvent
+		this.onMIDI('keyboard', 'noteon', midiEvt)
+	}
+	keyReleased = (evt: AudioKeysEvent) => {
+		const { note, velocity } = evt
+		if (this.keyboardInputDisabled()) {
+			console.log('Ignoring keyReleased', note, velocity)
+			return
+		}
+		console.log('Handling keyReleased', note, velocity)
+		const midiEvt = { kind: 'noteoff', note: note } as MidiEvent
+		this.onMIDI('keyboard', 'noteoff', midiEvt)
+	}
+
 	sendUserUpdate = () => {
 		const { conn } = this.ws
 		if (!conn || conn.readyState !== WebSocket.OPEN) {
@@ -388,6 +442,7 @@ export default class Sketch {
 		}
 		const tt = this.timeGlobalToTone(timestamp)
 		if (tt - Tone.immediate() < -1) {
+			console.warn(`[Sketch #onUserEvent] Received event ${tt - Tone.immediate()} seconds late`)
 			return
 		}
 		switch (kind) {

@@ -19,6 +19,7 @@
 		"@types/sharedworker": "^0.0.29",
 		"@types/uuid": "^8.3.0",
 		"@types/webpack-env": "^1.15.2",
+		"audiokeys": "^0.1.1",
 		"prettier": "^2.0.5",
 		"react": "^16.13.1",
 		"react-dom": "^16.13.1",
