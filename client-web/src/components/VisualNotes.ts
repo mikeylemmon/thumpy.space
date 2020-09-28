@@ -143,7 +143,7 @@ export default class VisualNotes {
 	noteoff = (evt: UserEvent) => {
 		const notes = this.notes.filter(nn => !nn.released && this.isSameNote(nn, evt))
 		if (!notes.length) {
-			console.error('[VisualNotes #noteoff] Unable to find note for event', evt)
+			console.warn('[VisualNotes #noteoff] Unable to find note for event', evt)
 			return
 		}
 		notes.forEach(nn => nn.release())

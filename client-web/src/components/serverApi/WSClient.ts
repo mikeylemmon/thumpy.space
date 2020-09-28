@@ -43,7 +43,6 @@ export default class WSClient {
 			return
 		}
 		this.conn = this.newConn()
-		this.clock = new WSClock(this.global, this.conn, this.options.clock)
 	}
 
 	newConn = (): WebSocket => {
@@ -58,6 +57,7 @@ export default class WSClient {
 		}
 		conn.onopen = (evt: Event) => {
 			console.log('WebSocket opened', evt)
+			this.clock = new WSClock(this.global, this.conn, this.options.clock)
 		}
 		conn.onerror = (evt: Event) => {
 			console.error('WebSocket error', evt)
@@ -93,7 +93,7 @@ export default class WSClient {
 				this.options.onClientId(this.clientId)
 				break
 			case WS_USERS_ALL:
-				this.users = parseUsersAll(body)
+				this.users = parseUsersAll(body).filter(uu => !!uu)
 				console.log('[WSClient #onMessage] Received users', this.users)
 				break
 			case WS_USER_EVENT:
@@ -109,6 +109,7 @@ export default class WSClient {
 
 	now = (): number => {
 		if (!this.clock) {
+			console.error('[WSClient #now] No clock!')
 			return -1
 		}
 		return this.clock.now()

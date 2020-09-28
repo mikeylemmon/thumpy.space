@@ -7,6 +7,7 @@ push:
 
 restart:
 	ssh -t fritzherald@207.38.86.26 mv webapps/thump/thump.next webapps/thump/thump
+	ssh -t fritzherald@207.38.86.26 cp webapps/thump/thump webapps/thump/thump.next
 	ssh -t fritzherald@207.38.86.26 killall thump
 
 logs:

@@ -8,8 +8,9 @@ import { piano, eightOhEight } from './instruments'
 import VisualNotes from './VisualNotes'
 
 type Instruments = {
-	eightOhEight: ReturnType<typeof eightOhEight>
 	piano: ReturnType<typeof piano>
+	piano2: ReturnType<typeof piano>
+	eightOhEight: ReturnType<typeof eightOhEight>
 }
 
 const userInputsY = 40
@@ -23,6 +24,7 @@ export default class Sketch {
 	syncing: boolean = true
 	instruments: Instruments = {
 		piano: piano(),
+		piano2: piano(),
 		eightOhEight: eightOhEight(),
 	}
 	ws: WSClient
