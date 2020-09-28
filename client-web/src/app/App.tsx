@@ -1,5 +1,5 @@
 import React from 'react'
-import VideoOutput from 'components/VideoOutput'
+import VideoOutput from './VideoOutput'
 
 import './App.css'
 
