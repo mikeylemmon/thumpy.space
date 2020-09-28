@@ -53,6 +53,7 @@ func runSubscriptionLoop() {
 		case sub := <-rmSub:
 			delete(subs, sub.ClientId)
 			log.Info().Int(`clientId`, sub.ClientId).Msg(`Removed subscription`)
+			sendUsers()
 		case evt := <-events:
 			if evt.Clock != nil {
 				api.UpdateClock(evt.Clock)
@@ -94,6 +95,11 @@ func handleEventUserUpdate(evt Event) {
 		log.Error().Err(fmt.Errorf(`subscription not found`)).Interface(`evt`, evt).Msg(`Invalid user update`)
 		return
 	}
+	log.Info().Interface(`user`, evt.User).Msg(`User updated`)
+	sendUsers()
+}
+
+func sendUsers() {
 	users := []*api.User{}
 	for _, sub := range subs {
 		users = append(users, sub.User)
@@ -110,5 +116,5 @@ func handleEventUserUpdate(evt Event) {
 		}
 		sub.Messages <- msg
 	}
-	log.Info().Interface(`user`, evt.User).Int(`numClients`, len(subs)).Msg(`Sent user update`)
+	log.Info().Int(`numClients`, len(subs)).Msg(`Sent updated users list`)
 }
