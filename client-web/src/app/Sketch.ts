@@ -198,7 +198,6 @@ export default class Sketch {
 			}
 			inMidi.option(_midiInput.name)
 		}
-		inMidi.option('keyboard')
 		inMidi.changed(() => {
 			console.log('[Sketch #setupInputsMidi] Changed:', inMidi.value())
 			this.user.inputDevice = inMidi.value()
