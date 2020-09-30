@@ -159,7 +159,7 @@ export default class Sketch {
 		this.inputs.instrument = inInst
 		this.user.instrument = inInst.value()
 
-		if (this.midi.enabled && !this.inputs.inputDevice) {
+		if (!this.inputs.inputDevice) {
 			this.setupInputsMidi(this.midi.webMidi)
 		}
 	}
@@ -219,10 +219,11 @@ export default class Sketch {
 		if (!this.pp || !this.inputs.instrument) {
 			return
 		}
-		const { inputs } = webMidi
+		const { inputs } = webMidi || { inputs: [] }
 		const inMidi = this.pp.createSelect() as any
 		const inInst = this.inputs.instrument
 		inMidi.position(inInst.x + inInst.width + 10, userInputsY)
+		inMidi.option('keyboard')
 		for (const input of inputs) {
 			const { _midiInput } = input
 			if (!_midiInput) {
@@ -231,7 +232,6 @@ export default class Sketch {
 			}
 			inMidi.option(_midiInput.name)
 		}
-		inMidi.option('keyboard')
 		inMidi.changed(() => {
 			console.log('[Sketch #setupInputsMidi] Changed:', inMidi.value())
 			this.user.inputDevice = inMidi.value()
@@ -371,20 +371,16 @@ export default class Sketch {
 	keyPressed = (evt: AudioKeysEvent) => {
 		const { note, velocity } = evt
 		if (this.keyboardInputDisabled()) {
-			console.log('Ignoring keyPressed', note, velocity)
 			return
 		}
-		console.log('Handling keyPressed', note, velocity)
 		const midiEvt = { kind: 'noteon', note: note, attack: velocity / 128.0 } as MidiEvent
 		this.onMIDI('keyboard', 'noteon', midiEvt)
 	}
 	keyReleased = (evt: AudioKeysEvent) => {
 		const { note, velocity } = evt
 		if (this.keyboardInputDisabled()) {
-			console.log('Ignoring keyReleased', note, velocity)
 			return
 		}
-		console.log('Handling keyReleased', note, velocity)
 		const midiEvt = { kind: 'noteoff', note: note } as MidiEvent
 		this.onMIDI('keyboard', 'noteoff', midiEvt)
 	}
