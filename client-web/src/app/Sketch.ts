@@ -7,6 +7,7 @@ import { clockUpdateReq, ClockOpts } from './serverApi/serverClock'
 import MIDI, { MidiEvent, MidiEventCC, MidiEventNote, MidiEventPitchbend } from './MIDI'
 import { piano, eightOhEight } from './instruments'
 import VisualNotes from './VisualNotes'
+import { EasyCam } from 'vendor/p5.easycam.js'
 
 type Instruments = {
 	piano: ReturnType<typeof piano>
@@ -44,7 +45,7 @@ export default class Sketch {
 	audioKeys: AudioKeys
 	pp?: p5
 	pg?: p5.Graphics
-	font?: p5.Font
+	cam?: EasyCam
 	user: User = {
 		clientId: 0,
 		name: '',
@@ -120,8 +121,6 @@ export default class Sketch {
 
 	sketch = (pp: p5) => {
 		this.pp = pp
-		// pp.preload = () => (this.font = pp.loadFont('/fonts/Montserrat/Montserrat-SemiBold.ttf'))
-		pp.preload = () => (this.font = pp.loadFont('/fonts/Montserrat/Montserrat-Bold.ttf'))
 		pp.setup = () => this.setup(pp)
 		pp.draw = () => this.draw(pp)
 		pp.mousePressed = () => this.mousePressed(pp)
@@ -131,13 +130,16 @@ export default class Sketch {
 
 	setup = (pp: p5) => {
 		console.log(`[Sketch #setup] ${this.width} x ${this.height}`)
-		pp.createCanvas(this.width, this.height, 'webgl')
+		pp.createCanvas(this.width, this.height)
+		this.pg = pp.createGraphics(this.width, this.height, 'webgl')
+		this.cam = new EasyCam((this.pg as any)._renderer, { distance: 600 })
+		this.cam.setDistanceMin(1)
+		this.cam.setDistanceMax(1000)
+		this.cam.attachMouseListeners((pp as any)._renderer)
+		this.cam.setViewport([0, 0, this.width, this.height])
 		this.setupInputs(pp)
 		this.user.posX = Math.random() * 0.8 + 0.1
 		this.user.posY = Math.random() * 0.6 + 0.2
-		this.pg = pp.createGraphics(this.width, this.height)
-		// @ts-ignore
-		pp.textFont(this.font)
 	}
 
 	setupInputs = (pp: p5) => {
@@ -272,11 +274,8 @@ export default class Sketch {
 		}
 		// Draw notes to separate graphics canvas
 		if (this.pg) {
-			pp.orbitControl()
-			pp.push()
 			this.visualNotes.draw(pp, this.pg)
-			pp.image(this.pg, -pp.width / 2, -pp.height / 2)
-			pp.pop()
+			pp.image(this.pg, 0, 0)
 		}
 	}
 
@@ -284,8 +283,8 @@ export default class Sketch {
 		pp.strokeWeight(0)
 		pp.textAlign(pp.CENTER, pp.CENTER)
 		for (const user of this.ws.users) {
-			const xx = (user.posX - 0.5) * pp.width
-			const yy = (user.posY - 0.5) * pp.height
+			const xx = user.posX * pp.width
+			const yy = user.posY * pp.height
 			pp.fill(255)
 			pp.textSize(14)
 			pp.textStyle(pp.BOLD)
@@ -306,8 +305,8 @@ export default class Sketch {
 		pp.textStyle(pp.BOLD)
 		for (const key in this.inputs) {
 			const input = (this.inputs as any)[key]
-			const xx = input.x + 3 - pp.width / 2
-			const yy = input.y - 5 - pp.height / 2
+			const xx = input.x + 3
+			const yy = input.y - 5
 			switch (true) {
 				case key === 'offset':
 					const off = parseFloat(input.value())
@@ -339,8 +338,7 @@ export default class Sketch {
 		pp.textSize(20)
 		pp.textAlign(pp.CENTER, pp.CENTER)
 		pp.textStyle(pp.BOLDITALIC)
-		// pp.text(msg, pp.width / 2, pp.height / 2)
-		pp.text(msg, 0, 0)
+		pp.text(msg, pp.width / 2, pp.height / 2)
 	}
 
 	mousePressed = (pp: p5) => {

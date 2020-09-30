@@ -44,17 +44,19 @@ class VisualNote {
 
 	isDead = () => this.released && this.age - this.ageReleased > this.fadeOut
 
-	update = (pp: p5, others: VisualNote[]) => {
+	update = (pg: p5.Graphics, others: VisualNote[]) => {
 		const close = 50,
 			weightVC = 1.8,
 			weightC = 0.2,
 			weightF = 1.0 / 500000,
-			weightU = 0.003
+			weightU = 0.003,
+			ux = this.user.posX - 0.5,
+			uy = this.user.posY - 0.5
 
 		if (this.firstUpdate) {
 			// transform original normalized position into screen space
-			this.x = pp.width * (this.user.posX + 0.1 * (Math.random() * 2 - 1))
-			this.y = pp.height * (this.user.posY + 0.1 * (Math.random() * 2 - 1))
+			this.x = pg.width * (ux + 0.1 * (Math.random() * 2 - 1))
+			this.y = pg.height * (uy + 0.1 * (Math.random() * 2 - 1))
 			this.firstUpdate = false
 		}
 
@@ -67,8 +69,8 @@ class VisualNote {
 
 		this.velx *= 0.924
 		this.vely *= 0.924
-		this.velx -= weightU * (this.x - this.user.posX * pp.width)
-		this.vely -= weightU * (this.y - this.user.posY * pp.height)
+		this.velx -= weightU * (this.x - ux * pg.width)
+		this.vely -= weightU * (this.y - uy * pg.height)
 		for (const other of others) {
 			if (other === this) {
 				continue
@@ -97,14 +99,16 @@ class VisualNote {
 			}
 		}
 		// bounce off the walls
-		if ((this.y < this.radius && this.vely < 0) || (this.y > pp.height - this.radius && this.vely > 0)) {
-			this.vely *= -1
-		}
-		if ((this.x < this.radius && this.velx < 0) || (this.x > pp.width - this.radius && this.velx > 0)) {
+		const nx = this.x + pg.width / 2,
+			ny = this.y + pg.height / 2
+		if ((nx < this.radius && this.velx < 0) || (nx > pg.width - this.radius && this.velx > 0)) {
 			this.velx *= -1
 		}
-		this.y += this.vely
+		if ((ny < this.radius && this.vely < 0) || (ny > pg.height - this.radius && this.vely > 0)) {
+			this.vely *= -1
+		}
 		this.x += this.velx
+		this.y += this.vely
 	}
 
 	draw = (pp: p5, pg: p5.Graphics) => {
@@ -155,8 +159,9 @@ export default class VisualNotes {
 
 	draw = (pp: p5, pg: p5.Graphics) => {
 		this.notes = this.notes.filter(nn => !nn.isDead())
-		this.notes.forEach(nn => nn.update(pp, this.notes))
+		this.notes.forEach(nn => nn.update(pg, this.notes))
 		pg.clear()
+		pg.perspective(Math.PI/3, pg.width/pg.height, 0.5, 10000);
 		this.notes.forEach(nn => nn.draw(pp, pg))
 	}
 }
