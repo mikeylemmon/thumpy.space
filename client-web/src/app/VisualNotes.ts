@@ -107,7 +107,7 @@ class VisualNote {
 		this.x += this.velx
 	}
 
-	draw = (pp: p5) => {
+	draw = (pp: p5, pg: p5.Graphics) => {
 		pp.colorMode(pp.HSL, 1)
 		const { instrument, midiEvent } = this.evt
 		const { attack, note } = midiEvent
@@ -118,14 +118,14 @@ class VisualNote {
 			case 'eightOhEight': {
 				const hue = (note % 16) / 16
 				pp.fill(hue * 0.4 + 0.05, sat, 0.45, this.health)
-				pp.square(this.x - size / 2, this.y - size / 2, size)
+				pg.square(this.x - size / 2, this.y - size / 2, size)
 				break
 			}
 			default: {
 				const hue = (note % 12) / 12
 				const lgt = Math.min(note / 128 + 0.2, 0.65)
 				pp.fill(hue * 0.25 + 0.55, sat, lgt, this.health)
-				pp.circle(this.x, this.y, size)
+				pg.circle(this.x, this.y, size)
 				break
 			}
 		}
@@ -153,9 +153,10 @@ export default class VisualNotes {
 		return note.evt.instrument === evt.instrument && note.evt.midiEvent.note === evt.midiEvent.note
 	}
 
-	draw = (pp: p5) => {
+	draw = (pp: p5, pg: p5.Graphics) => {
 		this.notes = this.notes.filter(nn => !nn.isDead())
 		this.notes.forEach(nn => nn.update(pp, this.notes))
-		this.notes.forEach(nn => nn.draw(pp))
+		pg.clear()
+		this.notes.forEach(nn => nn.draw(pp, pg))
 	}
 }
