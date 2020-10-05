@@ -27,6 +27,18 @@ type AudioKeysEvent = {
 	velocity: number
 }
 
+type KeyMovement = {
+	lr: number
+	ud: number
+	active: boolean
+}
+
+type Loc = {
+	pos: p5.Vector
+	vel: p5.Vector
+	accel: p5.Vector
+}
+
 const userInputsY = 40
 
 export default class Sketch {
@@ -55,6 +67,7 @@ export default class Sketch {
 		posX: Math.random() * 0.8 + 0.1,
 		posY: Math.random() * 0.6 + 0.2,
 	}
+	loc: Loc
 	clockOpts: ClockOpts = {
 		bpm: 95,
 	}
@@ -67,7 +80,7 @@ export default class Sketch {
 	} = {}
 	nameCustomized: boolean = false
 
-	constructor() {
+	constructor(global: any) {
 		console.log('[Sketch #ctor]')
 		this.ws = new WSClient(window, {
 			clock: {
@@ -81,12 +94,17 @@ export default class Sketch {
 			onUserEvent: this.onUserEvent,
 		})
 		this.audioKeys = new AudioKeys({ polyphony: Infinity })
-		this.audioKeys.down(this.keyPressed)
-		this.audioKeys.up(this.keyReleased)
+		this.audioKeys.down(this.keyPressedAudio)
+		this.audioKeys.up(this.keyReleasedAudio)
 		this.midi = new MIDI({
 			onMessage: this.onMIDI,
 			onEnabled: this.setupInputsMidi,
 		})
+		this.loc = {
+			accel: new global.p5.Vector(),
+			vel: new global.p5.Vector(),
+			pos: new global.p5.Vector(),
+		}
 		window.Tone = Tone
 		window.me = this
 	}
@@ -124,8 +142,8 @@ export default class Sketch {
 		pp.setup = () => this.setup(pp)
 		pp.draw = () => this.draw(pp)
 		pp.mousePressed = () => this.mousePressed(pp)
-		// pp.keyPressed = () => this.keyPressed(pp)
-		// pp.keyReleased = () => this.keyReleased(pp)
+		pp.keyPressed = () => this.keyPressedP5(pp)
+		pp.keyReleased = () => this.keyReleasedP5(pp)
 	}
 
 	setup = (pp: p5) => {
@@ -176,25 +194,25 @@ export default class Sketch {
 			// Don't re-create the input if the user has already customized their name
 			return
 		}
-		const inUser = this.pp.createInput(`User ${this.ws.clientId}`) as any
-		inUser.size(80)
-		inUser.position(20, userInputsY)
-		inUser.input(() => {
-			console.log('[Sketch #inputs.name] Changed:', inUser.value())
+		const inName = this.pp.createInput(`User ${this.ws.clientId}`) as any
+		inName.size(80)
+		inName.position(20, userInputsY)
+		inName.input(() => {
+			console.log('[Sketch #inputs.name] Changed:', inName.value())
 			this.nameCustomized = true
-			this.user.name = inUser.value()
+			this.user.name = inName.value()
 			this.sendUserUpdate()
 		})
-		inUser.elt.onfocus = () => (inUser.focused = true)
-		inUser.elt.onblur = () => (inUser.focused = false)
-		inUser.elt.focus()
-		inUser.elt.select()
-		this.inputs.name = inUser
-		this.user.name = inUser.value()
+		inName.elt.onfocus = () => (inName.focused = true)
+		inName.elt.onblur = () => (inName.focused = false)
+		inName.elt.focus()
+		inName.elt.select()
+		this.inputs.name = inName
+		this.user.name = inName.value()
 
 		const inOffset = this.pp.createInput(`${this.user.offset}`) as any
 		inOffset.size(50)
-		inOffset.position(inUser.x + inUser.width + 10, userInputsY)
+		inOffset.position(inName.x + inName.width + 10, userInputsY)
 		const setOffset = () => {
 			const off = parseFloat(inOffset.value())
 			if (!Number.isNaN(off)) {
@@ -208,8 +226,6 @@ export default class Sketch {
 		})
 		inOffset.elt.onfocus = () => (inOffset.focused = true)
 		inOffset.elt.onblur = () => (inOffset.focused = false)
-		inOffset.elt.focus()
-		inOffset.elt.select()
 		this.inputs.offset = inOffset
 		setOffset()
 		return inOffset
@@ -256,13 +272,36 @@ export default class Sketch {
 		this.inputs.bpm = inBPM
 	}
 
+	update = (pp: p5) => {
+		const { accel, vel, pos } = this.loc
+		vel.add(accel)
+		vel.mult(0.8)
+		if (vel.mag() < 0.001) {
+			vel.mult(0)
+		}
+		pos.add(vel)
+		if (vel.equals(pp.createVector())) {
+			return
+		}
+		if (this.cam && this.cam.panGround ) {
+			this.cam.panGround(vel.x, vel.y)
+		}
+	}
+
 	draw = (pp: p5) => {
+		this.update(pp)
 		let loading = false
 		for (const instName in this.instruments) {
 			const inst = (this.instruments as any)[instName]
 			loading = loading || !inst.loaded
 		}
 		pp.background(0x33)
+		if (this.pg) {
+			// Draw notes to separate graphics canvas
+			this.visualNotes.draw(pp, this.pg)
+			this.drawCamCenter(this.pg)
+			pp.image(this.pg, 0, 0)
+		}
 		this.drawLabels(pp)
 		this.drawUsers(pp)
 		if (loading) {
@@ -271,11 +310,6 @@ export default class Sketch {
 			this.drawMessage(pp, 'Syncing clock with server...')
 		} else if (!this.started) {
 			this.drawMessage(pp, 'Click to enable audio')
-		}
-		// Draw notes to separate graphics canvas
-		if (this.pg) {
-			this.visualNotes.draw(pp, this.pg)
-			pp.image(this.pg, 0, 0)
 		}
 	}
 
@@ -341,6 +375,18 @@ export default class Sketch {
 		pp.text(msg, pp.width / 2, pp.height / 2)
 	}
 
+	drawCamCenter = (pg: p5.Graphics) => {
+		if (!this.cam || !this.cam.state) { return }
+		const { center } = this.cam.state
+		if (!center || center.length < 2) { return }
+		pg.push()
+		pg.translate(center[0], center[1], center[2])
+		pg.fill(180)
+		pg.stroke(0)
+		pg.sphere(40, 7, 7)
+		pg.pop()
+	}
+
 	mousePressed = (pp: p5) => {
 		if (!this.started) {
 			Tone.start()
@@ -368,7 +414,7 @@ export default class Sketch {
 		const { name, offset } = this.inputs
 		return (name && name.focused) || (offset && offset.focused)
 	}
-	keyPressed = (evt: AudioKeysEvent) => {
+	keyPressedAudio = (evt: AudioKeysEvent) => {
 		const { note, velocity } = evt
 		if (this.keyboardInputDisabled()) {
 			return
@@ -376,13 +422,44 @@ export default class Sketch {
 		const midiEvt = { kind: 'noteon', note: note, attack: velocity / 128.0 } as MidiEvent
 		this.onMIDI('keyboard', 'noteon', midiEvt)
 	}
-	keyReleased = (evt: AudioKeysEvent) => {
-		const { note, velocity } = evt
+	keyReleasedAudio = (evt: AudioKeysEvent) => {
+		const { note } = evt
 		if (this.keyboardInputDisabled()) {
 			return
 		}
 		const midiEvt = { kind: 'noteoff', note: note } as MidiEvent
 		this.onMIDI('keyboard', 'noteoff', midiEvt)
+	}
+
+	keyArrow = (key: string): KeyMovement => {
+		const active = true
+		const gain = 5
+		switch (key) {
+			case 'ArrowUp': return { lr: 0, ud: -gain, active }
+			case 'ArrowDown': return { lr: 0, ud: gain, active }
+			case 'ArrowRight': return { lr: gain, ud: 0, active }
+			case 'ArrowLeft': return { lr: -gain, ud: 0, active }
+			case ' ':
+				console.log('TODO: jump')
+				// fallthrough
+			default: return { lr: 0, ud: 0, active: false }
+		}
+	}
+	keyPressedP5 = (evt: p5) => {
+		const mov = this.keyArrow(evt.key)
+		if (!mov.active) {
+			return
+		}
+		this.loc.accel.x += mov.lr
+		this.loc.accel.y += mov.ud
+	}
+	keyReleasedP5 = (evt: p5) => {
+		const mov = this.keyArrow(evt.key)
+		if (!mov.active) {
+			return
+		}
+		this.loc.accel.x -= mov.lr
+		this.loc.accel.y -= mov.ud
 	}
 
 	sendUserUpdate = () => {

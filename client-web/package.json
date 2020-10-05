@@ -47,7 +47,8 @@
 	"eslintConfig": {
 		"extends": "react-app",
 		"rules": {
-			"no-restricted-globals": "off"
+			"no-restricted-globals": "off",
+			"no-lone-blocks": "off"
 		}
 	},
 	"browserslist": {

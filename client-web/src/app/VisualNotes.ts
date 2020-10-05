@@ -112,7 +112,7 @@ class VisualNote {
 	}
 
 	draw = (pp: p5, pg: p5.Graphics) => {
-		pp.colorMode(pp.HSL, 1)
+		pg.colorMode(pp.HSL, 1)
 		const { instrument, midiEvent } = this.evt
 		const { attack, note } = midiEvent
 		const aa = attack || 0.5
@@ -121,19 +121,19 @@ class VisualNote {
 		switch (instrument) {
 			case 'eightOhEight': {
 				const hue = (note % 16) / 16
-				pp.fill(hue * 0.4 + 0.05, sat, 0.45, this.health)
+				pg.fill(hue * 0.4 + 0.05, sat, 0.45, this.health)
 				pg.square(this.x - size / 2, this.y - size / 2, size)
 				break
 			}
 			default: {
 				const hue = (note % 12) / 12
 				const lgt = Math.min(note / 128 + 0.2, 0.65)
-				pp.fill(hue * 0.25 + 0.55, sat, lgt, this.health)
+				pg.fill(hue * 0.25 + 0.55, sat, lgt, this.health)
 				pg.circle(this.x, this.y, size)
 				break
 			}
 		}
-		pp.colorMode(pp.RGB, 255)
+		pg.colorMode(pp.RGB, 255)
 	}
 }
 
@@ -157,11 +157,37 @@ export default class VisualNotes {
 		return note.evt.instrument === evt.instrument && note.evt.midiEvent.note === evt.midiEvent.note
 	}
 
+	/*eslint no-lone-blocks: "off"*/
 	draw = (pp: p5, pg: p5.Graphics) => {
 		this.notes = this.notes.filter(nn => !nn.isDead())
 		this.notes.forEach(nn => nn.update(pg, this.notes))
-		pg.clear()
 		pg.perspective(Math.PI/3, pg.width/pg.height, 0.5, 10000);
-		this.notes.forEach(nn => nn.draw(pp, pg))
+		pg.clear()
+		const [ww, hh] = [pg.width, pg.height]
+		{
+			// Draw back plane
+			pg.fill(120)
+			pg.noStroke()
+			pg.rect(-ww/2, -hh/2, ww, hh)
+		}
+		{
+			// Draw notes
+			pg.push()
+			pg.translate(0, 0, 50)
+			this.notes.forEach(nn => nn.draw(pp, pg))
+			pg.pop()
+		}
+		{
+			// Draw ground plane
+			pg.angleMode(pp.RADIANS)
+			pg.fill(80)
+			pg.stroke(255)
+			pg.push()
+			pg.translate(0, hh/2, hh/2)
+			pg.rotateX(Math.PI / 2)
+			pg.rect(-ww/2, -hh/2, ww, hh)
+			pg.pop()
+			pg.noStroke()
+		}
 	}
 }

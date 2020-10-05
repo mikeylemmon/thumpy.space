@@ -3,7 +3,7 @@ import Sketch from './Sketch'
 
 const VideoOutput: React.FC = () => {
 	const ref = useRef<HTMLDivElement>(null)
-	const sk = useRef<Sketch>(new Sketch())
+	const sk = useRef<Sketch>(new Sketch(window))
 	const msg = useRef<string>(`Loading`)
 	useEffect(() => {
 		if (!ref.current) {
