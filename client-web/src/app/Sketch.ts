@@ -8,7 +8,7 @@ import MIDI, { MidiEvent, MidiEventCC, MidiEventNote, MidiEventPitchbend } from 
 import { piano, eightOhEight } from './instruments'
 import VisualNotes from './VisualNotes'
 import { EasyCam } from 'vendor/p5.easycam.js'
-// import { engine3d, Avatar, Vec, Xform } from './Avatar'
+import { engine3d, Avatar, Vec, Xform } from './engine3d'
 
 type Instruments = {
 	piano: ReturnType<typeof piano>
@@ -87,15 +87,19 @@ export default class Sketch {
 	fonts?: {
 		normal: p5.Font,
 		bold: p5.Font,
-		// black: p5.Font,
 		italic: p5.Font,
 	}
-	// avatar: Avatar = new Avatar({
-	// 	draw: (pg: p5.Graphics) => pg.sphere(1, 7, 7),
-	// 	pos: new Vec(40, 100, 40),
-	// 	scale: new Vec(40),
-	// })
-	// engine3d = engine3d
+	avatar: Avatar = new Avatar({
+		draw: (pg: p5.Graphics) => {
+			pg.fill(0)
+			pg.stroke(255)
+			pg.strokeWeight(2)
+			pg.sphere(1, 7, 7)
+		},
+		pos: new Vec(40, -100, 40),
+		scale: new Vec(40),
+	})
+	engine3d = engine3d
 
 	constructor(global: any) {
 		console.log('[Sketch #ctor]')
@@ -303,7 +307,8 @@ export default class Sketch {
 	}
 
 	update = (pp: p5) => {
-		// engine3d.update()
+		this.avatar.updateMov(this.loc.mov)
+		engine3d.update()
 		if (!this.cam) {
 			return
 		}
@@ -369,7 +374,7 @@ export default class Sketch {
 			// Draw notes to separate graphics canvas
 			this.visualNotes.draw(pp, this.pg)
 			this.drawCamCenter(this.pg)
-			// engine3d.draw(this.pg)
+			engine3d.draw(this.pg)
 			pp.image(this.pg, 0, 0)
 		}
 		this.drawLabels(pp)
