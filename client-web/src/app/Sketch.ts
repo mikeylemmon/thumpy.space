@@ -8,7 +8,7 @@ import MIDI, { MidiEvent, MidiEventCC, MidiEventNote, MidiEventPitchbend } from 
 import { piano, eightOhEight } from './instruments'
 import VisualNotes from './VisualNotes'
 import { EasyCam } from 'vendor/p5.easycam.js'
-import { engine3d, Avatar, Vec, Xform } from './engine3d'
+import { engine3d, Avatar, Vec } from 'engine3d'
 
 type Instruments = {
 	piano: ReturnType<typeof piano>

@@ -1,5 +1,6 @@
 import * as p5 from 'p5'
-import { Vec, Xform } from './core'
+import { Vec } from './Vec'
+import { Xform } from './Xform'
 import { Component } from './Component'
 import { engine3d } from './engine3d'
 
@@ -56,27 +57,33 @@ export class Obj {
 		return null
 	}
 
-	update = () => {
-		this.comps.forEach(cc => cc.update())
+	update = (dt: number) => {
+		this.comps.forEach(cc => cc.update(dt))
 	}
 
 	draw = (pg: p5.Graphics) => {
-		const { pos, rot, scale } = this.xform
-		const posArr = pos.toArray(),
-			scaleArr = scale.toArray()
 		pg.push()
+		this.applyXformToGraphics(pg)
+		if (this.drawFunc) {
+			this.drawFunc(pg)
+		}
+		pg.pop()
+	}
+
+	drawDebug = (pg: p5.Graphics) => {
+		this.comps.forEach(cc => cc.drawDebug && cc.drawDebug(pg))
+	}
+
+	applyXformToGraphics = (pg: p5.Graphics) => {
+		const { pos, rot, scale } = this.xform
 		if (!pos.isZero()) {
-			pg.translate(posArr[0], posArr[1], posArr[2])
+			pg.translate(pos.x, pos.y, pos.z)
 		}
 		if (rot.z !== 0) pg.rotateZ(rot.z)
 		if (rot.y !== 0) pg.rotateY(rot.y)
 		if (rot.x !== 0) pg.rotateX(rot.x)
 		if (!scale.isOne()) {
-			pg.scale(scaleArr[0], scaleArr[1], scaleArr[2])
+			pg.scale(scale.x, scale.y, scale.z)
 		}
-		if (this.drawFunc) {
-			this.drawFunc(pg)
-		}
-		pg.pop()
 	}
 }
