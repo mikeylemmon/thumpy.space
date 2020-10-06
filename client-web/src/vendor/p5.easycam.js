@@ -740,7 +740,7 @@ export class EasyCam {
 		}
 	}
 
-	panGround(dx, dz) {
+	panGround(dx, dy, dz) {
 		const state = this.cam.state
 		// Get world unit vector for screen-space X axis
 		const screenX = Rotation.applyToVec3(state.rotation, [1, 0, 0])
@@ -760,6 +760,7 @@ export class EasyCam {
 		Vec3.mult(screenZ, dz, screenZ)
 		const val = [0, 0, 0]
 		Vec3.add(screenX, screenZ, val)
+		val[1] = dy
 		Vec3.add(state.center, val, state.center)
 	}
 
