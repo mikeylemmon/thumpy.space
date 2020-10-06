@@ -11,7 +11,9 @@ export class Engine3D {
 	lastUpdate?: number
 
 	constructor(opts: Engine3DOpts = {}) {
-		if (opts.debug) { this.debug = true }
+		if (opts.debug) {
+			this.debug = true
+		}
 	}
 
 	addObj = (obj: Obj) => this.objs.push(obj)
@@ -44,6 +46,12 @@ export class Engine3D {
 			}
 		}
 	}
+
+	draw2D = (pp: p5, pg: p5.Graphics) => {
+		for (const obj of this.objs) {
+			obj.draw2D(pp, pg)
+		}
+	}
 }
 
-export const engine3d = new Engine3D({ debug: true })
+export const engine3d = new Engine3D({ debug: false })

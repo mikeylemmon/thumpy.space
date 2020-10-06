@@ -13,7 +13,7 @@ export class Component {
 		console.log('[Component] destroyed')
 	}
 
-	update = (kjdt: number) => {
+	update = (_dt: number) => {
 		console.warn('[Component] update')
 	}
 }

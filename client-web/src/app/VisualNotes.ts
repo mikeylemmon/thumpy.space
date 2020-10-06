@@ -51,8 +51,7 @@ class VisualNote {
 			weightF = 1.0 / 500000,
 			weightU = 0.003,
 			ux = this.user.posX - 0.5,
-			// uy = this.user.posY - 0.5
-			uy = this.user.posY - 1.0
+			uy = 1.0 - this.user.posY
 
 		if (this.firstUpdate) {
 			// transform original normalized position into screen space
@@ -162,36 +161,13 @@ export default class VisualNotes {
 	draw = (pp: p5, pg: p5.Graphics) => {
 		this.notes = this.notes.filter(nn => !nn.isDead())
 		this.notes.forEach(nn => nn.update(pg, this.notes))
-		pg.perspective(Math.PI/3, pg.width/pg.height, 0.5, 10000);
+		pg.perspective(Math.PI / 3, pg.width / pg.height, 0.5, 10000)
 		pg.clear()
-		const [ww, hh] = [pg.width, pg.height]
-		const offY = 40
-		{
-			// Draw back plane
-			pg.fill(120)
-			pg.noStroke()
-			// pg.rect(-ww/2, -hh/2, ww, hh)
-			pg.rect(-ww/2, -hh + offY, ww, hh)
-		}
 		{
 			// Draw notes
 			pg.push()
-			pg.translate(0, 0, 50)
 			this.notes.forEach(nn => nn.draw(pp, pg))
 			pg.pop()
-		}
-		{
-			// Draw ground plane
-			pg.angleMode(pp.RADIANS)
-			pg.fill(80)
-			pg.stroke(255)
-			pg.push()
-			// pg.translate(0, hh/2, hh/2)
-			pg.translate(0, offY, hh/2)
-			pg.rotateX(Math.PI / 2)
-			pg.rect(-ww/2, -hh/2, ww, hh)
-			pg.pop()
-			pg.noStroke()
 		}
 	}
 }

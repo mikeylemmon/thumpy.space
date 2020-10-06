@@ -1,3 +1,3 @@
 export * from './core'
-export * from './components/Physical'
-export * from './objs/Avatar'
+export * from './components'
+export * from './objs'

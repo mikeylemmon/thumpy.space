@@ -1,11 +1,10 @@
 import { Bounds, Component, Obj, Vec } from '../core'
 
-const world = new Bounds(
-	new Vec(-1000, -1000, -1000),
-	new Vec(1000, 0, 1000),
-)
-
-const gravity = new Vec(0, 9.82, 0)
+const gravity = new Vec(0, -9.82, 0)
+export type PhysicalOpts = {
+	bounds?: Bounds
+	worldScale?: number
+}
 
 // Physical is a very simple physics implementation, applying forces
 // to the parent object and constraining it to a hard-coded world bounds
@@ -13,21 +12,33 @@ export class Physical extends Component {
 	force = new Vec()
 	vel = new Vec()
 	bounds: Bounds
+	world: Bounds
 
-	constructor(parent: Obj, bounds?: Bounds) {
+	constructor(parent: Obj, opts: PhysicalOpts = {}) {
 		super(parent)
-		this.bounds = bounds ? bounds : new Bounds()
+		this.bounds = opts.bounds ? opts.bounds : new Bounds()
+		if (!opts.worldScale) {
+			opts.worldScale = 1000
+		}
+		this.world = new Bounds(
+			new Vec(-opts.worldScale, 0, -opts.worldScale),
+			new Vec(opts.worldScale, opts.worldScale, opts.worldScale),
+		)
 	}
 
 	update = (dt: number) => {
 		// Update velocity based on forces
 		this.vel.applyAdd(gravity.cloneAdd(this.force).applyMult(dt))
 		this.vel.applyMult(new Vec(0.8, 1.0, 0.8)) // friction in X and Z
+		if (this.vel.norm2() < 0.01) {
+			// Velocity thresholded
+			this.vel.applyMult(0)
+		}
 		// Update position based on velocity
 		const { pos } = this.parent.xform
 		pos.applyAdd(this.vel)
 		// Constrain to world bounds
-		const off = this.worldBounds().pushInside(world)
+		const off = this.worldBounds().pushInside(this.world)
 		if (off.isZero()) {
 			return
 		}

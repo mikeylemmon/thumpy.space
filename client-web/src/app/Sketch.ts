@@ -8,7 +8,7 @@ import MIDI, { MidiEvent, MidiEventCC, MidiEventNote, MidiEventPitchbend } from 
 import { piano, eightOhEight } from './instruments'
 import VisualNotes from './VisualNotes'
 import { EasyCam } from 'vendor/p5.easycam.js'
-import { engine3d, Avatar, Vec } from 'engine3d'
+import { engine3d, Avatar, Ground, KeyMovement, Vec } from 'engine3d'
 
 type Instruments = {
 	piano: ReturnType<typeof piano>
@@ -28,15 +28,6 @@ type AudioKeysEvent = {
 	velocity: number
 }
 
-type KeyMovement = {
-	up: boolean
-	down: boolean
-	left: boolean
-	right: boolean
-	jump: boolean
-	gain: number
-}
-
 type Loc = {
 	pos: p5.Vector
 	vel: p5.Vector
@@ -45,6 +36,7 @@ type Loc = {
 }
 
 const userInputsY = 40
+const worldScale = 1000
 
 export default class Sketch {
 	width: number = 0
@@ -84,11 +76,7 @@ export default class Sketch {
 		bpm?: any
 	} = {}
 	nameCustomized: boolean = false
-	fonts?: {
-		normal: p5.Font,
-		bold: p5.Font,
-		italic: p5.Font,
-	}
+
 	avatar: Avatar = new Avatar({
 		draw: (pg: p5.Graphics) => {
 			pg.fill(0)
@@ -96,9 +84,25 @@ export default class Sketch {
 			pg.strokeWeight(2)
 			pg.sphere(1, 7, 7)
 		},
-		pos: new Vec(40, -100, 40),
+		draw2D: (pp: p5, pos: p5.Vector) => {
+			const { name, instrument, offset } = this.user
+			pp.translate(pos.x, pos.y)
+			pp.textAlign(pp.CENTER, pp.BOTTOM)
+			pp.fill(255)
+			pp.noStroke()
+			pp.textSize(16)
+			pp.textStyle(pp.BOLD)
+			pp.text(name, 0, -50)
+			pp.fill(225)
+			pp.textSize(12)
+			pp.textStyle(pp.ITALIC)
+			pp.text(`${instrument} (@${offset > 0 ? '+' : ''}${offset})`, 0, -35)
+		},
+		pos: new Vec(40, 100, 40),
 		scale: new Vec(40),
+		phys: { worldScale },
 	})
+	ground = new Ground({ scale: new Vec(worldScale) })
 	engine3d = engine3d
 
 	constructor(global: any) {
@@ -125,7 +129,15 @@ export default class Sketch {
 			accel: new global.p5.Vector(),
 			vel: new global.p5.Vector(),
 			pos: new global.p5.Vector(),
-			mov: { up: false, down: false, left: false, right: false, jump: false, gain: 5 },
+			mov: {
+				up: false,
+				down: false,
+				left: false,
+				right: false,
+				jump: false,
+				jumpInitial: false,
+				gain: 150,
+			},
 		}
 		window.Tone = Tone
 		window.me = this
@@ -150,7 +162,6 @@ export default class Sketch {
 		const delta = toneTime - contextTime
 		const pt = performanceTime + delta * 1000
 		const globalTime = this.ws.clock.toGlobal(pt)
-		// console.log('[Sketch #timeToneToGlobal]', toneTime * 1000, '>', globalTime)
 		return globalTime
 	}
 
@@ -161,17 +172,6 @@ export default class Sketch {
 
 	sketch = (pp: p5) => {
 		this.pp = pp
-		pp.preload = () => {
-			const loadStart = new Date().valueOf()
-			console.log('Loading fonts')
-			this.fonts = {
-				normal: pp.loadFont('/fonts/Montserrat-Bold.ttf'),
-				bold: pp.loadFont('/fonts/Montserrat-Black.ttf'),
-				italic: pp.loadFont('/fonts/Montserrat-BoldItalic.ttf'),
-			}
-			const loadEnd = new Date().valueOf()
-			console.log('Fonts loaded in', (loadEnd - loadStart) / 1000, 'seconds')
-		}
 		pp.setup = () => this.setup(pp)
 		pp.draw = () => this.draw(pp)
 		pp.mousePressed = () => this.mousePressed(pp)
@@ -188,7 +188,10 @@ export default class Sketch {
 		this.cam.setDistanceMax(1000)
 		this.cam.attachMouseListeners((pp as any)._renderer)
 		this.cam.setViewport([0, 0, this.width, this.height])
+		this.cam.rotateY(Math.PI)
+		this.cam.rotateZ(Math.PI)
 		;(this.cam.state as any).center[2] = 40
+		this.avatar.addFollowCam(this.cam)
 		this.setupInputs(pp)
 		this.user.posX = Math.random() * 0.8 + 0.1
 		this.user.posY = Math.random() * 0.6 + 0.2
@@ -307,59 +310,8 @@ export default class Sketch {
 	}
 
 	update = (pp: p5) => {
-		this.avatar.updateMov(this.loc.mov)
+		this.avatar.handleInput(this.loc.mov)
 		engine3d.update()
-		if (!this.cam) {
-			return
-		}
-		const { state } = this.cam
-		const { center } = state || {}
-		if (!center) {
-			return
-		}
-		const { accel, vel, pos, mov } = this.loc
-		const { up, down, left, right, jump, gain } = mov
-		accel.x = left && right ? 0 : left ? -gain : right ? gain : 0
-		accel.y = 0
-		accel.z = down && up ? 0 : up ? -gain : down ? gain : 0
-		vel.add(accel)
-		vel.x *= 0.8
-		vel.z *= 0.8
-
-		// hacky jump/gravity/ground-collision implementation
-		if (pos.y <= 0) {
-			if (pos.y < 0) {
-				// vel.y += jump ? 1 : 8
-				vel.y += 2.5
-				mov.jump = false
-			} else if (jump) {
-				vel.y -= 30
-			}
-			if (vel.y > -pos.y) {
-				vel.y = -pos.y
-			}
-		} else {
-			vel.y = 0
-		}
-
-		// threshold velocity
-		if (vel.mag() < 0.001) {
-			vel.mult(0)
-		}
-		// if (vel.equals(pp.createVector())) {
-		// 	return
-		// }
-
-		// update camera/position
-		if (this.cam.panGround) {
-			this.cam.panGround(vel.x, vel.y, vel.z)
-		}
-		if (center[1] > 0) {
-			center[1] = 0
-		}
-		pos.x = center[0]
-		pos.y = center[1]
-		pos.z = center[2]
 	}
 
 	draw = (pp: p5) => {
@@ -373,9 +325,9 @@ export default class Sketch {
 		if (this.pg) {
 			// Draw notes to separate graphics canvas
 			this.visualNotes.draw(pp, this.pg)
-			this.drawCamCenter(this.pg)
 			engine3d.draw(this.pg)
 			pp.image(this.pg, 0, 0)
+			engine3d.draw2D(pp, this.pg)
 		}
 		this.drawLabels(pp)
 		// this.drawUsers(pp)
@@ -450,33 +402,6 @@ export default class Sketch {
 		pp.text(msg, pp.width / 2, pp.height / 2)
 	}
 
-	drawCamCenter = (pg: p5.Graphics) => {
-		if (!this.cam || !this.cam.state) { return }
-		const { center } = this.cam.state
-		if (!center || center.length < 2) { return }
-		pg.push()
-		pg.translate(center[0], center[1], center[2])
-		pg.fill(180)
-		pg.stroke(0)
-		pg.sphere(40, 7, 7)
-		if (this.fonts) {
-			const { name, instrument, offset } = this.user
-			pg.textAlign(pg.CENTER, pg.BOTTOM)
-			pg.fill(255)
-			pg.noStroke()
-			pg.textSize(20)
-			pg.translate(0, -65, 0)
-			pg.textFont(this.fonts.bold)
-			pg.text(name, 0, 0)
-			pg.fill(225)
-			pg.textSize(16)
-			pg.translate(0, 20, 0)
-			pg.textFont(this.fonts.italic)
-			pg.text(`${instrument} (@${offset})`, 0, 0)
-		}
-		pg.pop()
-	}
-
 	mousePressed = (pp: p5) => {
 		if (!this.started) {
 			Tone.start()
@@ -497,16 +422,17 @@ export default class Sketch {
 	}
 
 	keyboardInputDisabled = () => {
-		if (this.user.inputDevice !== 'keyboard') {
-			return true
-		}
 		// Ignore keyboard if inputs are focused
 		const { name, offset } = this.inputs
 		return (name && name.focused) || (offset && offset.focused)
 	}
+
 	keyPressedAudio = (evt: AudioKeysEvent) => {
 		const { note, velocity } = evt
 		if (this.keyboardInputDisabled()) {
+			return
+		}
+		if (this.user.inputDevice !== 'keyboard') {
 			return
 		}
 		const midiEvt = { kind: 'noteon', note: note, attack: velocity / 128.0 } as MidiEvent
@@ -517,56 +443,57 @@ export default class Sketch {
 		if (this.keyboardInputDisabled()) {
 			return
 		}
+		if (this.user.inputDevice !== 'keyboard') {
+			return
+		}
 		const midiEvt = { kind: 'noteoff', note: note } as MidiEvent
 		this.onMIDI('keyboard', 'noteoff', midiEvt)
 	}
 
-	// keyArrow = (key: string): KeyMovement => {
-	// 	switch (key) {
-	// 		case 'ArrowUp': return { lr: 0, ud: -gain, active }
-	// 		case 'ArrowDown': return { lr: 0, ud: gain, active }
-	// 		case 'ArrowRight': return { lr: gain, ud: 0, active }
-	// 		case 'ArrowLeft': return { lr: -gain, ud: 0, active }
-	// 		case ' ':
-	// 			console.log('TODO: jump')
-	// 			// fallthrough
-	// 		default: return { lr: 0, ud: 0, active: false }
-	// 	}
-	// }
 	keyPressedP5 = (evt: p5) => {
 		if (this.keyboardInputDisabled()) {
 			return
 		}
-		// const mov = this.keyArrow(evt.key)
-		// if (!mov.active) {
-		// 	return
-		// }
-		// this.loc.accel.x += mov.lr
-		// this.loc.accel.y += mov.ud
 		switch (evt.key) {
-			case 'ArrowUp': this.loc.mov.up = true; break
-			case 'ArrowDown': this.loc.mov.down = true; break
-			case 'ArrowLeft': this.loc.mov.left = true; break
-			case 'ArrowRight': this.loc.mov.right = true; break
-			case ' ': this.loc.mov.jump = true; break
+			case 'ArrowUp':
+				this.loc.mov.up = true
+				break
+			case 'ArrowDown':
+				this.loc.mov.down = true
+				break
+			case 'ArrowLeft':
+				this.loc.mov.left = true
+				break
+			case 'ArrowRight':
+				this.loc.mov.right = true
+				break
+			case ' ':
+				this.loc.mov.jump = true
+				this.loc.mov.jumpInitial = true
+				break
 		}
 	}
 	keyReleasedP5 = (evt: p5) => {
 		if (this.keyboardInputDisabled()) {
 			return
 		}
-		// const mov = this.keyArrow(evt.key)
-		// if (!mov.active) {
-		// 	return
-		// }
-		// this.loc.accel.x -= mov.lr
-		// this.loc.accel.y -= mov.ud
 		switch (evt.key) {
-			case 'ArrowUp': this.loc.mov.up = false; break
-			case 'ArrowDown': this.loc.mov.down = false; break
-			case 'ArrowLeft': this.loc.mov.left = false; break
-			case 'ArrowRight': this.loc.mov.right = false; break
-			case ' ': this.loc.mov.jump = false; break
+			case 'ArrowUp':
+				this.loc.mov.up = false
+				break
+			case 'ArrowDown':
+				this.loc.mov.down = false
+				break
+			case 'ArrowLeft':
+				this.loc.mov.left = false
+				break
+			case 'ArrowRight':
+				this.loc.mov.right = false
+				break
+			case ' ':
+				this.loc.mov.jump = false
+				this.loc.mov.jumpInitial = false
+				break
 		}
 	}
 
