@@ -488,7 +488,7 @@ export class EasyCam {
 
 			cam.attachListener(el, 'mousedown', mouse.mousedown, op)
 			cam.attachListener(el, 'mouseup', mouse.mouseup, op)
-			cam.attachListener(el, 'dblclick', mouse.dblclick, op)
+			// cam.attachListener(el, 'dblclick', mouse.dblclick, op)
 			cam.attachListener(el, 'wheel', mouse.wheel, op)
 			cam.attachListener(el, 'touchstart', mouse.touchstart, op)
 			cam.attachListener(el, 'touchend', mouse.touchend, op)
@@ -505,7 +505,7 @@ export class EasyCam {
 
 		cam.detachListener(mouse.mousedown)
 		cam.detachListener(mouse.mouseup)
-		cam.detachListener(mouse.dblclick)
+		// cam.detachListener(mouse.dblclick)
 		cam.detachListener(mouse.wheel)
 		cam.detachListener(mouse.keydown)
 		cam.detachListener(mouse.keyup)
@@ -740,27 +740,37 @@ export class EasyCam {
 		}
 	}
 
-	panGround(dx, dz) {
+	panGround(dx, dy, dz) {
+		const ca = this.centerAxes()
+		Vec3.mult(ca.x, dx, ca.x)
+		Vec3.mult(ca.z, dz, ca.z)
+		const val = [0, 0, 0]
+		Vec3.add(ca.x, ca.z, val)
+		val[1] = dy
+		Vec3.add(this.cam.state.center, val, this.cam.state.center)
+	}
+
+	centerAxes() {
 		const state = this.cam.state
 		// Get world unit vector for screen-space X axis
 		const screenX = Rotation.applyToVec3(state.rotation, [1, 0, 0])
 		screenX[1] = 0 // project X vector onto ground plane
 		// normalize post-projection vector
-		const mX = Vec3.mag(screenX)
+		let mX = Vec3.mag(screenX)
 		if (mX === 0) {
-			console.warn('No magnitude for screenX vector, aborting panGround', screenX)
-			return
+			console.warn('[EasyCam] No magnitude for screenX vector', screenX)
+			mX = 1
 		}
 		Vec3.mult(screenX, 1.0 / mX, screenX)
 		// Get Z vector: cross-product of X with UP (Y)
 		const screenZ = [0, 0, 0]
 		Vec3.cross(screenX, [0, 1, 0], screenZ)
 		// Multiply ground-plane vectors by arguments, apply to camera state
-		Vec3.mult(screenX, dx, screenX)
-		Vec3.mult(screenZ, dz, screenZ)
-		const val = [0, 0, 0]
-		Vec3.add(screenX, screenZ, val)
-		Vec3.add(state.center, val, state.center)
+		return {
+			x: screenX,
+			y: [0, 1, 0],
+			z: screenZ,
+		}
 	}
 
 	/** Applies a change to the current pan-value.  */
