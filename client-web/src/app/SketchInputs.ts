@@ -45,6 +45,7 @@ export class SketchInputs {
 	}
 
 	setupInputsUser = (clientId: number): any => {
+		console.log('[SketchInputs #setupInputsUser] clientId', clientId)
 		this.parent.user.clientId = clientId
 		if (!this.pp) {
 			console.warn(

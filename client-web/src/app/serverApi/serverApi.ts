@@ -26,6 +26,19 @@ export type User = {
 	xform?: Xform
 }
 
+export type UserForce = {
+	clientId: number
+	force: number[]
+}
+
+export type UserXform = {
+	clientId: number
+	pos: number[]
+	rot: number[]
+	scale: number[]
+	vel: number[]
+}
+
 export const WS_USER_UPDATE = 'user/update'
 export const WS_USERS_ALL = 'user/all'
 

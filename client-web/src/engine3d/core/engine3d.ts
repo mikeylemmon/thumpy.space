@@ -48,8 +48,10 @@ export class Engine3D {
 	}
 
 	draw2D = (pp: p5, pg: p5.Graphics) => {
+		const gg = pg as any
+		const mvp = gg._renderer.uMVMatrix.copy().mult(gg._renderer.uPMatrix)
 		for (const obj of this.objs) {
-			obj.draw2D(pp, pg)
+			obj.draw2D(pp, pg, mvp.mat4)
 		}
 	}
 }

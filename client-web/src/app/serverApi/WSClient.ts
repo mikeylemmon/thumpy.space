@@ -20,6 +20,7 @@ export type WSClientOptions = {
 	onClientId: (clientId: number) => any
 	onClockUpdate: (clkOpts: ClockOpts) => void
 	onUserEvent: (evt: UserEvent) => void
+	onUsers: (users: User[]) => void
 }
 
 export default class WSClient {
@@ -97,6 +98,7 @@ export default class WSClient {
 			case WS_USERS_ALL:
 				this.users = parseUsersAll(body).filter(uu => !!uu)
 				console.log('[WSClient #onMessage] Received users', this.users)
+				this.options.onUsers(this.users)
 				break
 			case WS_USER_EVENT:
 				const uevt = parseUserEvent(body)

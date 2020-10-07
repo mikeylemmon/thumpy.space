@@ -2,6 +2,7 @@ import * as p5 from 'p5'
 import { EasyCam } from 'vendor/p5.easycam.js'
 import { Obj, ObjOpts, Vec, Xform } from '../core'
 import { Physical, PhysicalOpts, FollowCam } from '../components'
+import { User } from 'app/serverApi/serverApi'
 
 type KeyMovement = {
 	up: boolean
@@ -22,12 +23,14 @@ export type AvatarData = {
 type forceFunc = (data: AvatarData) => void
 
 export type AvatarOpts = ObjOpts & {
+	user: User
 	phys?: PhysicalOpts
 	onForce?: forceFunc
 }
 
 export class Avatar extends Obj {
 	phys: Physical
+	user: User
 	followCam?: FollowCam
 	onForce?: forceFunc
 
@@ -43,9 +46,16 @@ export class Avatar extends Obj {
 
 	constructor(opts: AvatarOpts) {
 		super(opts)
+		this.user = opts.user
 		this.phys = new Physical(this, opts.phys)
 		this.comps = [this.phys]
 		this.onForce = opts.onForce
+		if (!this.drawFunc) {
+			this.drawFunc = this.render
+		}
+		if (!this.drawFunc2D) {
+			this.drawFunc2D = this.render2D
+		}
 		console.log('[Avatar] ctor', this)
 	}
 
@@ -55,6 +65,51 @@ export class Avatar extends Obj {
 			this.keys.jumpInitial = false
 			this.keysUpdated()
 		}
+	}
+
+	draw(pg: p5.Graphics) {
+		super.draw(pg) // applys xform and calls this.render
+		// draw shadow
+		const { pos, scale } = this.xform
+		pg.push()
+		pg.fill(30)
+		pg.noStroke()
+		pg.translate(pos.x, 0, pos.z)
+		pg.scale(scale.x, 0, scale.z)
+		pg.rotateX(Math.PI/2)
+		pg.circle(0, 0, 2)
+		pg.pop()
+	}
+
+	render = (pg: p5.Graphics) => {
+		pg.fill(0)
+		pg.stroke(255)
+		pg.strokeWeight(2)
+		pg.sphere(1, 7, 7)
+	}
+
+	render2D = (pp: p5, pos: Vec, scale: number) => {
+		const { name, instrument, offset } = this.user
+		if (scale < 15) {
+			return
+		}
+		const ss = Math.min(scale, 50)
+		pp.translate(pos.x, pos.y)
+		pp.textAlign(pp.CENTER, pp.BOTTOM)
+		pp.fill(255)
+		pp.noStroke()
+		pp.textSize(ss/2)
+		pp.textStyle(pp.BOLD)
+		if (scale < 35) {
+			pp.text(name, 0, -ss * 0.8)
+			return
+		} else {
+			pp.text(name, 0, -ss * 1.1)
+		}
+		pp.fill(225)
+		pp.textSize(ss * 0.3)
+		pp.textStyle(pp.ITALIC)
+		pp.text(`${instrument} (@${offset > 0 ? '+' : ''}${offset})`, 0, -ss * 0.75)
 	}
 
 	addFollowCam = (cam: EasyCam) => {
@@ -113,8 +168,8 @@ export class Avatar extends Obj {
 			}
 			return
 		}
-		// Rotate movement vector based on camera orientation
-		const ca = this.followCam.cam.centerAxes() // Y is world-up, X is screen right, Z is screen up
+		// Convert movement vector to force based on camera orientation
+		const ca = this.followCam.cam.centerAxes() // X=screen-right Z=screen-up, parallel to ground plane
 		const cax = new Vec(ca.x[0], ca.x[1], ca.x[2])
 		const caz = new Vec(ca.z[0], ca.z[1], ca.z[2])
 		const ff = new Vec(0, mov.y, 0)
@@ -124,7 +179,10 @@ export class Avatar extends Obj {
 		if (this.onForce) {
 			this.onForce(this.data())
 		}
-		// console.log('[Avatar] force updated', this.data())
 	}
+
+	// userUpdated = () => {
+	// 	console.log('[Avatar #userUpdated]', this.user.name)
+	// }
 
 }

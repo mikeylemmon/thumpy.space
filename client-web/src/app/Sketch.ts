@@ -44,41 +44,11 @@ export default class Sketch {
 		posX: Math.random() * 0.8 + 0.1,
 		posY: Math.random() * 0.6 + 0.2,
 	}
+	avatar: Avatar
+	users: User[] = []
+	avatars: Avatar[] = []
 	inputs: SketchInputs
-
-	avatar: Avatar = new Avatar({
-		draw: (pg: p5.Graphics) => {
-			pg.fill(0)
-			pg.stroke(255)
-			pg.strokeWeight(2)
-			pg.sphere(1, 7, 7)
-		},
-		draw2D: (pp: p5, pos: p5.Vector) => {
-			const { name, instrument, offset } = this.user
-			pp.translate(pos.x, pos.y)
-			pp.textAlign(pp.CENTER, pp.BOTTOM)
-			pp.fill(255)
-			pp.noStroke()
-			pp.textSize(16)
-			pp.textStyle(pp.BOLD)
-			pp.text(name, 0, -50)
-			pp.fill(225)
-			pp.textSize(12)
-			pp.textStyle(pp.ITALIC)
-			pp.text(`${instrument} (@${offset > 0 ? '+' : ''}${offset})`, 0, -35)
-		},
-		pos: new Vec(40, 100, 40),
-		scale: new Vec(40),
-		phys: { worldScale },
-		onForce: (data: AvatarData) => {
-			const { force, vel, xform } = data
-			this.user.force = force
-			this.user.vel = vel
-			this.user.xform = xform
-			this.sendUserUpdate()
-		},
-	})
-	ground = new Ground({ scale: new Vec(worldScale) })
+	ground = new Ground({ pos: new Vec(0, -1, 0), scale: new Vec(worldScale) })
 	engine3d = engine3d
 
 	constructor(global: any) {
@@ -94,12 +64,26 @@ export default class Sketch {
 			onClientId: this.inputs.setupInputsUser,
 			onClockUpdate: this.inputs.onClockUpdate,
 			onUserEvent: this.onUserEvent,
+			onUsers: this.onUsers,
 		})
 		this.midi = new MIDI({
 			onEnabled: this.inputs.setupInputsMidi,
 			onMessage: this.onMIDI,
 		})
 		this.audioKeys = new SketchAudioKeys(this)
+		this.avatar = new Avatar({
+			user: this.user,
+			pos: new Vec(40, 100, 40),
+			scale: new Vec(40),
+			phys: { worldScale },
+			onForce: (data: AvatarData) => {
+				const { force, vel, xform } = data
+				this.user.force = force
+				this.user.vel = vel
+				this.user.xform = xform
+				this.sendUserUpdate()
+			},
+		})
 		window.Tone = Tone
 		window.me = this
 	}
@@ -158,16 +142,14 @@ export default class Sketch {
 		this.user.posY = Math.random() * 0.6 + 0.2
 	}
 
-	update = (pp: p5) => {
-		engine3d.update()
-	}
-
 	draw = (pp: p5) => {
-		this.update(pp)
+		engine3d.update()
 		let loading = false
 		for (const instName in this.instruments) {
-			const inst = (this.instruments as any)[instName]
-			loading = loading || !inst.loaded
+			if (!(this.instruments as any)[instName].loaded) {
+				loading = true
+				break
+			}
 		}
 		pp.background(0x33)
 		if (this.pg) {
@@ -197,22 +179,10 @@ export default class Sketch {
 	}
 
 	mousePressed = (pp: p5) => {
-		if (!this.started) {
-			Tone.start()
-			console.log('[Sketch #mousePressed] Started Tone')
-			this.started = true
-			return
-		}
-		// Update user position if click is in the center area
-		if (pp.mouseX < pp.width * 0.1 || pp.mouseX > pp.width * 0.9) {
-			return
-		}
-		if (pp.mouseY < pp.height * 0.2 || pp.mouseY > pp.height * 0.8) {
-			return
-		}
-		this.user.posX = pp.mouseX / pp.width
-		this.user.posY = pp.mouseY / pp.height
-		this.sendUserUpdate()
+		if (this.started) { return }
+		this.started = true
+		Tone.start()
+		console.log('[Sketch #mousePressed] Started Tone')
 	}
 
 	keyboardInputDisabled = () => {
@@ -230,10 +200,61 @@ export default class Sketch {
 	}
 
 	updateUser = (uu: Partial<User>, sendUpdate: boolean = true) => {
-		this.user = { ...this.user, ...uu }
+		this.user = Object.assign(this.user, uu)
 		if (sendUpdate) {
 			this.sendUserUpdate()
 		}
+	}
+
+	onUsers = (users: User[]) => {
+		for (const user of users) {
+			if (user.clientId === this.user.clientId) {
+				continue // skip local user
+			}
+			const prevs = this.users.filter(uu => uu.clientId === user.clientId)
+			if (!prevs.length) {
+				this.users.push(user)
+				this.avatars.push(new Avatar({
+					user: user,
+					pos: new Vec(user.posX, 100, user.posY),
+					scale: new Vec(20),
+					phys: { worldScale },
+				}))
+				continue
+			}
+			if (prevs.length > 1) {
+				console.error('[Sketch #onUsers] Found more than one user for clientId', user.clientId, user.name)
+			}
+			// Update pre-existing user
+			const prev = prevs[0]
+			Object.assign(prev, user)
+		}
+	}
+
+	// getUser returns the user matching clientId,
+	// or this.user if no matching user is found
+	getUser = (clientId: number): User => {
+		if (clientId === this.user.clientId) {
+			return this.user
+		}
+		for (const uu of this.users) {
+			if (clientId === uu.clientId) {
+				return uu
+			}
+		}
+		return this.user
+	}
+
+	getAvatar = (clientId: number): Avatar | null => {
+		if (clientId === this.user.clientId) {
+			return this.avatar
+		}
+		for (const aa of this.avatars) {
+			if (clientId === aa.user.clientId) {
+				return aa
+			}
+		}
+		return null
 	}
 
 	sendUserUpdate = () => {
@@ -245,7 +266,7 @@ export default class Sketch {
 		conn.send(userUpdateReq(this.user))
 	}
 
-	onMIDI = (inputName: string, eventName: string, evt: MidiEvent) => {
+	onMIDI = (inputName: string, _eventName: string, evt: MidiEvent) => {
 		if (inputName !== this.user.inputDevice) {
 			return
 		}
@@ -257,6 +278,7 @@ export default class Sketch {
 		}
 		const { conn, ready } = this.ws
 		if (!ready()) {
+			// websocket connection isn't ready, handle event locally
 			this.onUserEvent(uevt)
 			return
 		}
@@ -292,11 +314,7 @@ export default class Sketch {
 			case 'noteon': {
 				const nn = midiEvent as MidiEventNote
 				inst.triggerAttack(Tone.Frequency(nn.note, 'midi').toFrequency(), tt, nn.attack)
-				let user = this.user
-				if (clientId !== user.clientId) {
-					const uu = this.ws.getUser(clientId)
-					user = uu || user
-				}
+				const user = this.getUser(clientId)
 				Tone.Draw.schedule(() => this.visualNotes.noteon(evt, user), tt)
 				break
 			}
