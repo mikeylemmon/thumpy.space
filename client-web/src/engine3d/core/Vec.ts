@@ -1,7 +1,4 @@
-import { Vec3 } from 'cannon'
-
-export class Vec extends Vec3 {
-	// eslint-disable-next-line
+export class Vec extends window.p5.Vector {
 	constructor(...vals: number[]) {
 		super()
 		this.apply(...vals)
@@ -11,7 +8,9 @@ export class Vec extends Vec3 {
 	cloneMult = (val: number | Vec) => this.clone().applyMult(val)
 	cloneAdd = (val: number | Vec) => this.clone().applyAdd(val)
 
+	isZero = () => this.x === 0 && this.y === 0 && this.z === 0
 	isOne = () => this.x === 1 && this.y === 1 && this.z === 1
+	isEqual = (other: Vec) => this.x === other.x && this.y === other.y && this.z === other.z
 
 	apply = (...vals: number[]) => {
 		this.x = vals.length > 0 ? vals[0] : 0

@@ -45,6 +45,8 @@ export default class WSClient {
 		this.conn = this.newConn()
 	}
 
+	ready = () => this.conn && this.conn.readyState === WebSocket.OPEN
+
 	newConn = (): WebSocket => {
 		const conn = new WebSocket(WS_URL)
 		conn.onclose = (evt: CloseEvent) => {

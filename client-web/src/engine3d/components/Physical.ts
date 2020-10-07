@@ -30,8 +30,8 @@ export class Physical extends Component {
 		// Update velocity based on forces
 		this.vel.applyAdd(gravity.cloneAdd(this.force).applyMult(dt))
 		this.vel.applyMult(new Vec(0.8, 1.0, 0.8)) // friction in X and Z
-		if (this.vel.norm2() < 0.01) {
-			// Velocity thresholded
+		if (this.vel.magSq() < 0.01) {
+			// Velocity threshold
 			this.vel.applyMult(0)
 		}
 		// Update position based on velocity
@@ -59,7 +59,7 @@ export class Physical extends Component {
 	drawDebug = (pg: p5.Graphics) => {
 		const { center, size } = this.worldBounds().centerAndSize()
 		pg.push()
-		pg.fill(0, 0)
+		pg.noFill()
 		pg.stroke(255, 0, 0)
 		pg.strokeWeight(1)
 		pg.translate(center.x, center.y, center.z)

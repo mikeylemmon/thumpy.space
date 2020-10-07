@@ -1,14 +1,14 @@
 import * as p5 from 'p5'
 import * as Tone from 'tone'
-import AudioKeys from 'audiokeys'
 import WSClient, { DONT_REOPEN } from './serverApi/WSClient'
 import { userEventReq, userUpdateReq, User, UserEvent } from './serverApi/serverApi'
-import { clockUpdateReq, ClockOpts } from './serverApi/serverClock'
 import MIDI, { MidiEvent, MidiEventCC, MidiEventNote, MidiEventPitchbend } from './MIDI'
 import { piano, eightOhEight } from './instruments'
 import VisualNotes from './VisualNotes'
 import { EasyCam } from 'vendor/p5.easycam.js'
-import { engine3d, Avatar, Ground, KeyMovement, Vec } from 'engine3d'
+import { engine3d, Avatar, AvatarData, Ground, Vec } from 'engine3d'
+import { SketchInputs } from './SketchInputs'
+import { SketchAudioKeys } from './SketchAudioKeys'
 
 type Instruments = {
 	piano: ReturnType<typeof piano>
@@ -16,26 +16,6 @@ type Instruments = {
 	eightOhEight: ReturnType<typeof eightOhEight>
 }
 
-type AudioKeysEvent = {
-	// the midi number of the note
-	note: number
-	// the keyCode of the key being pressed down
-	keyCode: number
-	// the frequency of the note
-	frequency: number
-	// on note down: the current velocity (this can only be set when rows = 1)
-	// on note up: 0
-	velocity: number
-}
-
-type Loc = {
-	pos: p5.Vector
-	vel: p5.Vector
-	accel: p5.Vector
-	mov: KeyMovement
-}
-
-const userInputsY = 40
 const worldScale = 1000
 
 export default class Sketch {
@@ -51,7 +31,7 @@ export default class Sketch {
 	}
 	ws: WSClient
 	midi: MIDI
-	audioKeys: AudioKeys
+	audioKeys: SketchAudioKeys
 	pp?: p5
 	pg?: p5.Graphics
 	cam?: EasyCam
@@ -64,18 +44,7 @@ export default class Sketch {
 		posX: Math.random() * 0.8 + 0.1,
 		posY: Math.random() * 0.6 + 0.2,
 	}
-	loc: Loc
-	clockOpts: ClockOpts = {
-		bpm: 95,
-	}
-	inputs: {
-		name?: any
-		instrument?: any
-		inputDevice?: any
-		offset?: any
-		bpm?: any
-	} = {}
-	nameCustomized: boolean = false
+	inputs: SketchInputs
 
 	avatar: Avatar = new Avatar({
 		draw: (pg: p5.Graphics) => {
@@ -101,44 +70,36 @@ export default class Sketch {
 		pos: new Vec(40, 100, 40),
 		scale: new Vec(40),
 		phys: { worldScale },
+		onForce: (data: AvatarData) => {
+			const { force, vel, xform } = data
+			this.user.force = force
+			this.user.vel = vel
+			this.user.xform = xform
+			this.sendUserUpdate()
+		},
 	})
 	ground = new Ground({ scale: new Vec(worldScale) })
 	engine3d = engine3d
 
 	constructor(global: any) {
 		console.log('[Sketch #ctor]')
+		this.inputs = new SketchInputs(this)
 		this.ws = new WSClient(window, {
 			clock: {
 				onSynced: () => {
 					this.syncing = false
-					this.setupInputsBPM()
+					this.inputs.setupInputsBPM()
 				},
 			},
-			onClientId: this.setupInputsUser,
-			onClockUpdate: this.onClockUpdate,
+			onClientId: this.inputs.setupInputsUser,
+			onClockUpdate: this.inputs.onClockUpdate,
 			onUserEvent: this.onUserEvent,
 		})
-		this.audioKeys = new AudioKeys({ polyphony: Infinity })
-		this.audioKeys.down(this.keyPressedAudio)
-		this.audioKeys.up(this.keyReleasedAudio)
 		this.midi = new MIDI({
+			onEnabled: this.inputs.setupInputsMidi,
 			onMessage: this.onMIDI,
-			onEnabled: this.setupInputsMidi,
 		})
-		this.loc = {
-			accel: new global.p5.Vector(),
-			vel: new global.p5.Vector(),
-			pos: new global.p5.Vector(),
-			mov: {
-				up: false,
-				down: false,
-				left: false,
-				right: false,
-				jump: false,
-				jumpInitial: false,
-				gain: 150,
-			},
-		}
+		this.audioKeys = new SketchAudioKeys(this)
 		window.Tone = Tone
 		window.me = this
 	}
@@ -175,8 +136,8 @@ export default class Sketch {
 		pp.setup = () => this.setup(pp)
 		pp.draw = () => this.draw(pp)
 		pp.mousePressed = () => this.mousePressed(pp)
-		pp.keyPressed = () => this.keyPressedP5(pp)
-		pp.keyReleased = () => this.keyReleasedP5(pp)
+		pp.keyPressed = () => this.keyPressed(pp)
+		pp.keyReleased = () => this.keyReleased(pp)
 	}
 
 	setup = (pp: p5) => {
@@ -192,125 +153,12 @@ export default class Sketch {
 		this.cam.rotateZ(Math.PI)
 		;(this.cam.state as any).center[2] = 40
 		this.avatar.addFollowCam(this.cam)
-		this.setupInputs(pp)
+		this.inputs.setup(pp)
 		this.user.posX = Math.random() * 0.8 + 0.1
 		this.user.posY = Math.random() * 0.6 + 0.2
 	}
 
-	setupInputs = (pp: p5) => {
-		const inUser = this.setupInputsUser(this.ws.clientId)
-
-		const inInst = pp.createSelect() as any
-		inInst.position(inUser.x + inUser.width + 10, userInputsY)
-		for (const instName in this.instruments) {
-			inInst.option(instName)
-		}
-		inInst.size(100)
-		inInst.changed(() => {
-			console.log('[Sketch #inputs.instrument] Changed:', inInst.value())
-			this.user.instrument = inInst.value()
-			this.sendUserUpdate()
-		})
-		this.inputs.instrument = inInst
-		this.user.instrument = inInst.value()
-
-		if (!this.inputs.inputDevice) {
-			this.setupInputsMidi(this.midi.webMidi)
-		}
-	}
-
-	setupInputsUser = (clientId: number): any => {
-		this.user.clientId = clientId
-		if (!this.pp) {
-			console.warn(
-				'[Sketch #setupInputsUser] Attempted to setup user input before sketch was initialized',
-			)
-			return
-		}
-		if (this.inputs.name && this.nameCustomized) {
-			// Don't re-create the input if the user has already customized their name
-			return
-		}
-		const inName = this.pp.createInput(`User ${this.ws.clientId}`) as any
-		inName.size(80)
-		inName.position(20, userInputsY)
-		inName.input(() => {
-			console.log('[Sketch #inputs.name] Changed:', inName.value())
-			this.nameCustomized = true
-			this.user.name = inName.value()
-			this.sendUserUpdate()
-		})
-		inName.elt.onfocus = () => (inName.focused = true)
-		inName.elt.onblur = () => (inName.focused = false)
-		inName.elt.focus()
-		inName.elt.select()
-		this.inputs.name = inName
-		this.user.name = inName.value()
-
-		const inOffset = this.pp.createInput(`${this.user.offset}`) as any
-		inOffset.size(50)
-		inOffset.position(inName.x + inName.width + 10, userInputsY)
-		const setOffset = () => {
-			const off = parseFloat(inOffset.value())
-			if (!Number.isNaN(off)) {
-				this.user.offset = off
-				this.sendUserUpdate()
-			}
-		}
-		inOffset.input(() => {
-			console.log('[Sketch #inputs.offset] Changed:', inOffset.value())
-			setOffset()
-		})
-		inOffset.elt.onfocus = () => (inOffset.focused = true)
-		inOffset.elt.onblur = () => (inOffset.focused = false)
-		this.inputs.offset = inOffset
-		setOffset()
-		return inOffset
-	}
-
-	setupInputsMidi = (webMidi: any) => {
-		if (!this.pp || !this.inputs.instrument) {
-			return
-		}
-		const { inputs } = webMidi || { inputs: [] }
-		const inMidi = this.pp.createSelect() as any
-		const inInst = this.inputs.instrument
-		inMidi.position(inInst.x + inInst.width + 10, userInputsY)
-		inMidi.option('keyboard')
-		for (const input of inputs) {
-			const { _midiInput } = input
-			if (!_midiInput) {
-				console.error('[Sketch #setupInputsMidi] Received a midi input with missing data')
-				continue
-			}
-			inMidi.option(_midiInput.name)
-		}
-		inMidi.changed(() => {
-			console.log('[Sketch #setupInputsMidi] Changed:', inMidi.value())
-			this.user.inputDevice = inMidi.value()
-			this.sendUserUpdate()
-		})
-		this.inputs.inputDevice = inMidi
-		this.user.inputDevice = inMidi.value()
-	}
-
-	setupInputsBPM = () => {
-		if (!this.pp) {
-			return
-		}
-		const inBPM = this.pp.createSlider(30, 200, this.clockOpts.bpm) as any
-		inBPM.position(20, this.pp.height - 40)
-		inBPM.size(this.pp.width / 2)
-		inBPM.input(() => {
-			// console.log('[Sketch #setupInputsBPM] Changed:', inBPM.value())
-			this.clockOpts.bpm = inBPM.value()
-			this.sendClockUpdate(this.clockOpts)
-		})
-		this.inputs.bpm = inBPM
-	}
-
 	update = (pp: p5) => {
-		this.avatar.handleInput(this.loc.mov)
 		engine3d.update()
 	}
 
@@ -329,67 +177,13 @@ export default class Sketch {
 			pp.image(this.pg, 0, 0)
 			engine3d.draw2D(pp, this.pg)
 		}
-		this.drawLabels(pp)
-		// this.drawUsers(pp)
+		this.inputs.draw(pp)
 		if (loading) {
 			this.drawMessage(pp, 'Loading instruments...')
 		} else if (this.syncing) {
 			this.drawMessage(pp, 'Syncing clock with server...')
 		} else if (!this.started) {
 			this.drawMessage(pp, 'Click to enable audio')
-		}
-	}
-
-	drawUsers = (pp: p5) => {
-		pp.strokeWeight(0)
-		pp.textAlign(pp.CENTER, pp.CENTER)
-		for (const user of this.ws.users) {
-			const xx = user.posX * pp.width
-			const yy = user.posY * pp.height
-			pp.fill(255)
-			pp.textSize(14)
-			pp.textStyle(pp.BOLD)
-			pp.text(user.name, xx, yy)
-			pp.fill(200)
-			pp.textSize(11)
-			pp.textStyle(pp.ITALIC)
-			pp.text(`${user.instrument} (@${user.offset})`, xx, yy + 18)
-		}
-	}
-
-	drawLabels = (pp: p5) => {
-		pp.textSize(12)
-		pp.fill(255)
-		pp.strokeWeight(1)
-		pp.stroke(0)
-		pp.textAlign(pp.LEFT, pp.BOTTOM)
-		pp.textStyle(pp.BOLD)
-		for (const key in this.inputs) {
-			const input = (this.inputs as any)[key]
-			const xx = input.x + 3
-			const yy = input.y - 5
-			switch (true) {
-				case key === 'offset':
-					const off = parseFloat(input.value())
-					let msg = ``
-					if (Number.isNaN(off)) {
-						// Show the user that they have an invalid value
-						pp.fill(255, 0, 0)
-						msg = ` (NaN!)`
-					}
-					pp.text(`${key.toUpperCase()}${msg}${'\n'}(in beats)`, xx, yy)
-					if (Number.isNaN(off)) {
-						// put fill color back
-						pp.fill(255)
-					}
-					break
-				case key in this.user:
-					pp.text(key.toUpperCase(), xx, yy)
-					break
-				default:
-					pp.text(`${key.toUpperCase()}: ${input.value()}`, xx, yy)
-					break
-			}
 		}
 	}
 
@@ -422,105 +216,33 @@ export default class Sketch {
 	}
 
 	keyboardInputDisabled = () => {
-		// Ignore keyboard if inputs are focused
-		const { name, offset } = this.inputs
-		return (name && name.focused) || (offset && offset.focused)
+		return this.inputs.isFocused() // Ignore keyboard if inputs are focused
+	}
+	keyPressed = (evt: p5) => {
+		if (!this.keyboardInputDisabled()) {
+			this.avatar.keyPressed(evt)
+		}
+	}
+	keyReleased = (evt: p5) => {
+		if (!this.keyboardInputDisabled()) {
+			this.avatar.keyReleased(evt)
+		}
 	}
 
-	keyPressedAudio = (evt: AudioKeysEvent) => {
-		const { note, velocity } = evt
-		if (this.keyboardInputDisabled()) {
-			return
-		}
-		if (this.user.inputDevice !== 'keyboard') {
-			return
-		}
-		const midiEvt = { kind: 'noteon', note: note, attack: velocity / 128.0 } as MidiEvent
-		this.onMIDI('keyboard', 'noteon', midiEvt)
-	}
-	keyReleasedAudio = (evt: AudioKeysEvent) => {
-		const { note } = evt
-		if (this.keyboardInputDisabled()) {
-			return
-		}
-		if (this.user.inputDevice !== 'keyboard') {
-			return
-		}
-		const midiEvt = { kind: 'noteoff', note: note } as MidiEvent
-		this.onMIDI('keyboard', 'noteoff', midiEvt)
-	}
-
-	keyPressedP5 = (evt: p5) => {
-		if (this.keyboardInputDisabled()) {
-			return
-		}
-		switch (evt.key) {
-			case 'ArrowUp':
-				this.loc.mov.up = true
-				break
-			case 'ArrowDown':
-				this.loc.mov.down = true
-				break
-			case 'ArrowLeft':
-				this.loc.mov.left = true
-				break
-			case 'ArrowRight':
-				this.loc.mov.right = true
-				break
-			case ' ':
-				this.loc.mov.jump = true
-				this.loc.mov.jumpInitial = true
-				break
-		}
-	}
-	keyReleasedP5 = (evt: p5) => {
-		if (this.keyboardInputDisabled()) {
-			return
-		}
-		switch (evt.key) {
-			case 'ArrowUp':
-				this.loc.mov.up = false
-				break
-			case 'ArrowDown':
-				this.loc.mov.down = false
-				break
-			case 'ArrowLeft':
-				this.loc.mov.left = false
-				break
-			case 'ArrowRight':
-				this.loc.mov.right = false
-				break
-			case ' ':
-				this.loc.mov.jump = false
-				this.loc.mov.jumpInitial = false
-				break
+	updateUser = (uu: Partial<User>, sendUpdate: boolean = true) => {
+		this.user = { ...this.user, ...uu }
+		if (sendUpdate) {
+			this.sendUserUpdate()
 		}
 	}
 
 	sendUserUpdate = () => {
-		const { conn } = this.ws
-		if (!conn || conn.readyState !== WebSocket.OPEN) {
+		const { conn, ready } = this.ws
+		if (!ready()) {
 			console.warn("[Sketch #sendUserUpdate] Can't send user update, websocket connection is not open")
 			return
 		}
 		conn.send(userUpdateReq(this.user))
-	}
-
-	sendClockUpdate = (clk: ClockOpts) => {
-		const { conn } = this.ws
-		if (!conn || conn.readyState !== WebSocket.OPEN) {
-			console.warn("[Sketch #sendUserUpdate] Can't send bpm update, websocket connection is not open")
-			return
-		}
-		conn.send(clockUpdateReq(clk))
-	}
-
-	onClockUpdate = (clk: ClockOpts) => {
-		this.clockOpts = clk
-		if (!this.inputs.bpm) {
-			return
-		}
-		this.inputs.bpm.value(clk.bpm)
 	}
 
 	onMIDI = (inputName: string, eventName: string, evt: MidiEvent) => {
@@ -533,8 +255,8 @@ export default class Sketch {
 			midiEvent: evt,
 			timestamp: this.ws.now() + this.offsetMs(),
 		}
-		const { conn } = this.ws
-		if (!conn || conn.readyState !== WebSocket.OPEN) {
+		const { conn, ready } = this.ws
+		if (!ready()) {
 			this.onUserEvent(uevt)
 			return
 		}
@@ -542,10 +264,10 @@ export default class Sketch {
 	}
 
 	offsetMs = () => {
-		if (!this.inputs.bpm) {
+		const bps = this.inputs.bpm() / 60
+		if (!bps) {
 			return 0
 		}
-		const bps = this.inputs.bpm.value() / 60
 		const beatMs = 1000.0 / bps
 		return beatMs * this.user.offset
 	}

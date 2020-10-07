@@ -69,7 +69,7 @@ export class Obj {
 		return null
 	}
 
-	update = (dt: number) => {
+	update(dt: number) {
 		this.comps.forEach(cc => cc.update(dt))
 	}
 
