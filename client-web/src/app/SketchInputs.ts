@@ -14,7 +14,9 @@ export class SketchInputs {
 		inputDevice?: any
 		offset?: any
 		bpm?: any
+		hide?: any
 	} = {}
+	hidden = false
 	clockOpts: ClockOpts = {
 		bpm: 95,
 	}
@@ -23,7 +25,7 @@ export class SketchInputs {
 		this.parent = parent
 	}
 
-	bpm = () => this.inputs.bpm ? this.inputs.bpm.value() : 0
+	bpm = () => this.inputs.bpm ? this.inputs.bpm.value() : this.clockOpts.bpm
 
 	isFocused = () => {
 		for (const key in this.inputs) {
@@ -35,6 +37,27 @@ export class SketchInputs {
 		return false
 	}
 
+	toggleHide = () => {
+		if (!this.pp) {
+			return
+		}
+		this.hidden = !this.hidden
+		if (!this.hidden) {
+			this.setup(this.pp)
+			this.setupInputsBPM()
+			return
+		}
+		for (const key in this.inputs) {
+			const input = (this.inputs as any)[key]
+			if (!input) {
+				continue
+			}
+			input.remove()
+			delete (this.inputs as any)[key]
+		}
+		this.setupInputsHide(this.pp)
+	}
+
 	setup = (pp: p5) => {
 		this.pp = pp
 		this.setupInputsUser(this.parent.ws.clientId)
@@ -42,6 +65,17 @@ export class SketchInputs {
 		if (!this.inputs.inputDevice) {
 			this.setupInputsMidi(this.parent.midi.webMidi)
 		}
+		this.setupInputsHide(pp)
+	}
+
+	setupInputsHide = (pp: p5) => {
+		if (this.inputs.hide) {
+			this.inputs.hide.remove()
+		}
+		const inHide = pp.createButton(this.hidden ? 'Show UI' : 'Hide UI') as any
+		inHide.position(pp.width - inHide.width - 40, pp.height - inHide.height - 10)
+		inHide.mousePressed(this.toggleHide)
+		this.inputs.hide = inHide
 	}
 
 	setupInputsUser = (clientId: number): any => {
@@ -63,7 +97,8 @@ export class SketchInputs {
 		if (this.inputs.offset) {
 			this.inputs.offset.remove()
 		}
-		const inName = this.pp.createInput(`User ${this.parent.ws.clientId}`) as any
+		const defaultName = this.nameCustomized ? this.parent.user.name : `User ${this.parent.ws.clientId}`
+		const inName = this.pp.createInput(defaultName) as any
 		inName.size(80)
 		inName.position(20, userInputsY)
 		inName.input(() => {
@@ -106,10 +141,14 @@ export class SketchInputs {
 		}
 		const inInst = this.pp.createSelect() as any
 		inInst.position(this.inputs.offset.x + this.inputs.offset.width + 10, userInputsY)
+		const uinst = this.parent.user.instrument
+		inInst.size(130)
 		for (const instName in this.parent.instruments) {
 			inInst.option(instName)
+			if (instName === uinst) {
+				inInst.selected(instName)
+			}
 		}
-		inInst.size(100)
 		inInst.changed(() => {
 			console.log('[SketchInputs #inputs.instrument] Changed:', inInst.value())
 			this.parent.updateUser({ instrument: inInst.value() })
@@ -140,6 +179,7 @@ export class SketchInputs {
 			}
 			inMidi.option(_midiInput.name)
 		}
+		inInst.selected(this.parent.user.inputDevice)
 		inMidi.changed(() => {
 			console.log('[SketchInputs #setupInputsMidi] Changed:', inMidi.value())
 			this.parent.updateUser({ inputDevice: inMidi.value() })
@@ -178,7 +218,13 @@ export class SketchInputs {
 		pp.textAlign(pp.LEFT, pp.BOTTOM)
 		pp.textStyle(pp.BOLD)
 		for (const key in this.inputs) {
+			if (key === 'hide') {
+				continue
+			}
 			const input = (this.inputs as any)[key]
+			if (!input) {
+				continue
+			}
 			const xx = input.x + 3
 			const yy = input.y - 5
 			switch (true) {

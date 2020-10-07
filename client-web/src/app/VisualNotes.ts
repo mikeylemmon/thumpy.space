@@ -121,7 +121,8 @@ class VisualNote {
 		const sat = aa * 0.3 + 0.55
 		const size = this.radius * 2 * this.young
 		switch (instrument) {
-			case 'eightOhEight': {
+			case 'eightOhEight':
+			case 'metronome': {
 				const hue = (note % 16) / 16
 				pg.fill(hue * 0.4 + 0.05, sat, 0.45, this.health)
 				pg.square(this.x - size / 2, this.y - size / 2, size)

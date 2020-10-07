@@ -1,4 +1,5 @@
 import * as Tone from 'tone'
+import { Sampler } from './Sampler'
 
 const pianoSamps = {
 	A0: 'A0.mp3',
@@ -33,33 +34,7 @@ const pianoSamps = {
 	C8: 'C8.mp3',
 }
 
-export const eightOhEightSamps = [
-	'BD0010.WAV',
-	'BD0050.WAV',
-	// 'BD0025.WAV',
-	// 'BD0075.WAV',
-	'SD7510.WAV',
-	'CP.WAV',
-	// 'SD7550.WAV',
-	// 'SD7500.WAV',
-	// 'SD7525.WAV',
-	'CH.WAV',
-	'OH10.WAV',
-	'LT00.WAV',
-	'MT00.WAV',
-	'HT00.WAV',
-	'LC00.WAV',
-	'MC00.WAV',
-	'HC00.WAV',
-	'CB.WAV',
-	'CY0075.WAV',
-	// 'CY1000.WAV',
-	'MA.WAV',
-	'RS.WAV',
-	// 'CL.WAV',
-]
-
-export function piano() {
+function piano() {
 	return new Tone.Sampler({
 		urls: pianoSamps,
 		release: 1,
@@ -67,14 +42,10 @@ export function piano() {
 	})
 }
 
-export function eightOhEight() {
-	const urls: { [key: number]: string } = {}
-	for (let ii = 0; ii < eightOhEightSamps.length; ++ii) {
-		urls[ii] = eightOhEightSamps[ii % eightOhEightSamps.length]
+export class Piano extends Sampler {
+	constructor() {
+		super(piano())
+		this.pitchShift = new Tone.PitchShift().toDestination()
+		this.sampler = piano().connect(this.pitchShift)
 	}
-	return new Tone.Sampler({
-		urls,
-		release: 1,
-		baseUrl: '/samples/808/',
-	})
 }

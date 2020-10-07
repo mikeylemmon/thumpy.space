@@ -4,7 +4,7 @@ import WSClient, { DONT_REOPEN } from './serverApi/WSClient'
 import { userEventReq, userUpdateReq, userXformReq, User, UserEvent, UserForce, UserXform } from './serverApi/serverApi'
 import MIDI, { MidiEvent, MidiEventCC, MidiEventNote, MidiEventPitchbend } from './MIDI'
 import { Instrument } from './Instrument'
-import { Piano, EightOhEight } from './instruments'
+import { EightOhEight, Metronome, Piano } from './instruments'
 import VisualNotes from './VisualNotes'
 import { EasyCam } from 'vendor/p5.easycam.js'
 import { engine3d, Avatar, Ground, Vec } from 'engine3d'
@@ -32,7 +32,7 @@ export default class Sketch {
 		clientId: 0,
 		name: '',
 		instrument: '',
-		inputDevice: '',
+		inputDevice: 'keyboard',
 		offset: 2,
 	}
 	avatar: Avatar
@@ -41,6 +41,11 @@ export default class Sketch {
 	inputs: SketchInputs
 	ground = new Ground({ pos: new Vec(0, -1, 0), scale: new Vec(worldScale) })
 	engine3d = engine3d
+	bgCol = {
+		hue: 0.5,
+		sat: 0,
+		lgt: 0.2,
+	}
 
 	constructor(_global: any) {
 		console.log('[Sketch #ctor]')
@@ -63,6 +68,7 @@ export default class Sketch {
 			piano: new Piano(),
 			piano2: new Piano(),
 			eightOhEight: new EightOhEight(this),
+			metronome: new Metronome(this),
 		}
 		this.midi = new MIDI({
 			onEnabled: this.inputs.setupInputsMidi,
@@ -71,7 +77,7 @@ export default class Sketch {
 		this.audioKeys = new SketchAudioKeys(this)
 		this.avatar = new Avatar({
 			user: this.user,
-			pos: new Vec(40, 100, 40),
+			pos: new Vec(Math.random() * worldScale, 100, Math.random() * worldScale),
 			scale: new Vec(40),
 			phys: { worldScale },
 			onForce: this.sendUserXform,
@@ -141,7 +147,9 @@ export default class Sketch {
 				break
 			}
 		}
-		pp.background(0x33)
+		pp.colorMode(pp.HSL, 1)
+		pp.background(this.bgCol.hue, this.bgCol.sat, this.bgCol.lgt)
+		pp.colorMode(pp.RGB, 255)
 		if (this.pg) {
 			// Draw notes to separate graphics canvas
 			this.visualNotes.draw(pp, this.pg)
@@ -241,6 +249,10 @@ export default class Sketch {
 	}
 
 	sendUserEvent = (inputName: string, _eventName: string, evt: MidiEvent) => {
+		if (evt.channel === 1 && evt.controller && evt.controller.number === 79) {
+			Tone.getDestination().output.gain.value = evt.value
+			return
+		}
 		if (inputName !== this.user.inputDevice) {
 			return
 		}
@@ -269,8 +281,8 @@ export default class Sketch {
 				this.users.push(user)
 				this.avatars.push(new Avatar({
 					user: user,
-					pos: new Vec(0, 100, 0),
-					scale: new Vec(40),
+					pos: new Vec(Math.random() * worldScale, 100, Math.random() * worldScale),
+					scale: new Vec(20),
 					phys: { worldScale },
 				}))
 				continue

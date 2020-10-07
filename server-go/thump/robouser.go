@@ -13,7 +13,7 @@ func runRoboUser1() {
 	user := &api.User{
 		ClientId:    cid,
 		Name:        `the-server`,
-		Instrument:  `eightOhEight`,
+		Instrument:  `metronome`,
 		InputDevice: `metronome`,
 		Offset:      8,
 		PosX:        0.8,
@@ -38,8 +38,8 @@ func runRoboUser1() {
 	lastBeatAt := api.Now() + user.Offset*beatMs
 	downOn := &api.MidiEvent{Kind: `noteon`, Channel: 1, Note: 34, Attack: 0.8}
 	downOff := &api.MidiEvent{Kind: `noteoff`, Channel: 1, Note: 34, Attack: 0.8}
-	upOn := &api.MidiEvent{Kind: `noteon`, Channel: 10, Note: 35, Attack: 0.7}
-	upOff := &api.MidiEvent{Kind: `noteoff`, Channel: 10, Note: 35, Attack: 0.7}
+	upOn := &api.MidiEvent{Kind: `noteon`, Channel: 1, Note: 35, Attack: 0.7}
+	upOff := &api.MidiEvent{Kind: `noteoff`, Channel: 1, Note: 35, Attack: 0.7}
 	// bassNotes := []int{33, 28, 31, 36, 33, 28, 31, 24}
 	// bassId := 0
 	for {
@@ -50,17 +50,17 @@ func runRoboUser1() {
 		// downOff.Note = bassNotes[bassId%len(bassNotes)]
 		// downOnMsg, _ := newUserEventMsg(&api.UserEvent{ClientId: cid, Instrument: `piano`, MidiEvent: downOn, Timestamp: lastBeatAt})
 		// downOffMsg, _ := newUserEventMsg(&api.UserEvent{ClientId: cid, Instrument: `piano`, MidiEvent: downOff, Timestamp: lastBeatAt + 3.5*beatMs})
-		downOnMsg, _ := newUserEventMsg(&api.UserEvent{ClientId: cid, Instrument: `eightOhEight`, MidiEvent: downOn, Timestamp: lastBeatAt})
-		downOffMsg, _ := newUserEventMsg(&api.UserEvent{ClientId: cid, Instrument: `eightOhEight`, MidiEvent: downOff, Timestamp: lastBeatAt + 3.5*beatMs})
+		downOnMsg, _ := newUserEventMsg(&api.UserEvent{ClientId: cid, Instrument: user.Instrument, MidiEvent: downOn, Timestamp: lastBeatAt})
+		downOffMsg, _ := newUserEventMsg(&api.UserEvent{ClientId: cid, Instrument: user.Instrument, MidiEvent: downOff, Timestamp: lastBeatAt + 3.5*beatMs})
 		lastBeatAt += beatMs
-		up1OnMsg, _ := newUserEventMsg(&api.UserEvent{ClientId: cid, Instrument: `eightOhEight`, MidiEvent: upOn, Timestamp: lastBeatAt})
-		up1OffMsg, _ := newUserEventMsg(&api.UserEvent{ClientId: cid, Instrument: `eightOhEight`, MidiEvent: upOff, Timestamp: lastBeatAt + 0.5*beatMs})
+		up1OnMsg, _ := newUserEventMsg(&api.UserEvent{ClientId: cid, Instrument: user.Instrument, MidiEvent: upOn, Timestamp: lastBeatAt})
+		up1OffMsg, _ := newUserEventMsg(&api.UserEvent{ClientId: cid, Instrument: user.Instrument, MidiEvent: upOff, Timestamp: lastBeatAt + 0.5*beatMs})
 		lastBeatAt += beatMs
-		up2OnMsg, _ := newUserEventMsg(&api.UserEvent{ClientId: cid, Instrument: `eightOhEight`, MidiEvent: upOn, Timestamp: lastBeatAt})
-		up2OffMsg, _ := newUserEventMsg(&api.UserEvent{ClientId: cid, Instrument: `eightOhEight`, MidiEvent: upOff, Timestamp: lastBeatAt + 0.5*beatMs})
+		up2OnMsg, _ := newUserEventMsg(&api.UserEvent{ClientId: cid, Instrument: user.Instrument, MidiEvent: upOn, Timestamp: lastBeatAt})
+		up2OffMsg, _ := newUserEventMsg(&api.UserEvent{ClientId: cid, Instrument: user.Instrument, MidiEvent: upOff, Timestamp: lastBeatAt + 0.5*beatMs})
 		lastBeatAt += beatMs
-		up3OnMsg, _ := newUserEventMsg(&api.UserEvent{ClientId: cid, Instrument: `eightOhEight`, MidiEvent: upOn, Timestamp: lastBeatAt})
-		up3OffMsg, _ := newUserEventMsg(&api.UserEvent{ClientId: cid, Instrument: `eightOhEight`, MidiEvent: upOff, Timestamp: lastBeatAt + 0.5*beatMs})
+		up3OnMsg, _ := newUserEventMsg(&api.UserEvent{ClientId: cid, Instrument: user.Instrument, MidiEvent: upOn, Timestamp: lastBeatAt})
+		up3OffMsg, _ := newUserEventMsg(&api.UserEvent{ClientId: cid, Instrument: user.Instrument, MidiEvent: upOff, Timestamp: lastBeatAt + 0.5*beatMs})
 		events <- Event{Kind: api.WS_USER_EVENT, FromClient: cid, Raw: downOnMsg}
 		events <- Event{Kind: api.WS_USER_EVENT, FromClient: cid, Raw: downOffMsg}
 		events <- Event{Kind: api.WS_USER_EVENT, FromClient: cid, Raw: up1OnMsg}
