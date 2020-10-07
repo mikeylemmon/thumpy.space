@@ -5,9 +5,11 @@ import (
 )
 
 const (
-	WS_USER_EVENT  = `user/event`
-	WS_USER_UPDATE = `user/update`
 	WS_USERS_ALL   = `user/all`
+	WS_USER_UPDATE = `user/update`
+	WS_USER_EVENT  = `user/event`
+	WS_USER_FORCE  = `user/force`
+	WS_USER_XFORM  = `user/xform`
 )
 
 type User struct {
@@ -43,10 +45,19 @@ type UserEvent struct {
 	Timestamp  float64    `json:"timestamp"`
 }
 
+type UserXform struct {
+	ClientId int       `json:"clientId"`
+	Pos      []float64 `json:"pos"`
+	Rot      []float64 `json:"rot"`
+	Scale    []float64 `json:"scale"`
+	Force    []float64 `json:"force"`
+	Vel      []float64 `json:"vel"`
+}
+
 func ParseUserUpdate(body string) (*User, error) {
-	user := &User{}
-	if err := json.Unmarshal([]byte(body), user); err != nil {
+	resp := &User{}
+	if err := json.Unmarshal([]byte(body), resp); err != nil {
 		return nil, err
 	}
-	return user, nil
+	return resp, nil
 }

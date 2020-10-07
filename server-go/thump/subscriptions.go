@@ -17,6 +17,7 @@ type Subscription struct {
 type Event struct {
 	Kind       string
 	FromClient int
+	SkipSource bool
 	Clock      *api.ClockOpts
 	User       *api.User
 	Users      []*api.User
@@ -57,19 +58,12 @@ func runSubscriptionLoop() {
 		case evt := <-events:
 			if evt.Clock != nil {
 				api.UpdateClock(evt.Clock)
-				for _, sub := range subs {
-					if sub.ClientId == evt.FromClient {
-						continue // don't send clock update back to event source
-					}
-					if sub.Messages == nil {
-						continue // skip robo subscriptions
-					}
-					sub.Messages <- evt.Raw // forward the raw message to all other users
-				}
-				continue
 			}
 			if evt.Raw != nil {
 				for _, sub := range subs {
+					if evt.SkipSource && sub.ClientId == evt.FromClient {
+						continue
+					}
 					if sub.Messages == nil {
 						continue // skip robo subscriptions
 					}

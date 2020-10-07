@@ -34,7 +34,7 @@ func runRoboUser1() {
 		}
 		return []byte(api.WS_USER_EVENT + api.WS_HEADER_END + string(bites)), nil
 	}
-	beatMs := 1000.0 / (api.Clock.BPM / 60.0)
+	beatMs := 1000.0 / (api.Clock().BPM / 60.0)
 	lastBeatAt := api.Now() + user.Offset*beatMs
 	downOn := &api.MidiEvent{Kind: `noteon`, Channel: 1, Note: 34, Attack: 0.8}
 	downOff := &api.MidiEvent{Kind: `noteoff`, Channel: 1, Note: 34, Attack: 0.8}
@@ -43,7 +43,7 @@ func runRoboUser1() {
 	// bassNotes := []int{33, 28, 31, 36, 33, 28, 31, 24}
 	// bassId := 0
 	for {
-		beatMs = 1000.0 / (api.Clock.BPM / 60.0)
+		beatMs = 1000.0 / (api.Clock().BPM / 60.0)
 		lastBeatAt += beatMs
 		// bassId++
 		// downOn.Note = bassNotes[bassId%len(bassNotes)]

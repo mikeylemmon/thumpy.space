@@ -34,7 +34,7 @@ export  class SketchAudioKeys {
 			return
 		}
 		const midiEvt = { kind: 'noteon', note: note, attack: velocity / 128.0 } as MidiEvent
-		this.parent.onMIDI('keyboard', 'noteon', midiEvt)
+		this.parent.sendUserEvent('keyboard', 'noteon', midiEvt)
 	}
 
 	keyReleased = (evt: AudioKeysEvent) => {
@@ -46,7 +46,7 @@ export  class SketchAudioKeys {
 			return
 		}
 		const midiEvt = { kind: 'noteoff', note: note } as MidiEvent
-		this.parent.onMIDI('keyboard', 'noteoff', midiEvt)
+		this.parent.sendUserEvent('keyboard', 'noteoff', midiEvt)
 	}
 
 }

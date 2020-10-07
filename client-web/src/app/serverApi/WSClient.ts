@@ -1,14 +1,20 @@
 import {
 	parseClientId,
-	parseUserEvent,
 	parseUsersAll,
+	parseUserEvent,
+	parseUserForce,
+	parseUserXform,
 	User,
 	UserEvent,
+	UserForce,
+	UserXform,
 	WS_CLIENT_ID,
 	WS_HEADER_END,
 	WS_URL,
-	WS_USER_EVENT,
 	WS_USERS_ALL,
+	WS_USER_EVENT,
+	WS_USER_FORCE,
+	WS_USER_XFORM,
 } from './serverApi'
 import { parseClockUpdate, ClockOpts, WS_CLOCK_NOW, WS_CLOCK_ORIGIN, WS_CLOCK_UPDATE } from './serverClock'
 import WSClock, { WSClockOptions } from './WSClock'
@@ -19,8 +25,10 @@ export type WSClientOptions = {
 	clock: Partial<WSClockOptions>
 	onClientId: (clientId: number) => any
 	onClockUpdate: (clkOpts: ClockOpts) => void
-	onUserEvent: (evt: UserEvent) => void
 	onUsers: (users: User[]) => void
+	onUserEvent: (evt: UserEvent) => void
+	onUserForce: (evt: UserForce) => void
+	onUserXform: (evt: UserXform) => void
 }
 
 export default class WSClient {
@@ -100,11 +108,24 @@ export default class WSClient {
 				console.log('[WSClient #onMessage] Received users', this.users)
 				this.options.onUsers(this.users)
 				break
-			case WS_USER_EVENT:
+			case WS_USER_EVENT: {
 				const uevt = parseUserEvent(body)
 				// console.log('[WSClient #onMessage] Received user event', uevt)
 				this.options.onUserEvent(uevt)
 				break
+			}
+			case WS_USER_FORCE: {
+				const uevt = parseUserForce(body)
+				// console.log('[WSClient #onMessage] Received user event', uevt)
+				this.options.onUserForce(uevt)
+				break
+			}
+			case WS_USER_XFORM: {
+				const uevt = parseUserXform(body)
+				// console.log('[WSClient #onMessage] Received user event', uevt)
+				this.options.onUserXform(uevt)
+				break
+			}
 			default:
 				console.log('[WSClient #onMessage] Unhandled message', { head, body, parts }, evt)
 				break

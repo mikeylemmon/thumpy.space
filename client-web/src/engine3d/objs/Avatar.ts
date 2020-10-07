@@ -1,8 +1,8 @@
 import * as p5 from 'p5'
 import { EasyCam } from 'vendor/p5.easycam.js'
-import { Obj, ObjOpts, Vec, Xform } from '../core'
+import { User, UserForce, UserXform } from 'app/serverApi/serverApi'
+import { Obj, ObjOpts, Vec } from '../core'
 import { Physical, PhysicalOpts, FollowCam } from '../components'
-import { User } from 'app/serverApi/serverApi'
 
 type KeyMovement = {
 	up: boolean
@@ -14,13 +14,7 @@ type KeyMovement = {
 	gain: number
 }
 
-export type AvatarData = {
-	force: Vec
-	vel: Vec
-	xform: Xform
-}
-
-type forceFunc = (data: AvatarData) => void
+type forceFunc = (data: UserXform) => void
 
 export type AvatarOpts = ObjOpts & {
 	user: User
@@ -118,11 +112,26 @@ export class Avatar extends Obj {
 		this.addComp(this.followCam)
 	}
 
-	data = (): AvatarData => ({
-		force: this.phys.force,
-		vel: this.phys.vel,
-		xform: this.xform,
+	getUserXform = (): UserXform => ({
+		clientId: this.user.clientId,
+		pos: this.xform.pos.toArray(),
+		rot: this.xform.rot.toArray(),
+		scale: this.xform.scale.toArray(),
+		force: this.phys.force.toArray(),
+		vel: this.phys.vel.toArray(),
 	})
+
+	setUserXform = (data: UserXform) => {
+		this.xform.pos.setFromArray(data.pos)
+		this.xform.rot.setFromArray(data.rot)
+		this.xform.scale.setFromArray(data.scale)
+		this.phys.force.setFromArray(data.force)
+		this.phys.vel.setFromArray(data.vel)
+	}
+
+	setUserForce = (data: UserForce) => {
+		this.phys.force.setFromArray(data.force)
+	}
 
 	//
 	// Keyboard state updates and movement controls
@@ -164,7 +173,7 @@ export class Avatar extends Obj {
 			// Can't determine camera orientation, apply force in world-space
 			this.phys.force = mov
 			if (this.onForce) {
-				this.onForce(this.data())
+				this.onForce(this.getUserXform())
 			}
 			return
 		}
@@ -177,7 +186,7 @@ export class Avatar extends Obj {
 		ff.applyAdd(caz.applyMult(mov.z))
 		this.phys.force = ff
 		if (this.onForce) {
-			this.onForce(this.data())
+			this.onForce(this.getUserXform())
 		}
 	}
 

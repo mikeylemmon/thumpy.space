@@ -1,12 +1,12 @@
 import * as p5 from 'p5'
 import * as Tone from 'tone'
 import WSClient, { DONT_REOPEN } from './serverApi/WSClient'
-import { userEventReq, userUpdateReq, User, UserEvent } from './serverApi/serverApi'
+import { userEventReq, userUpdateReq, userXformReq, User, UserEvent, UserForce, UserXform } from './serverApi/serverApi'
 import MIDI, { MidiEvent, MidiEventCC, MidiEventNote, MidiEventPitchbend } from './MIDI'
 import { piano, eightOhEight } from './instruments'
 import VisualNotes from './VisualNotes'
 import { EasyCam } from 'vendor/p5.easycam.js'
-import { engine3d, Avatar, AvatarData, Ground, Vec } from 'engine3d'
+import { engine3d, Avatar, Ground, Vec } from 'engine3d'
 import { SketchInputs } from './SketchInputs'
 import { SketchAudioKeys } from './SketchAudioKeys'
 
@@ -63,12 +63,14 @@ export default class Sketch {
 			},
 			onClientId: this.inputs.setupInputsUser,
 			onClockUpdate: this.inputs.onClockUpdate,
-			onUserEvent: this.onUserEvent,
 			onUsers: this.onUsers,
+			onUserEvent: this.onUserEvent,
+			onUserForce: this.onUserForce,
+			onUserXform: this.onUserXform,
 		})
 		this.midi = new MIDI({
 			onEnabled: this.inputs.setupInputsMidi,
-			onMessage: this.onMIDI,
+			onMessage: this.sendUserEvent,
 		})
 		this.audioKeys = new SketchAudioKeys(this)
 		this.avatar = new Avatar({
@@ -76,13 +78,7 @@ export default class Sketch {
 			pos: new Vec(40, 100, 40),
 			scale: new Vec(40),
 			phys: { worldScale },
-			onForce: (data: AvatarData) => {
-				const { force, vel, xform } = data
-				this.user.force = force
-				this.user.vel = vel
-				this.user.xform = xform
-				this.sendUserUpdate()
-			},
+			onForce: this.sendUserXform,
 		})
 		window.Tone = Tone
 		window.me = this
@@ -206,31 +202,6 @@ export default class Sketch {
 		}
 	}
 
-	onUsers = (users: User[]) => {
-		for (const user of users) {
-			if (user.clientId === this.user.clientId) {
-				continue // skip local user
-			}
-			const prevs = this.users.filter(uu => uu.clientId === user.clientId)
-			if (!prevs.length) {
-				this.users.push(user)
-				this.avatars.push(new Avatar({
-					user: user,
-					pos: new Vec(user.posX, 100, user.posY),
-					scale: new Vec(20),
-					phys: { worldScale },
-				}))
-				continue
-			}
-			if (prevs.length > 1) {
-				console.error('[Sketch #onUsers] Found more than one user for clientId', user.clientId, user.name)
-			}
-			// Update pre-existing user
-			const prev = prevs[0]
-			Object.assign(prev, user)
-		}
-	}
-
 	// getUser returns the user matching clientId,
 	// or this.user if no matching user is found
 	getUser = (clientId: number): User => {
@@ -266,7 +237,16 @@ export default class Sketch {
 		conn.send(userUpdateReq(this.user))
 	}
 
-	onMIDI = (inputName: string, _eventName: string, evt: MidiEvent) => {
+	sendUserXform = (data: UserXform) => {
+		const { conn, ready } = this.ws
+		if (!ready()) {
+			console.warn("[Sketch #sendUserXform] Can't send user xform, websocket connection is not open")
+			return
+		}
+		conn.send(userXformReq(data))
+	}
+
+	sendUserEvent = (inputName: string, _eventName: string, evt: MidiEvent) => {
 		if (inputName !== this.user.inputDevice) {
 			return
 		}
@@ -285,13 +265,63 @@ export default class Sketch {
 		conn.send(userEventReq(uevt))
 	}
 
-	offsetMs = () => {
-		const bps = this.inputs.bpm() / 60
-		if (!bps) {
-			return 0
+	onUsers = (users: User[]) => {
+		for (const user of users) {
+			if (user.clientId === this.user.clientId) {
+				continue // skip local user
+			}
+			const prevs = this.users.filter(uu => uu.clientId === user.clientId)
+			if (!prevs.length) {
+				this.users.push(user)
+				this.avatars.push(new Avatar({
+					user: user,
+					pos: new Vec(user.posX, 100, user.posY),
+					scale: new Vec(20),
+					phys: { worldScale },
+				}))
+				continue
+			}
+			if (prevs.length > 1) {
+				console.warn(`[Sketch #onUsers] Found more than one user for clientId #${user.clientId}`, user.clientId, user.name)
+			}
+			// Update pre-existing user
+			const prev = prevs[0]
+			Object.assign(prev, user)
 		}
-		const beatMs = 1000.0 / bps
-		return beatMs * this.user.offset
+		for (const user of this.users) {
+			if (users.some(uu => uu.clientId === user.clientId)) {
+				continue
+			}
+			// user dropped, remove user and its avatar
+			const aa = this.getAvatar(user.clientId)
+			if (aa) {
+				engine3d.rmObj(aa)
+			} else {
+				console.warn(`[Sketch #onUsers] Unable to find avatar for dropped user #${user.clientId}`, user.name)
+			}
+			this.users = this.users.filter(uu => uu.clientId !== user.clientId)
+			this.avatars = this.avatars.filter(aa => aa.user.clientId !== user.clientId)
+		}
+	}
+
+	onUserForce = (evt: UserForce) => {
+		const { clientId } = evt
+		const avatar = this.getAvatar(clientId)
+		if (!avatar) {
+			console.warn('[Sketch #onUserForce] No avatar for user', clientId)
+			return
+		}
+		avatar.setUserForce(evt)
+	}
+
+	onUserXform = (evt: UserXform) => {
+		const { clientId } = evt
+		const avatar = this.getAvatar(clientId)
+		if (!avatar) {
+			console.warn('[Sketch #onUserXform] No avatar for user', clientId)
+			return
+		}
+		avatar.setUserXform(evt)
 	}
 
 	onUserEvent = (evt: UserEvent) => {
@@ -327,7 +357,7 @@ export default class Sketch {
 			case 'controlchange': {
 				const cc = midiEvent as MidiEventCC
 				console.log(
-					`[Sketch #onMIDI] CC event on channel ${channel}:`,
+					`[Sketch #onUserEvent] CC event on channel ${channel}:`,
 					cc.controller.number,
 					cc.controller.name,
 					cc.value,
@@ -336,12 +366,22 @@ export default class Sketch {
 			}
 			case 'pitchbend': {
 				const pb = midiEvent as MidiEventPitchbend
-				console.log(`[Sketch #onMIDI] Pitchbend event on channel ${channel}:`, pb.value)
+				console.log(`[Sketch #onUserEvent] Pitchbend event on channel ${channel}:`, pb.value)
 				break
 			}
 			default:
-				console.warn(`[Sketch #onMIDI] Unhandled MIDI event on channel ${channel}:`, kind, data, evt)
+				console.warn(`[Sketch #onUserEvent] Unhandled MIDI event on channel ${channel}:`, kind, data, evt)
 				break
 		}
 	}
+
+	offsetMs = () => {
+		const bps = this.inputs.bpm() / 60
+		if (!bps) {
+			return 0
+		}
+		const beatMs = 1000.0 / bps
+		return beatMs * this.user.offset
+	}
+
 }

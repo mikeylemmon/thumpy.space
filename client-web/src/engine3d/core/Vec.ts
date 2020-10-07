@@ -1,7 +1,7 @@
 export class Vec extends window.p5.Vector {
 	constructor(...vals: number[]) {
 		super()
-		this.apply(...vals)
+		this.setFromArray(vals)
 	}
 
 	clone = (): Vec => new Vec(this.x, this.y, this.z)
@@ -14,7 +14,8 @@ export class Vec extends window.p5.Vector {
 	isEqual = (other: Vec) => this.x === other.x && this.y === other.y && this.z === other.z
 	normalize = () => this.applyMult(1.0/this.mag())
 
-	apply = (...vals: number[]) => {
+	toArray = () => [this.x, this.y, this.z]
+	setFromArray = (vals: number[]) => {
 		this.x = vals.length > 0 ? vals[0] : 0
 		this.y = vals.length > 1 ? vals[1] : this.x
 		this.z = vals.length > 2 ? vals[2] : vals.length === 2 ? 0 : this.x

@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"net"
+	"sync"
 	"time"
 
 	"github.com/gobwas/ws"
@@ -31,12 +32,22 @@ type ClockOriginResp struct {
 func nanoToMs(nano int64) float64 { return float64(nano) / 1000000.0 }
 
 var (
-	Clock  = ClockOpts{BPM: 95}
-	origin = nanoToMs(time.Now().UnixNano())
+	_clock      = ClockOpts{BPM: 95}
+	_clockMutex = sync.RWMutex{}
+	origin      = nanoToMs(time.Now().UnixNano())
 )
 
 func UpdateClock(clk *ClockOpts) {
-	Clock = *clk
+	_clockMutex.Lock()
+	defer _clockMutex.Unlock()
+	_clock = *clk
+}
+
+func Clock() ClockOpts {
+	_clockMutex.RLock()
+	defer _clockMutex.RUnlock()
+	clk := _clock
+	return clk
 }
 
 func Now() float64 { return nanoToMs(time.Now().UnixNano()) - origin }
@@ -68,11 +79,12 @@ func ParseClockUpdate(body string) (*ClockOpts, error) {
 }
 
 func SendClockUpdate(conn net.Conn) error {
-	resp, err := json.Marshal(&Clock)
+	clk := Clock()
+	resp, err := json.Marshal(&clk)
 	if err != nil {
 		return err
 	}
-	log.Debug().Interface(`clock`, &Clock).Msg(`Sending clock settings`)
+	log.Debug().Interface(`clock`, &clk).Msg(`Sending clock settings`)
 	msg := []byte(WS_CLOCK_UPDATE + WS_HEADER_END + string(resp))
 	return wsutil.WriteServerMessage(conn, ws.OpText, msg)
 }
