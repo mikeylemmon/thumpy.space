@@ -1,4 +1,6 @@
 export class Vec extends window.p5.Vector {
+	w = 0
+
 	constructor(...vals: number[]) {
 		super()
 		this.setFromArray(vals)
@@ -70,9 +72,9 @@ export class Vec extends window.p5.Vector {
 		dest.x = mat[0] * this.x + mat[4] * this.y + mat[8] * this.z + mat[12]
 		dest.y = mat[1] * this.x + mat[5] * this.y + mat[9] * this.z + mat[13]
 		dest.z = mat[2] * this.x + mat[6] * this.y + mat[10] * this.z + mat[14]
-		const w = mat[3] * this.x + mat[7] * this.y + mat[11] * this.z + mat[15]
-		if (Math.abs(w) > Number.EPSILON) {
-			dest.applyMult(1.0 / w)
+		dest.w = mat[3] * this.x + mat[7] * this.y + mat[11] * this.z + mat[15]
+		if (Math.abs(dest.w) > Number.EPSILON) {
+			dest.applyMult(1.0 / dest.w)
 		}
 		return dest
 	}

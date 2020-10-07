@@ -89,7 +89,7 @@ export class Obj {
 		const { pos, scale } = this.xform
 		const ndcPos = pos.cloneMultMat(mvp)
 		const edge = 1.2
-		if (ndcPos.x < -edge || ndcPos.x > edge || ndcPos.y < -edge || ndcPos.y > edge) {
+		if (ndcPos.w < 0 || ndcPos.x < -edge || ndcPos.x > edge || ndcPos.y < -edge || ndcPos.y > edge) {
 			// object is off-screen
 			return
 		}

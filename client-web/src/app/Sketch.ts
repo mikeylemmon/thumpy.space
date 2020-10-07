@@ -3,18 +3,15 @@ import * as Tone from 'tone'
 import WSClient, { DONT_REOPEN } from './serverApi/WSClient'
 import { userEventReq, userUpdateReq, userXformReq, User, UserEvent, UserForce, UserXform } from './serverApi/serverApi'
 import MIDI, { MidiEvent, MidiEventCC, MidiEventNote, MidiEventPitchbend } from './MIDI'
-import { piano, eightOhEight } from './instruments'
+import { Instrument } from './Instrument'
+import { Piano, EightOhEight } from './instruments'
 import VisualNotes from './VisualNotes'
 import { EasyCam } from 'vendor/p5.easycam.js'
 import { engine3d, Avatar, Ground, Vec } from 'engine3d'
 import { SketchInputs } from './SketchInputs'
 import { SketchAudioKeys } from './SketchAudioKeys'
 
-type Instruments = {
-	piano: ReturnType<typeof piano>
-	piano2: ReturnType<typeof piano>
-	eightOhEight: ReturnType<typeof eightOhEight>
-}
+type Instruments = { [key: string]: Instrument }
 
 const worldScale = 1000
 
@@ -24,11 +21,7 @@ export default class Sketch {
 	visualNotes: VisualNotes = new VisualNotes()
 	started: boolean = false
 	syncing: boolean = true
-	instruments: Instruments = {
-		piano: piano(),
-		piano2: piano(),
-		eightOhEight: eightOhEight(),
-	}
+	instruments: Instruments
 	ws: WSClient
 	midi: MIDI
 	audioKeys: SketchAudioKeys
@@ -41,8 +34,6 @@ export default class Sketch {
 		instrument: '',
 		inputDevice: '',
 		offset: 2,
-		posX: Math.random() * 0.8 + 0.1,
-		posY: Math.random() * 0.6 + 0.2,
 	}
 	avatar: Avatar
 	users: User[] = []
@@ -51,7 +42,7 @@ export default class Sketch {
 	ground = new Ground({ pos: new Vec(0, -1, 0), scale: new Vec(worldScale) })
 	engine3d = engine3d
 
-	constructor(global: any) {
+	constructor(_global: any) {
 		console.log('[Sketch #ctor]')
 		this.inputs = new SketchInputs(this)
 		this.ws = new WSClient(window, {
@@ -68,6 +59,11 @@ export default class Sketch {
 			onUserForce: this.onUserForce,
 			onUserXform: this.onUserXform,
 		})
+		this.instruments = {
+			piano: new Piano(),
+			piano2: new Piano(),
+			eightOhEight: new EightOhEight(this),
+		}
 		this.midi = new MIDI({
 			onEnabled: this.inputs.setupInputsMidi,
 			onMessage: this.sendUserEvent,
@@ -134,15 +130,13 @@ export default class Sketch {
 		;(this.cam.state as any).center[2] = 40
 		this.avatar.addFollowCam(this.cam)
 		this.inputs.setup(pp)
-		this.user.posX = Math.random() * 0.8 + 0.1
-		this.user.posY = Math.random() * 0.6 + 0.2
 	}
 
 	draw = (pp: p5) => {
 		engine3d.update()
 		let loading = false
 		for (const instName in this.instruments) {
-			if (!(this.instruments as any)[instName].loaded) {
+			if (!this.instruments[instName].loaded()) {
 				loading = true
 				break
 			}
@@ -275,8 +269,8 @@ export default class Sketch {
 				this.users.push(user)
 				this.avatars.push(new Avatar({
 					user: user,
-					pos: new Vec(user.posX, 100, user.posY),
-					scale: new Vec(20),
+					pos: new Vec(0, 100, 0),
+					scale: new Vec(40),
 					phys: { worldScale },
 				}))
 				continue
@@ -327,12 +321,12 @@ export default class Sketch {
 	onUserEvent = (evt: UserEvent) => {
 		const { clientId, instrument, midiEvent, timestamp } = evt
 		const { data, channel, kind } = midiEvent
-		const inst = (this.instruments as any)[instrument]
+		const inst = this.instruments[instrument]
 		if (!inst) {
 			console.error('[Sketch #onUserEvent] Unable to find instrument', instrument)
 			return
 		}
-		if (inst.loaded === false) {
+		if (!inst.loaded()) {
 			return // don't send events if instrument hasn't finished loading
 		}
 		const tt = this.timeGlobalToTone(timestamp)
@@ -343,30 +337,27 @@ export default class Sketch {
 		switch (kind) {
 			case 'noteon': {
 				const nn = midiEvent as MidiEventNote
-				inst.triggerAttack(Tone.Frequency(nn.note, 'midi').toFrequency(), tt, nn.attack)
-				const user = this.getUser(clientId)
-				Tone.Draw.schedule(() => this.visualNotes.noteon(evt, user), tt)
+				inst.noteon(tt, nn)
+				const avatar = this.getAvatar(clientId)
+				if (avatar) {
+					Tone.Draw.schedule(() => this.visualNotes.noteon(evt, avatar), tt)
+				}
 				break
 			}
 			case 'noteoff': {
 				const nn = midiEvent as MidiEventNote
-				inst.triggerRelease(Tone.Frequency(nn.note, 'midi').toFrequency(), tt)
+				inst.noteoff(tt, nn)
 				Tone.Draw.schedule(() => this.visualNotes.noteoff(evt), tt)
 				break
 			}
 			case 'controlchange': {
 				const cc = midiEvent as MidiEventCC
-				console.log(
-					`[Sketch #onUserEvent] CC event on channel ${channel}:`,
-					cc.controller.number,
-					cc.controller.name,
-					cc.value,
-				)
+				inst.controlchange(tt, cc)
 				break
 			}
 			case 'pitchbend': {
 				const pb = midiEvent as MidiEventPitchbend
-				console.log(`[Sketch #onUserEvent] Pitchbend event on channel ${channel}:`, pb.value)
+				inst.pitchbend(tt, pb)
 				break
 			}
 			default:

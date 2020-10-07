@@ -1,5 +1,6 @@
 import * as p5 from 'p5'
-import { User, UserEvent } from './serverApi/serverApi'
+import { Avatar } from 'engine3d'
+import { UserEvent } from './serverApi/serverApi'
 
 class VisualNote {
 	age: number = 0
@@ -17,11 +18,11 @@ class VisualNote {
 	radius: number
 	radiusOrig: number
 	evt: UserEvent
-	user: User
+	avatar: Avatar
 
-	constructor(evt: UserEvent, user: User) {
+	constructor(evt: UserEvent, avatar: Avatar) {
 		this.evt = evt
-		this.user = user
+		this.avatar = avatar
 		const aa = this.evt.midiEvent.attack || 0.5
 		this.radius = aa * 25 + 5
 		this.radiusOrig = this.radius
@@ -50,13 +51,16 @@ class VisualNote {
 			weightC = 0.2,
 			weightF = 1.0 / 500000,
 			weightU = 0.003,
-			ux = this.user.posX - 0.5,
-			uy = 1.0 - this.user.posY
+			{ pos } = this.avatar.xform,
+			ux = pos.x/1000,
+			uy = pos.z/1000,
+			width = 1000,
+			height = 1000
 
 		if (this.firstUpdate) {
 			// transform original normalized position into screen space
-			this.x = pg.width * (ux + 0.1 * (Math.random() * 2 - 1))
-			this.y = pg.height * (uy + 0.1 * (Math.random() * 2 - 1))
+			this.x = width * (ux + 0.1 * (Math.random() * 2 - 1))
+			this.y = height * (uy + 0.1 * (Math.random() * 2 - 1))
 			this.firstUpdate = false
 		}
 
@@ -69,8 +73,8 @@ class VisualNote {
 
 		this.velx *= 0.924
 		this.vely *= 0.924
-		this.velx -= weightU * (this.x - ux * pg.width)
-		this.vely -= weightU * (this.y - uy * pg.height)
+		this.velx -= weightU * (this.x - ux * width)
+		this.vely -= weightU * (this.y - uy * height)
 		for (const other of others) {
 			if (other === this) {
 				continue
@@ -99,12 +103,10 @@ class VisualNote {
 			}
 		}
 		// bounce off the walls
-		const nx = this.x + pg.width / 2,
-			ny = this.y + pg.height / 2
-		if ((nx < this.radius && this.velx < 0) || (nx > pg.width - this.radius && this.velx > 0)) {
+		if ((this.x < -width + this.radius && this.velx < 0) || (this.x > width - this.radius && this.velx > 0)) {
 			this.velx *= -1
 		}
-		if ((ny < this.radius && this.vely < 0) || (ny > pg.height - this.radius && this.vely > 0)) {
+		if ((this.y < -height + this.radius && this.vely < 0) || (this.y > height - this.radius && this.vely > 0)) {
 			this.vely *= -1
 		}
 		this.x += this.velx
@@ -140,8 +142,8 @@ class VisualNote {
 export default class VisualNotes {
 	notes: VisualNote[] = []
 
-	noteon = (evt: UserEvent, user: User) => {
-		this.notes.push(new VisualNote(evt, user))
+	noteon = (evt: UserEvent, avatar: Avatar) => {
+		this.notes.push(new VisualNote(evt, avatar))
 	}
 
 	noteoff = (evt: UserEvent) => {
@@ -163,11 +165,11 @@ export default class VisualNotes {
 		this.notes.forEach(nn => nn.update(pg, this.notes))
 		pg.perspective(Math.PI / 3, pg.width / pg.height, 0.5, 10000)
 		pg.clear()
-		{
-			// Draw notes
-			pg.push()
-			this.notes.forEach(nn => nn.draw(pp, pg))
-			pg.pop()
-		}
+		pg.push()
+		pg.noStroke()
+		pg.translate(0, 5, 0)
+		pg.rotateX(Math.PI/2)
+		this.notes.forEach(nn => nn.draw(pp, pg))
+		pg.pop()
 	}
 }

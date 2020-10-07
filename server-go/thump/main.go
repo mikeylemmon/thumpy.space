@@ -83,9 +83,13 @@ func handleWSConn(conn net.Conn) {
 
 	quit := make(chan struct{})
 	defer func() {
+		log.Debug().Msg(`Cleanup: removing subscription`)
 		rmSub <- sub // remove the event bus subscription
-		close(quit)  // quit the send-message loop
+		log.Debug().Msg(`Cleanup: closing quit channel`)
+		close(quit) // quit the send-message loop
+		log.Debug().Msg(`Cleanup: closing connection`)
 		conn.Close() // close the connection
+		log.Debug().Msg(`Cleanup: completed`)
 	}()
 	var errBreaker error
 

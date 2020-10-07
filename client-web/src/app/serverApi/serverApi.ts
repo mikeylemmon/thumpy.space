@@ -1,5 +1,4 @@
 import { MidiEvent } from '../MIDI'
-import { Vec, Xform } from 'engine3d'
 
 export const WS_URL = 'ws://localhost:38883'
 // export const WS_URL = 'wss://mikeylemmon.com/api'
@@ -31,11 +30,6 @@ export type User = {
 	instrument: string
 	inputDevice: string
 	offset: number
-	posX: number
-	posY: number
-	force?: Vec
-	vel?: Vec
-	xform?: Xform
 }
 
 export type UserEvent = {
