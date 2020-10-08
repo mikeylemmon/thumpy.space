@@ -83,9 +83,13 @@ func handleWSConn(conn net.Conn) {
 
 	quit := make(chan struct{})
 	defer func() {
+		log.Debug().Msg(`Cleanup: removing subscription`)
 		rmSub <- sub // remove the event bus subscription
-		close(quit)  // quit the send-message loop
+		log.Debug().Msg(`Cleanup: closing quit channel`)
+		close(quit) // quit the send-message loop
+		log.Debug().Msg(`Cleanup: closing connection`)
 		conn.Close() // close the connection
+		log.Debug().Msg(`Cleanup: completed`)
 	}()
 	var errBreaker error
 
@@ -129,7 +133,7 @@ func handleWSConn(conn net.Conn) {
 		if errBreaker != nil {
 			break
 		}
-		bites, op, err := wsutil.ReadClientData(conn)
+		bites, _, err := wsutil.ReadClientData(conn)
 		if err != nil {
 			log.Error().Err(err).Msg(`Failed to read client message`)
 			break
@@ -157,6 +161,7 @@ func handleWSConn(conn net.Conn) {
 			events <- Event{
 				Kind:       head,
 				FromClient: cid,
+				SkipSource: true,
 				Clock:      clk,
 				Raw:        bites,
 			}
@@ -178,12 +183,13 @@ func handleWSConn(conn net.Conn) {
 				Raw:        bites,
 			}
 		default:
-			log.Debug().
-				Interface(`op`, op).
-				Str(`head`, string(head)).
-				Str(`body`, body).
-				Str(`bites`, string(bites)).
-				Msg(`Unhandled message`)
+			// Forward message to all except source
+			events <- Event{
+				Kind:       head,
+				FromClient: cid,
+				SkipSource: true,
+				Raw:        bites,
+			}
 		}
 	}
 	log.Info().Msg(`Connection closed`)

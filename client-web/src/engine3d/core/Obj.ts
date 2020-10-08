@@ -5,7 +5,7 @@ import { Component } from './Component'
 import { engine3d } from './engine3d'
 
 export type drawFunc = (pg: p5.Graphics) => void
-export type drawFunc2D = (pp: p5, pos: p5.Vector) => void
+export type drawFunc2D = (pp: p5, pos: Vec, scale: number) => void
 
 export type ObjOpts = {
 	comps?: Component[]
@@ -69,11 +69,11 @@ export class Obj {
 		return null
 	}
 
-	update = (dt: number) => {
+	update(dt: number) {
 		this.comps.forEach(cc => cc.update(dt))
 	}
 
-	draw = (pg: p5.Graphics) => {
+	draw(pg: p5.Graphics) {
 		pg.push()
 		this.applyXformToGraphics(pg)
 		if (this.drawFunc) {
@@ -82,18 +82,34 @@ export class Obj {
 		pg.pop()
 	}
 
-	draw2D = (pp: p5, pg: p5.Graphics) => {
+	draw2D(pp: p5, pg: p5.Graphics, mvp: number[]) {
 		if (!this.drawFunc2D) {
 			return
 		}
-		const gg = pg as any
-		const mvp = gg._renderer.uMVMatrix.copy().mult(gg._renderer.uPMatrix)
-		const ndcPos = multMatrixVector(pp, mvp, this.xform.pos)
-		ndcPos.x += pp.width / 2
-		ndcPos.y += pp.height / 2
+		const { pos, scale } = this.xform
+		const ndcPos = pos.cloneMultMat(mvp)
+		const edge = 1.2
+		if (ndcPos.w < 0 || ndcPos.x < -edge || ndcPos.x > edge || ndcPos.y < -edge || ndcPos.y > edge) {
+			// object is off-screen
+			return
+		}
+		// calculate a rough-guess at screen-space scale
+		// (would use inverse MVP matrix but I can't get p5's matrix invert method to work)
+		const ndcPos2 = pos.cloneAdd(scale).cloneMultMat(mvp)
+		const ndcPos3 = pos.cloneAdd(scale.cloneMult(new Vec(1, -1, -1))).cloneMultMat(mvp)
+		const ndcPos4 = pos.cloneAdd(scale.cloneMult(new Vec(-1, -1, 1))).cloneMultMat(mvp)
+		for (const ndc of [ndcPos, ndcPos2, ndcPos3, ndcPos4]) {
+			ndc.x = (ndc.x + 1) * pp.width / 2
+			ndc.y = (1 - ndc.y) * pp.height / 2
+			ndc.z = 0
+		}
+		const scale2d = Math.max(
+			ndcPos.cloneSub(ndcPos2).mag(),
+			ndcPos.cloneSub(ndcPos3).mag(),
+			ndcPos.cloneSub(ndcPos4).mag(),
+		)
 		pp.push()
-		// pp.translate(ndcPos.x, ndcPos.y)
-		this.drawFunc2D(pp, ndcPos)
+		this.drawFunc2D(pp, ndcPos, scale2d)
 		pp.pop()
 	}
 
@@ -113,25 +129,4 @@ export class Obj {
 			pg.scale(scale.x, scale.y, scale.z)
 		}
 	}
-}
-
-/* Multiply a 4x4 homogeneous matrix by a Vector4 considered as point
- * (ie, subject to translation).
- * [via https://github.com/processing/p5.js/issues/1553]
- */
-function multMatrixVector(pp: p5, m: any, v: Vec) {
-	const _dest = pp.createVector()
-	const mat = m.mat4
-
-	// Multiply in column major order.
-	_dest.x = mat[0] * v.x + mat[4] * v.y + mat[8] * v.z + mat[12]
-	_dest.y = mat[1] * v.x + mat[5] * v.y + mat[9] * v.z + mat[13]
-	_dest.z = mat[2] * v.x + mat[6] * v.y + mat[10] * v.z + mat[14]
-	const w = mat[3] * v.x + mat[7] * v.y + mat[11] * v.z + mat[15]
-
-	if (Math.abs(w) > Number.EPSILON) {
-		_dest.mult(1.0 / w)
-	}
-
-	return _dest
 }

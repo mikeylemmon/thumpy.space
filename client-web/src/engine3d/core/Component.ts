@@ -6,14 +6,13 @@ export class Component {
 
 	constructor(parent: Obj) {
 		this.parent = parent
-		console.log('[Component] ctor', this)
 	}
 
-	destroy = () => {
+	destroy() {
 		console.log('[Component] destroyed')
 	}
 
-	update = (_dt: number) => {
+	update(_dt: number) {
 		console.warn('[Component] update')
 	}
 }
