@@ -297,11 +297,13 @@ export default class Sketch {
 					instName = 'piano'
 					break
 				default:
+					// Commented out for easier deving -- MIDI input always enabled
 					// if (inputName !== this.user.inputDevice) {
 					// 	return // not a whitelisted CC and not the active device, so don't send
 					// }
 					break
 			}
+			// Commented out for easier deving -- MIDI input always enabled
 			// } else {
 			// 	if (inputName !== this.user.inputDevice) {
 			// 		return

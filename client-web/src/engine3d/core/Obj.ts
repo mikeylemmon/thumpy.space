@@ -40,6 +40,7 @@ export class Obj {
 		}
 		engine3d.addObj(this)
 	}
+
 	destroy = () => {
 		this.comps.forEach(cc => cc.destroy())
 		console.log('[Obj] destroyed')

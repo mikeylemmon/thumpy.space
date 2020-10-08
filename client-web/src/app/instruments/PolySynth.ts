@@ -22,7 +22,6 @@ export class PolySynth extends Instrument {
 			frequency: 1000,
 			Q: 2,
 		}).connect(this.filterVol)
-		// this.setFilterGain(5)
 		this.synth = new Tone.PolySynth(Tone.Synth, {
 			oscillator: {
 				type: 'fatsawtooth',
