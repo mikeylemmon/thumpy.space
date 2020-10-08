@@ -4,10 +4,7 @@ import { MidiEventNote } from '../MIDI'
 import { noteFreq } from './util'
 import Sketch from '../Sketch'
 
-const samps = [
-	'MA.WAV',
-	'RS.WAV',
-]
+const samps = ['MA.WAV', 'RS.WAV']
 
 function metronome() {
 	const urls: { [key: number]: string } = {}

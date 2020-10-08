@@ -14,7 +14,7 @@ type AudioKeysEvent = {
 	velocity: number
 }
 
-export  class SketchAudioKeys {
+export class SketchAudioKeys {
 	parent: Sketch
 	audioKeys: AudioKeys
 
@@ -48,5 +48,4 @@ export  class SketchAudioKeys {
 		const midiEvt = { kind: 'noteoff', note: note } as MidiEvent
 		this.parent.sendUserEvent('keyboard', 'noteoff', midiEvt)
 	}
-
 }

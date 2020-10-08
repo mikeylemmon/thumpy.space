@@ -57,10 +57,6 @@ export class EightOhEight extends Sampler {
 	noteon = (time: number, note: MidiEventNote) => {
 		let nn = this.modNote(note.note)
 		this.sampler.triggerAttack(noteFreq(nn), time, note.attack)
-		Tone.Draw.schedule(() => {
-			this.sketch.ground.hue = Math.random()
-			this.sketch.ground.sat = Math.random() * 0.4 + 0.5
-		}, time)
 	}
 
 	noteoff = (time: number, note: MidiEventNote) => {

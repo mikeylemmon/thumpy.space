@@ -1,10 +1,18 @@
 import * as p5 from 'p5'
 import * as Tone from 'tone'
 import WSClient, { DONT_REOPEN } from './serverApi/WSClient'
-import { userEventReq, userUpdateReq, userXformReq, User, UserEvent, UserForce, UserXform } from './serverApi/serverApi'
+import {
+	userEventReq,
+	userUpdateReq,
+	userXformReq,
+	User,
+	UserEvent,
+	UserForce,
+	UserXform,
+} from './serverApi/serverApi'
 import MIDI, { MidiEvent, MidiEventCC, MidiEventNote, MidiEventPitchbend } from './MIDI'
 import { Instrument } from './Instrument'
-import { EightOhEight, Metronome, Piano } from './instruments'
+import { EightOhEight, Metronome, Piano, PolySynth } from './instruments'
 import VisualNotes from './VisualNotes'
 import { EasyCam } from 'vendor/p5.easycam.js'
 import { engine3d, Avatar, Ground, Vec } from 'engine3d'
@@ -14,6 +22,10 @@ import { SketchAudioKeys } from './SketchAudioKeys'
 type Instruments = { [key: string]: Instrument }
 
 const worldScale = 1000
+const newAvatarPos = () => {
+	const rr = () => Math.random() * 1.8 - 0.9
+	return new Vec(rr() * worldScale, 100, rr() * worldScale)
+}
 
 export default class Sketch {
 	width: number = 0
@@ -31,7 +43,7 @@ export default class Sketch {
 	user: User = {
 		clientId: 0,
 		name: '',
-		instrument: '',
+		instrument: 'synth',
 		inputDevice: 'keyboard',
 		offset: 2,
 	}
@@ -57,7 +69,11 @@ export default class Sketch {
 					this.inputs.setupInputsBPM()
 				},
 			},
-			onClientId: this.inputs.setupInputsUser,
+			onClientId: (clientId: number) => {
+				this.user.clientId = clientId
+				this.inputs.setupInputsUser(clientId)
+				this.sendUserXform(this.avatar.getUserXform())
+			},
 			onClockUpdate: this.inputs.onClockUpdate,
 			onUsers: this.onUsers,
 			onUserEvent: this.onUserEvent,
@@ -65,9 +81,9 @@ export default class Sketch {
 			onUserXform: this.onUserXform,
 		})
 		this.instruments = {
-			piano: new Piano(),
-			piano2: new Piano(),
+			synth: new PolySynth(),
 			eightOhEight: new EightOhEight(this),
+			piano: new Piano(),
 			metronome: new Metronome(this),
 		}
 		this.midi = new MIDI({
@@ -77,11 +93,14 @@ export default class Sketch {
 		this.audioKeys = new SketchAudioKeys(this)
 		this.avatar = new Avatar({
 			user: this.user,
-			pos: new Vec(Math.random() * worldScale, 100, Math.random() * worldScale),
+			pos: newAvatarPos(),
 			scale: new Vec(40),
 			phys: { worldScale },
 			onForce: this.sendUserXform,
 		})
+		// Tone.Destination.chain(
+		// 	new Tone.Reverb({ decay: 4, wet: 0.6 }),
+		// )
 		window.Tone = Tone
 		window.me = this
 	}
@@ -177,7 +196,9 @@ export default class Sketch {
 	}
 
 	mousePressed = (pp: p5) => {
-		if (this.started) { return }
+		if (this.started) {
+			return
+		}
 		this.started = true
 		Tone.start()
 		console.log('[Sketch #mousePressed] Started Tone')
@@ -249,16 +270,46 @@ export default class Sketch {
 	}
 
 	sendUserEvent = (inputName: string, _eventName: string, evt: MidiEvent) => {
-		if (evt.channel === 1 && evt.controller && evt.controller.number === 79) {
-			Tone.getDestination().output.gain.value = evt.value
-			return
-		}
-		if (inputName !== this.user.inputDevice) {
-			return
+		let instName = this.user.instrument
+		if (evt.controller) {
+			// Hardcode some CC events to control instrument volumes
+			switch (evt.controller.number) {
+				case 79: // master volume (local only)
+					Tone.Destination.volume.value = (evt.value - 1) * 50
+				// fallthrough
+				case 19: // master mute (local only)
+					Tone.Destination.mute = !evt.value
+					return
+				case 18:
+				case 78:
+					instName = 'metronome'
+					break
+				case 17:
+				case 77:
+					instName = 'synth'
+					break
+				case 16:
+				case 76:
+					instName = 'eightOhEight'
+					break
+				case 15:
+				case 75:
+					instName = 'piano'
+					break
+				default:
+					// if (inputName !== this.user.inputDevice) {
+					// 	return // not a whitelisted CC and not the active device, so don't send
+					// }
+					break
+			}
+			// } else {
+			// 	if (inputName !== this.user.inputDevice) {
+			// 		return
+			// 	}
 		}
 		const uevt = {
 			clientId: this.user.clientId,
-			instrument: this.user.instrument,
+			instrument: instName,
 			midiEvent: evt,
 			timestamp: this.ws.now() + this.offsetMs(),
 		}
@@ -279,16 +330,22 @@ export default class Sketch {
 			const prevs = this.users.filter(uu => uu.clientId === user.clientId)
 			if (!prevs.length) {
 				this.users.push(user)
-				this.avatars.push(new Avatar({
-					user: user,
-					pos: new Vec(Math.random() * worldScale, 100, Math.random() * worldScale),
-					scale: new Vec(20),
-					phys: { worldScale },
-				}))
+				this.avatars.push(
+					new Avatar({
+						user: user,
+						pos: newAvatarPos(),
+						scale: new Vec(20),
+						phys: { worldScale },
+					}),
+				)
 				continue
 			}
 			if (prevs.length > 1) {
-				console.warn(`[Sketch #onUsers] Found more than one user for clientId #${user.clientId}`, user.clientId, user.name)
+				console.warn(
+					`[Sketch #onUsers] Found more than one user for clientId #${user.clientId}`,
+					user.clientId,
+					user.name,
+				)
 			}
 			// Update pre-existing user
 			const prev = prevs[0]
@@ -303,7 +360,10 @@ export default class Sketch {
 			if (aa) {
 				engine3d.rmObj(aa)
 			} else {
-				console.warn(`[Sketch #onUsers] Unable to find avatar for dropped user #${user.clientId}`, user.name)
+				console.warn(
+					`[Sketch #onUsers] Unable to find avatar for dropped user #${user.clientId}`,
+					user.name,
+				)
 			}
 			this.users = this.users.filter(uu => uu.clientId !== user.clientId)
 			this.avatars = this.avatars.filter(aa => aa.user.clientId !== user.clientId)
@@ -373,7 +433,12 @@ export default class Sketch {
 				break
 			}
 			default:
-				console.warn(`[Sketch #onUserEvent] Unhandled MIDI event on channel ${channel}:`, kind, data, evt)
+				console.warn(
+					`[Sketch #onUserEvent] Unhandled MIDI event on channel ${channel}:`,
+					kind,
+					data,
+					evt,
+				)
 				break
 		}
 	}
@@ -386,5 +451,4 @@ export default class Sketch {
 		const beatMs = 1000.0 / bps
 		return beatMs * this.user.offset
 	}
-
 }

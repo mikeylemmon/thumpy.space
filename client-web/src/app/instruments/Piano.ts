@@ -45,7 +45,5 @@ function piano() {
 export class Piano extends Sampler {
 	constructor() {
 		super(piano())
-		this.pitchShift = new Tone.PitchShift().toDestination()
-		this.sampler = piano().connect(this.pitchShift)
 	}
 }

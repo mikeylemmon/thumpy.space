@@ -8,7 +8,8 @@ export class SketchInputs {
 	parent: Sketch
 	pp?: p5
 	nameCustomized = false
-	inputs: { // DOM input elements
+	inputs: {
+		// DOM input elements
 		name?: any
 		instrument?: any
 		inputDevice?: any
@@ -25,7 +26,7 @@ export class SketchInputs {
 		this.parent = parent
 	}
 
-	bpm = () => this.inputs.bpm ? this.inputs.bpm.value() : this.clockOpts.bpm
+	bpm = () => (this.inputs.bpm ? this.inputs.bpm.value() : this.clockOpts.bpm)
 
 	isFocused = () => {
 		for (const key in this.inputs) {
@@ -42,24 +43,26 @@ export class SketchInputs {
 			return
 		}
 		this.hidden = !this.hidden
+		this.setup(this.pp)
 		if (!this.hidden) {
-			this.setup(this.pp)
 			this.setupInputsBPM()
-			return
 		}
-		for (const key in this.inputs) {
-			const input = (this.inputs as any)[key]
-			if (!input) {
-				continue
-			}
-			input.remove()
-			delete (this.inputs as any)[key]
-		}
-		this.setupInputsHide(this.pp)
 	}
 
 	setup = (pp: p5) => {
 		this.pp = pp
+		if (this.hidden) {
+			for (const key in this.inputs) {
+				const input = (this.inputs as any)[key]
+				if (!input) {
+					continue
+				}
+				input.remove()
+				delete (this.inputs as any)[key]
+			}
+			this.setupInputsHide(this.pp)
+			return
+		}
 		this.setupInputsUser(this.parent.ws.clientId)
 		this.setupInputsInstrument()
 		if (!this.inputs.inputDevice) {
@@ -72,15 +75,22 @@ export class SketchInputs {
 		if (this.inputs.hide) {
 			this.inputs.hide.remove()
 		}
-		const inHide = pp.createButton(this.hidden ? 'Show UI' : 'Hide UI') as any
-		inHide.position(pp.width - inHide.width - 40, pp.height - inHide.height - 10)
+		const inHide = pp.createButton(this.hidden ? 'Show Settings' : 'Hide Settings') as any
+		inHide.position(pp.width - inHide.width - 50, pp.height - inHide.height - 10)
 		inHide.mousePressed(this.toggleHide)
 		this.inputs.hide = inHide
 	}
 
 	setupInputsUser = (clientId: number): any => {
 		console.log('[SketchInputs #setupInputsUser] clientId', clientId)
-		this.parent.user.clientId = clientId
+		const uu = this.parent.user
+		const defaultName = this.nameCustomized ? uu.name : `User ${this.parent.ws.clientId}`
+		if (this.hidden) {
+			if (uu.name === '') {
+				this.parent.updateUser({ name: defaultName })
+			}
+			return
+		}
 		if (!this.pp) {
 			console.warn(
 				'[SketchInputs #setupInputsUser] Attempted to setup user input before sketch was initialized',
@@ -97,7 +107,6 @@ export class SketchInputs {
 		if (this.inputs.offset) {
 			this.inputs.offset.remove()
 		}
-		const defaultName = this.nameCustomized ? this.parent.user.name : `User ${this.parent.ws.clientId}`
 		const inName = this.pp.createInput(defaultName) as any
 		inName.size(80)
 		inName.position(20, userInputsY)
@@ -133,7 +142,7 @@ export class SketchInputs {
 	}
 
 	setupInputsInstrument = () => {
-		if (!this.pp || !this.inputs.offset) {
+		if (!this.pp || !this.inputs.offset || this.hidden) {
 			return
 		}
 		if (this.inputs.instrument) {
@@ -160,7 +169,7 @@ export class SketchInputs {
 	}
 
 	setupInputsMidi = (webMidi: any) => {
-		if (!this.pp || !this.inputs.instrument) {
+		if (!this.pp || !this.inputs.instrument || this.hidden) {
 			return
 		}
 		if (this.inputs.inputDevice) {
@@ -179,7 +188,7 @@ export class SketchInputs {
 			}
 			inMidi.option(_midiInput.name)
 		}
-		inInst.selected(this.parent.user.inputDevice)
+		inMidi.selected(this.parent.user.inputDevice)
 		inMidi.changed(() => {
 			console.log('[SketchInputs #setupInputsMidi] Changed:', inMidi.value())
 			this.parent.updateUser({ inputDevice: inMidi.value() })
@@ -191,7 +200,7 @@ export class SketchInputs {
 	}
 
 	setupInputsBPM = () => {
-		if (!this.pp) {
+		if (!this.pp || this.hidden) {
 			return
 		}
 		if (this.inputs.bpm) {
@@ -255,7 +264,9 @@ export class SketchInputs {
 	sendClockUpdate = (clk: ClockOpts) => {
 		const { conn, ready } = this.parent.ws
 		if (!ready()) {
-			console.warn("[SketchInputs #sendClockUpdate] Can't send bpm update, websocket connection is not open")
+			console.warn(
+				"[SketchInputs #sendClockUpdate] Can't send bpm update, websocket connection is not open",
+			)
 			return
 		}
 		conn.send(clockUpdateReq(clk))
@@ -268,5 +279,4 @@ export class SketchInputs {
 		}
 		this.inputs.bpm.value(clk.bpm)
 	}
-
 }
