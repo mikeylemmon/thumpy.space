@@ -3,6 +3,8 @@ import { WS_HEADER_END } from './serverApi'
 export const WS_CLOCK_NOW = 'clock/now'
 export const WS_CLOCK_ORIGIN = 'clock/origin'
 export const WS_CLOCK_UPDATE = 'clock/update'
+export const NOTE_METRONOME_DOWN = 34
+export const NOTE_METRONOME_UP   = 35
 
 export type ClockNowResp = { nowMs: number }
 export type ClockOriginResp = { originMs: number }

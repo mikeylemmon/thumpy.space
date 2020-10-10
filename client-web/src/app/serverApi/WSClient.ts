@@ -68,6 +68,7 @@ export default class WSClient {
 		}
 		conn.onopen = (evt: Event) => {
 			console.log('WebSocket opened', evt)
+			this.clock.destroy()
 			this.clock = new WSClock(this.global, this.conn, this.options.clock)
 		}
 		conn.onerror = (evt: Event) => {

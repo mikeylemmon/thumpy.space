@@ -49,6 +49,10 @@ export default class WSClock {
 		this.conn.send(clockNowReq())
 	}
 
+	destroy = () => {
+		this.global.clearTimeout(this.loopId)
+	}
+
 	onClockOrigin(body: string) {
 		const resp: ClockOriginResp = JSON.parse(body)
 		const { originMs } = resp

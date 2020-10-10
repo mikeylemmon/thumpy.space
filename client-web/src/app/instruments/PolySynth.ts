@@ -18,7 +18,6 @@ class SynthObj extends Obj {
 	noteEvt: MidiEventNote
 	scaleOrig: Vec
 	voice: Tone.Synth | null = null
-	releasedAt = 0
 	hue = Math.random()
 	lgt = 0.3
 	envValLast = 1
@@ -32,17 +31,18 @@ class SynthObj extends Obj {
 		this.scaleOrig = this.xform.scale.clone()
 	}
 
-	release = () => this.releasedAt = new Date().valueOf() / 1000
-
 	update = (dt: number) => {
 		let mod = 1 - this.polySynth.modwheel
-		mod = 1 - (mod * mod)
+		mod = 1 - mod * mod
 		// set lightness
 		this.lgt = mod * 0.8 + 0.2
 		// set hue
 		this.hue += (Math.random() * 2 - 1) * dt * mod
-		if (this.hue < 0) { this.hue += 1 }
-		else if (this.hue > 1) { this.hue -= 1 }
+		if (this.hue < 0) {
+			this.hue += 1
+		} else if (this.hue > 1) {
+			this.hue -= 1
+		}
 		this.xform.rot.applyAdd(srandVec().applyMult(dt * mod))
 		// // Disabled for now: scale by envelope value
 		// const voices = (this.polySynth.synth as any)._activeVoices
@@ -128,6 +128,12 @@ export class PolySynth extends Instrument {
 
 	noteoff = (_avatar: Avatar, time: number, evt: MidiEventNote) => {
 		this.synth.triggerRelease(noteFreq(evt.note), time)
+		// Tone.PolySynth can leave voices dangling, so release all voices matching this note
+		for (const vv of (this.synth as any)._activeVoices) {
+			if (vv.midi === noteFreq(evt.note) && !vv.released) {
+				vv.voice.triggerRelease(time)
+			}
+		}
 	}
 
 	controlchange = (_avatar: Avatar, time: number, evt: MidiEventCC) => {
@@ -220,7 +226,7 @@ export class PolySynth extends Instrument {
 		const rot = new Vec(
 			Math.random() * Math.PI * 2,
 			Math.random() * Math.PI * 2,
-			Math.random() * Math.PI * 2
+			Math.random() * Math.PI * 2,
 		)
 		const obj = new SynthObj(this, {
 			noteEvt: evt,
@@ -237,5 +243,4 @@ export class PolySynth extends Instrument {
 			this.objs = objs.slice(0, maxObjs)
 		}
 	}
-
 }
