@@ -1,7 +1,74 @@
+import * as p5 from 'p5'
 import * as Tone from 'tone'
 import { MidiEventCC, MidiEventNote, MidiEventPitchbend } from '../MIDI'
 import { Instrument } from '../Instrument'
 import { noteFreq } from './util'
+import { engine3d, Avatar, Obj, ObjOpts, Vec } from 'engine3d'
+
+export type SynthObjOpts = ObjOpts & {
+	noteEvt: MidiEventNote
+}
+
+const srand = () => Math.random() * 2 - 1
+const srandVec = () => new Vec(srand(), srand(), srand())
+
+class SynthObj extends Obj {
+	polySynth: PolySynth
+	createdAt: number
+	noteEvt: MidiEventNote
+	scaleOrig: Vec
+	voice: Tone.Synth | null = null
+	releasedAt = 0
+	hue = Math.random()
+	lgt = 0.3
+	envValLast = 1
+
+	constructor(polySynth: PolySynth, opts: SynthObjOpts) {
+		super(opts)
+		this.polySynth = polySynth
+		this.createdAt = new Date().valueOf() / 1000
+		this.noteEvt = opts.noteEvt
+		this.drawFunc = this.render
+		this.scaleOrig = this.xform.scale.clone()
+	}
+
+	release = () => this.releasedAt = new Date().valueOf() / 1000
+
+	update = (dt: number) => {
+		let mod = 1 - this.polySynth.modwheel
+		mod = 1 - (mod * mod)
+		// set lightness
+		this.lgt = mod * 0.8 + 0.2
+		// set hue
+		this.hue += (Math.random() * 2 - 1) * dt * mod
+		if (this.hue < 0) { this.hue += 1 }
+		else if (this.hue > 1) { this.hue -= 1 }
+		this.xform.rot.applyAdd(srandVec().applyMult(dt * mod))
+		// // Disabled for now: scale by envelope value
+		// const voices = (this.polySynth.synth as any)._activeVoices
+		// if (!this.voice) {
+		// 	for (const vv of voices) {
+		// 		if (vv.midi === noteFreq(this.noteEvt.note) && !vv.released) {
+		// 			this.voice = vv.voice
+		// 			break
+		// 		}
+		// 	}
+		// }
+		// if (this.voice) {
+		// 	this.envValLast = this.voice.envelope.value
+		// }
+		// this.xform.scale = this.scaleOrig.cloneMult(this.envValLast)
+	}
+
+	render = (pg: p5.Graphics) => {
+		pg.colorMode(pg.HSL, 1)
+		pg.fill(this.hue, 0.8, this.lgt)
+		pg.stroke(this.hue, 0.8, this.lgt - 0.2)
+		pg.strokeWeight(1)
+		pg.sphere(1, 3, 4)
+		pg.colorMode(pg.RGB, 255)
+	}
+}
 
 export class PolySynth extends Instrument {
 	synth: Tone.PolySynth
@@ -11,6 +78,14 @@ export class PolySynth extends Instrument {
 	panVol: Tone.PanVol
 	ps = 0
 	psSpread = 7
+	attack = 0.01
+	decay = 0.07
+	sustain = 0.3
+	release = 0.6
+	modwheel = 0.3
+	objs: Obj[] = []
+	maxObjs = 24
+	ii = 0
 
 	constructor() {
 		super()
@@ -29,10 +104,10 @@ export class PolySynth extends Instrument {
 				spread: 30,
 			},
 			envelope: {
-				attack: 0.02,
-				decay: 0.1,
-				sustain: 0.7,
-				release: 1.0,
+				attack: this.attack,
+				decay: this.decay,
+				sustain: this.sustain,
+				release: this.release,
 			},
 		}).connect(this.filter)
 	}
@@ -46,14 +121,16 @@ export class PolySynth extends Instrument {
 		return true
 	}
 
-	noteon = (time: number, evt: MidiEventNote) => {
+	noteon = (avatar: Avatar, time: number, evt: MidiEventNote) => {
 		this.synth.triggerAttack(noteFreq(evt.note), time, evt.attack)
+		Tone.Draw.schedule(() => this.addSynthObj(avatar, evt), time)
 	}
-	noteoff = (time: number, evt: MidiEventNote) => {
+
+	noteoff = (_avatar: Avatar, time: number, evt: MidiEventNote) => {
 		this.synth.triggerRelease(noteFreq(evt.note), time)
 	}
 
-	controlchange = (time: number, evt: MidiEventCC) => {
+	controlchange = (_avatar: Avatar, time: number, evt: MidiEventCC) => {
 		const num = evt.controller.number
 		let delayed: (() => void) | null = null
 		switch (true) {
@@ -61,6 +138,7 @@ export class PolySynth extends Instrument {
 				delayed = () => {
 					const vv = evt.value * evt.value
 					this.filter.set({ frequency: 20 + 10000 * vv })
+					this.modwheel = evt.value
 				}
 				break
 			case num === 21:
@@ -85,6 +163,7 @@ export class PolySynth extends Instrument {
 				const key = ['attack', 'decay', 'sustain', 'release'][num - 71]
 				delayed = () => {
 					vv = key === 'sustain' ? evt.value : 10 * vv
+					;(this as any)[key] = vv
 					this.synth.set({ envelope: { [key]: vv } })
 				}
 				break
@@ -112,7 +191,7 @@ export class PolySynth extends Instrument {
 		}
 	}
 
-	pitchbend = (time: number, evt: MidiEventPitchbend) => {
+	pitchbend = (_avatar: Avatar, time: number, evt: MidiEventPitchbend) => {
 		Tone.Draw.schedule(() => {
 			this.ps = evt.value
 			this.updatePitchbend()
@@ -122,4 +201,41 @@ export class PolySynth extends Instrument {
 	updatePitchbend = () => {
 		this.synth.set({ detune: 100 * this.ps * this.psSpread })
 	}
+
+	addSynthObj = (avatar: Avatar, evt: MidiEventNote) => {
+		// Create obj for note
+		const objSize = 100
+		const { objs, maxObjs } = this
+		let pos = avatar.xform.pos
+		if (objs.length) {
+			pos = objs[0].xform.pos
+		}
+		const off = new Vec(srand(), Math.random(), srand()).applyMult(objSize * 0.6)
+		pos = pos.cloneAdd(off)
+		if (this.ii++ % 8 === 0) {
+			pos.x = avatar.xform.pos.x
+			pos.y = avatar.xform.pos.y
+			pos.z = avatar.xform.pos.z
+		}
+		const rot = new Vec(
+			Math.random() * Math.PI * 2,
+			Math.random() * Math.PI * 2,
+			Math.random() * Math.PI * 2
+		)
+		const obj = new SynthObj(this, {
+			noteEvt: evt,
+			pos: pos,
+			rot: rot,
+			scale: new Vec(objSize),
+		})
+		// Add obj to engine
+		objs.unshift(obj)
+		engine3d.addObj(obj)
+		if (objs.length > maxObjs) {
+			// remove oldest obj
+			engine3d.rmObj(objs[objs.length - 1])
+			this.objs = objs.slice(0, maxObjs)
+		}
+	}
+
 }

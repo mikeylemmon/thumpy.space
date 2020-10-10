@@ -1,4 +1,5 @@
 import * as Tone from 'tone'
+import { Avatar } from 'engine3d'
 import { Sampler } from './Sampler'
 import { MidiEventNote } from '../MIDI'
 import { noteFreq } from './util'
@@ -54,12 +55,12 @@ export class EightOhEight extends Sampler {
 		return (note + 12) % samps.length
 	}
 
-	noteon = (time: number, note: MidiEventNote) => {
+	noteon = (_avatar: Avatar, time: number, note: MidiEventNote) => {
 		let nn = this.modNote(note.note)
 		this.sampler.triggerAttack(noteFreq(nn), time, note.attack)
 	}
 
-	noteoff = (time: number, note: MidiEventNote) => {
+	noteoff = (_avatar: Avatar, time: number, note: MidiEventNote) => {
 		let nn = this.modNote(note.note)
 		this.sampler.triggerRelease(noteFreq(nn), time)
 	}

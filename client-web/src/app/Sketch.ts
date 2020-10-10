@@ -250,6 +250,13 @@ export default class Sketch {
 		}
 		return null
 	}
+	getAvatarSafe = (clientId: number): Avatar => {
+		const aa = this.getAvatar(clientId)
+		if (!aa) {
+			return this.avatar
+		}
+		return aa
+	}
 
 	sendUserUpdate = () => {
 		const { conn, ready } = this.ws
@@ -408,30 +415,26 @@ export default class Sketch {
 			console.warn(`[Sketch #onUserEvent] Received event ${tt - Tone.immediate()} seconds late`)
 			return
 		}
+		const avatar = this.getAvatarSafe(clientId)
 		switch (kind) {
 			case 'noteon': {
 				const nn = midiEvent as MidiEventNote
-				inst.noteon(tt, nn)
-				const avatar = this.getAvatar(clientId)
-				if (avatar) {
-					Tone.Draw.schedule(() => this.visualNotes.noteon(evt, avatar), tt)
-				}
+				inst.noteon(avatar, tt, nn)
 				break
 			}
 			case 'noteoff': {
 				const nn = midiEvent as MidiEventNote
-				inst.noteoff(tt, nn)
-				Tone.Draw.schedule(() => this.visualNotes.noteoff(evt), tt)
+				inst.noteoff(avatar, tt, nn)
 				break
 			}
 			case 'controlchange': {
 				const cc = midiEvent as MidiEventCC
-				inst.controlchange(tt, cc)
+				inst.controlchange(avatar, tt, cc)
 				break
 			}
 			case 'pitchbend': {
 				const pb = midiEvent as MidiEventPitchbend
-				inst.pitchbend(tt, pb)
+				inst.pitchbend(avatar, tt, pb)
 				break
 			}
 			default:

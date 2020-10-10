@@ -1,4 +1,5 @@
 import * as Tone from 'tone'
+import { Avatar } from 'engine3d'
 import { MidiEventCC, MidiEventNote, MidiEventPitchbend } from '../MIDI'
 import { Instrument } from '../Instrument'
 import { noteFreq } from './util'
@@ -21,13 +22,15 @@ export class Sampler extends Instrument {
 		return this.sampler.loaded
 	}
 
-	noteon = (time: number, evt: MidiEventNote) => {
+	noteon = (_avatar: Avatar, time: number, evt: MidiEventNote) => {
 		this.sampler.triggerAttack(noteFreq(evt.note), time, evt.attack)
 	}
-	noteoff = (time: number, evt: MidiEventNote) => {
+
+	noteoff = (_avatar: Avatar, time: number, evt: MidiEventNote) => {
 		this.sampler.triggerRelease(noteFreq(evt.note), time)
 	}
-	controlchange = (time: number, evt: MidiEventCC) => {
+
+	controlchange = (_avatar: Avatar, time: number, evt: MidiEventCC) => {
 		const num = evt.controller.number
 		let delayed: (() => void) | null = null
 		switch (true) {
@@ -64,7 +67,8 @@ export class Sampler extends Instrument {
 			Tone.Draw.schedule(delayed, time)
 		}
 	}
-	pitchbend = (time: number, evt: MidiEventPitchbend) => {
+
+	pitchbend = (_avatar: Avatar, time: number, evt: MidiEventPitchbend) => {
 		Tone.Draw.schedule(() => {
 			this.ps = evt.value
 			this.pitchShift.pitch = this.ps * this.psSpread

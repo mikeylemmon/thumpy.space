@@ -23,7 +23,7 @@ export class Obj {
 	drawFunc2D?: drawFunc2D
 
 	constructor(opts: ObjOpts) {
-		console.log('[Obj] ctor', this)
+		// console.log('[Obj] ctor', this)
 		this.drawFunc = opts.draw
 		this.drawFunc2D = opts.draw2D
 		if (opts.comps) {
@@ -43,7 +43,7 @@ export class Obj {
 
 	destroy = () => {
 		this.comps.forEach(cc => cc.destroy())
-		console.log('[Obj] destroyed')
+		// console.log('[Obj] destroyed')
 	}
 	rm = () => {
 		engine3d.rmObj(this)
