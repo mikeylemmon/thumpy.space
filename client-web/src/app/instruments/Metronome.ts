@@ -1,4 +1,5 @@
 import * as Tone from 'tone'
+import { Avatar } from 'engine3d'
 import { Sampler } from './Sampler'
 import { MidiEventNote } from '../MIDI'
 import { noteFreq } from './util'
@@ -24,13 +25,15 @@ export class Metronome extends Sampler {
 	constructor(sketch: Sketch) {
 		super(metronome())
 		this.sketch = sketch
+		this.panVol.set({ volume: -10 })
+		this.panVol.mute = true
 	}
 
 	modNote(note: number) {
 		return note % samps.length
 	}
 
-	noteon = (time: number, note: MidiEventNote) => {
+	noteon = (_avatar: Avatar, time: number, note: MidiEventNote) => {
 		let nn = this.modNote(note.note)
 		this.sampler.triggerAttack(noteFreq(nn), time, note.attack)
 		if (nn % samps.length === 0) {
@@ -48,7 +51,7 @@ export class Metronome extends Sampler {
 		}
 	}
 
-	noteoff = (time: number, note: MidiEventNote) => {
+	noteoff = (_avatar: Avatar, time: number, note: MidiEventNote) => {
 		let nn = this.modNote(note.note)
 		this.sampler.triggerRelease(noteFreq(nn), time)
 	}
