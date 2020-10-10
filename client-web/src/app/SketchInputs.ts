@@ -254,6 +254,21 @@ export class SketchInputs {
 				case key in this.parent.user:
 					pp.text(key.toUpperCase(), xx, yy)
 					break
+				case key === 'bpm':
+					const prec = Math.abs(this.parent.ws.clock.precisionNow)
+					const xp = input.x + input.width
+					pp.textAlign(pp.RIGHT, pp.BOTTOM)
+					if (prec < 1) {
+						pp.text(`Clock precision: ${(prec * 1000).toFixed(0)}µs`, xp, yy)
+					} else if (prec < 10) {
+						pp.text(`Clock precision: ${prec.toFixed(1)}ms`, xp, yy)
+					} else {
+						pp.fill(255, 0, 0)
+						pp.text(`Clock precision: ${prec.toFixed(0)}ms`, xp, yy)
+						pp.fill(255)
+					}
+					pp.textAlign(pp.LEFT, pp.BOTTOM)
+				// fallthrough
 				default:
 					pp.text(`${key.toUpperCase()}: ${input.value()}`, xx, yy)
 					break

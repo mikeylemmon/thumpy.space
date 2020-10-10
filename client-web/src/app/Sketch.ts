@@ -1,6 +1,7 @@
 import * as p5 from 'p5'
 import * as Tone from 'tone'
 import WSClient, { DONT_REOPEN } from './serverApi/WSClient'
+import { NOTE_METRONOME_DOWN } from './serverApi/serverClock'
 import {
 	userEventReq,
 	userUpdateReq,
@@ -58,6 +59,7 @@ export default class Sketch {
 		sat: 0,
 		lgt: 0.2,
 	}
+	loops: number[] = []
 
 	constructor(_global: any) {
 		console.log('[Sketch #ctor]')
@@ -211,6 +213,12 @@ export default class Sketch {
 		if (!this.keyboardInputDisabled()) {
 			this.avatar.keyPressed(evt)
 		}
+		if (evt.keyCode === 27) {
+			// ESC pressed, clear loops
+			for (const loop of this.loops) {
+				Tone.Transport.clear(loop)
+			}
+		}
 	}
 	keyReleased = (evt: p5) => {
 		if (!this.keyboardInputDisabled()) {
@@ -253,6 +261,7 @@ export default class Sketch {
 	getAvatarSafe = (clientId: number): Avatar => {
 		const aa = this.getAvatar(clientId)
 		if (!aa) {
+			console.warn("[Sketch #getAvatarSafe] Can't find avatar for client", clientId)
 			return this.avatar
 		}
 		return aa
@@ -316,19 +325,28 @@ export default class Sketch {
 			// 		return
 			// 	}
 		}
-		const uevt = {
-			clientId: this.user.clientId,
-			instrument: instName,
-			midiEvent: evt,
-			timestamp: this.ws.now() + this.offsetMs(),
+		const off = this.offsetMs()
+		const sendIt = () => {
+			const uevt = {
+				clientId: this.user.clientId,
+				instrument: instName,
+				midiEvent: evt,
+				timestamp: this.ws.now() + off,
+			}
+			const { conn, ready } = this.ws
+			if (!ready()) {
+				// websocket connection isn't ready, handle event locally
+				this.onUserEvent(uevt)
+				return
+			}
+			conn.send(userEventReq(uevt))
 		}
-		const { conn, ready } = this.ws
-		if (!ready()) {
-			// websocket connection isn't ready, handle event locally
-			this.onUserEvent(uevt)
+		const shiftKeyDown = this.pp && this.pp.keyIsDown(16)
+		if (shiftKeyDown && Tone.Transport.state === 'started') {
+			this.loops.push(Tone.Transport.scheduleRepeat(_time => sendIt(), '2m'))
 			return
 		}
-		conn.send(userEventReq(uevt))
+		sendIt()
 	}
 
 	onUsers = (users: User[]) => {
@@ -410,6 +428,10 @@ export default class Sketch {
 		if (!inst.loaded()) {
 			return // don't send events if instrument hasn't finished loading
 		}
+		const isMetronome = instrument === 'metronome'
+		if (isMetronome && this.syncing) {
+			return // don't handle metronome events until clock has synced
+		}
 		const tt = this.timeGlobalToTone(timestamp)
 		if (tt - Tone.immediate() < -1) {
 			console.warn(`[Sketch #onUserEvent] Received event ${tt - Tone.immediate()} seconds late`)
@@ -420,6 +442,12 @@ export default class Sketch {
 			case 'noteon': {
 				const nn = midiEvent as MidiEventNote
 				inst.noteon(avatar, tt, nn)
+				if (isMetronome && nn.note === NOTE_METRONOME_DOWN) {
+					if (Tone.Transport.state !== 'started') {
+						Tone.Transport.set({ bpm: this.inputs.bpm() })
+						Tone.Transport.start(tt) // Start the Transport on the first post-sync down beat
+					}
+				}
 				break
 			}
 			case 'noteoff': {
