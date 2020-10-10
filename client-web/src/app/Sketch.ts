@@ -6,6 +6,7 @@ import {
 	userEventReq,
 	userUpdateReq,
 	userXformReq,
+	userRequestXformsReq,
 	User,
 	UserEvent,
 	UserForce,
@@ -75,12 +76,14 @@ export default class Sketch {
 				this.user.clientId = clientId
 				this.inputs.setupInputsUser(clientId)
 				this.sendUserXform(this.avatar.getUserXform())
+				this.sendUserRequestXforms()
 			},
 			onClockUpdate: this.inputs.onClockUpdate,
 			onUsers: this.onUsers,
 			onUserEvent: this.onUserEvent,
 			onUserForce: this.onUserForce,
 			onUserXform: this.onUserXform,
+			onUserRequestXforms: () => this.sendUserXform(this.avatar.getUserXform()),
 		})
 		this.instruments = {
 			synth: new PolySynth(),
@@ -147,9 +150,10 @@ export default class Sketch {
 		console.log(`[Sketch #setup] ${this.width} x ${this.height}`)
 		pp.createCanvas(this.width, this.height)
 		this.pg = pp.createGraphics(this.width, this.height, 'webgl')
-		this.cam = new EasyCam((this.pg as any)._renderer, { distance: 600 })
+		this.cam = new EasyCam((this.pg as any)._renderer, { distance: 800 })
 		this.cam.setDistanceMin(1)
-		this.cam.setDistanceMax(1000)
+		this.cam.setDistanceMax(3000)
+		this.cam.rotateX(Math.PI / 6)
 		this.cam.attachMouseListeners((pp as any)._renderer)
 		this.cam.setViewport([0, 0, this.width, this.height])
 		this.cam.rotateY(Math.PI)
@@ -285,6 +289,17 @@ export default class Sketch {
 		conn.send(userXformReq(data))
 	}
 
+	sendUserRequestXforms = () => {
+		const { conn, ready } = this.ws
+		if (!ready()) {
+			console.warn(
+				"[Sketch #sendUserRequestXforms] Can't request other users' xforms, websocket connection is not open",
+			)
+			return
+		}
+		conn.send(userRequestXformsReq())
+	}
+
 	sendUserEvent = (inputName: string, _eventName: string, evt: MidiEvent) => {
 		let instName = this.user.instrument
 		if (evt.controller) {
@@ -331,7 +346,7 @@ export default class Sketch {
 				clientId: this.user.clientId,
 				instrument: instName,
 				midiEvent: evt,
-				timestamp: this.ws.now() + off,
+				timestamp: this.timeToneToGlobal(Tone.immediate()) + off,
 			}
 			const { conn, ready } = this.ws
 			if (!ready()) {

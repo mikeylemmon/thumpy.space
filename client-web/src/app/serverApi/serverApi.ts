@@ -23,6 +23,7 @@ export const WS_USER_UPDATE = 'user/update'
 export const WS_USER_EVENT = 'user/event'
 export const WS_USER_FORCE = 'user/force'
 export const WS_USER_XFORM = 'user/xform'
+export const WS_USER_REQUEST_XFORMS = 'user/request_xforms'
 
 export type User = {
 	clientId: number
@@ -81,4 +82,7 @@ export function userForceReq(req: UserForce): string {
 }
 export function userXformReq(req: UserXform): string {
 	return WS_USER_XFORM + WS_HEADER_END + JSON.stringify(req)
+}
+export function userRequestXformsReq(): string {
+	return WS_USER_REQUEST_XFORMS + WS_HEADER_END
 }

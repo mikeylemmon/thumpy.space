@@ -15,6 +15,7 @@ import {
 	WS_USER_EVENT,
 	WS_USER_FORCE,
 	WS_USER_XFORM,
+	WS_USER_REQUEST_XFORMS,
 } from './serverApi'
 import { parseClockUpdate, ClockOpts, WS_CLOCK_NOW, WS_CLOCK_ORIGIN, WS_CLOCK_UPDATE } from './serverClock'
 import WSClock, { WSClockOptions } from './WSClock'
@@ -29,6 +30,7 @@ export type WSClientOptions = {
 	onUserEvent: (evt: UserEvent) => void
 	onUserForce: (evt: UserForce) => void
 	onUserXform: (evt: UserXform) => void
+	onUserRequestXforms: () => void
 }
 
 export default class WSClient {
@@ -125,6 +127,11 @@ export default class WSClient {
 				const uevt = parseUserXform(body)
 				// console.log('[WSClient #onMessage] Received user event', uevt)
 				this.options.onUserXform(uevt)
+				break
+			}
+			case WS_USER_REQUEST_XFORMS: {
+				console.log('[WSClient #onMessage] Received Xform request')
+				this.options.onUserRequestXforms()
 				break
 			}
 			default:
