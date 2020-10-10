@@ -1,7 +1,7 @@
 import * as p5 from 'p5'
 import * as Tone from 'tone'
 import WSClient, { DONT_REOPEN } from './serverApi/WSClient'
-import { NOTE_METRONOME_DOWN } from './serverApi/serverClock'
+import { NOTE_METRONOME_BPM_CHANGED, NOTE_METRONOME_DOWN } from './serverApi/serverClock'
 import {
 	userEventReq,
 	userUpdateReq,
@@ -20,6 +20,7 @@ import { EasyCam } from 'vendor/p5.easycam.js'
 import { engine3d, Avatar, Ground, Vec } from 'engine3d'
 import { SketchInputs } from './SketchInputs'
 import { SketchAudioKeys } from './SketchAudioKeys'
+import { Loop } from './Loop'
 
 type Instruments = { [key: string]: Instrument }
 
@@ -61,6 +62,12 @@ export default class Sketch {
 		lgt: 0.2,
 	}
 	loops: number[] = []
+	loop = new Loop({
+		beats: 8,
+		sketch: this,
+	})
+	downbeat = 0 // Tone time of the first downbeat
+	transportStarted = false
 
 	constructor(_global: any) {
 		console.log('[Sketch #ctor]')
@@ -183,6 +190,7 @@ export default class Sketch {
 			engine3d.draw2D(pp, this.pg)
 		}
 		this.inputs.draw(pp)
+		this.loop.draw(pp)
 		if (loading) {
 			this.drawMessage(pp, 'Loading instruments...')
 		} else if (this.syncing) {
@@ -364,6 +372,80 @@ export default class Sketch {
 		sendIt()
 	}
 
+	onUserEvent = (evt: UserEvent) => {
+		const { clientId, instrument, midiEvent, timestamp } = evt
+		const { data, channel, kind } = midiEvent
+		const inst = this.instruments[instrument]
+		if (!inst) {
+			console.error('[Sketch #onUserEvent] Unable to find instrument', instrument)
+			return
+		}
+		if (!inst.loaded()) {
+			return // don't send events if instrument hasn't finished loading
+		}
+		const isMetronome = instrument === 'metronome'
+		if (isMetronome && this.syncing) {
+			return // don't handle metronome events until clock has synced
+		}
+		const tt = this.timeGlobalToTone(timestamp)
+		if (tt - Tone.immediate() < -1) {
+			console.warn(`[Sketch #onUserEvent] Received event ${tt - Tone.immediate()} seconds late`)
+			return
+		}
+		const avatar = this.getAvatarSafe(clientId)
+		switch (kind) {
+			case 'noteon': {
+				const nn = midiEvent as MidiEventNote
+				inst.noteon(avatar, tt, nn)
+				if (isMetronome) {
+					if (!this.transportStarted && nn.note === NOTE_METRONOME_DOWN) {
+						console.log(
+							`[Sketch #onUserEvent] Starting Tone.Transport with downbeat synced to server. BPM:`,
+							this.inputs.bpm(),
+						)
+						this.transportStarted = true
+						Tone.Transport.start(tt) // Start the Transport on the first post-sync down beat
+						Tone.Transport.set({ bpm: this.inputs.bpm() })
+						this.downbeat = tt
+					} else if (nn.note === NOTE_METRONOME_BPM_CHANGED) {
+						console.log(
+							`[Sketch #onUserEvent] Received new downbeat from server. BPM:`,
+							this.inputs.bpm(),
+						)
+						Tone.Draw.schedule(() => {
+							Tone.Transport.set({ bpm: this.inputs.bpm() })
+							this.downbeat = tt
+						}, tt)
+					}
+				}
+				break
+			}
+			case 'noteoff': {
+				const nn = midiEvent as MidiEventNote
+				inst.noteoff(avatar, tt, nn)
+				break
+			}
+			case 'controlchange': {
+				const cc = midiEvent as MidiEventCC
+				inst.controlchange(avatar, tt, cc)
+				break
+			}
+			case 'pitchbend': {
+				const pb = midiEvent as MidiEventPitchbend
+				inst.pitchbend(avatar, tt, pb)
+				break
+			}
+			default:
+				console.warn(
+					`[Sketch #onUserEvent] Unhandled MIDI event on channel ${channel}:`,
+					kind,
+					data,
+					evt,
+				)
+				break
+		}
+	}
+
 	onUsers = (users: User[]) => {
 		for (const user of users) {
 			if (user.clientId === this.user.clientId) {
@@ -432,71 +514,16 @@ export default class Sketch {
 		avatar.setUserXform(evt)
 	}
 
-	onUserEvent = (evt: UserEvent) => {
-		const { clientId, instrument, midiEvent, timestamp } = evt
-		const { data, channel, kind } = midiEvent
-		const inst = this.instruments[instrument]
-		if (!inst) {
-			console.error('[Sketch #onUserEvent] Unable to find instrument', instrument)
-			return
+	bpm = () => {
+		const inputBpm = this.inputs.bpm() || 95
+		if (Tone.Transport.state !== 'started') {
+			return inputBpm
 		}
-		if (!inst.loaded()) {
-			return // don't send events if instrument hasn't finished loading
-		}
-		const isMetronome = instrument === 'metronome'
-		if (isMetronome && this.syncing) {
-			return // don't handle metronome events until clock has synced
-		}
-		const tt = this.timeGlobalToTone(timestamp)
-		if (tt - Tone.immediate() < -1) {
-			console.warn(`[Sketch #onUserEvent] Received event ${tt - Tone.immediate()} seconds late`)
-			return
-		}
-		const avatar = this.getAvatarSafe(clientId)
-		switch (kind) {
-			case 'noteon': {
-				const nn = midiEvent as MidiEventNote
-				inst.noteon(avatar, tt, nn)
-				if (isMetronome && nn.note === NOTE_METRONOME_DOWN) {
-					if (Tone.Transport.state !== 'started') {
-						Tone.Transport.set({ bpm: this.inputs.bpm() })
-						Tone.Transport.start(tt) // Start the Transport on the first post-sync down beat
-					}
-				}
-				break
-			}
-			case 'noteoff': {
-				const nn = midiEvent as MidiEventNote
-				inst.noteoff(avatar, tt, nn)
-				break
-			}
-			case 'controlchange': {
-				const cc = midiEvent as MidiEventCC
-				inst.controlchange(avatar, tt, cc)
-				break
-			}
-			case 'pitchbend': {
-				const pb = midiEvent as MidiEventPitchbend
-				inst.pitchbend(avatar, tt, pb)
-				break
-			}
-			default:
-				console.warn(
-					`[Sketch #onUserEvent] Unhandled MIDI event on channel ${channel}:`,
-					kind,
-					data,
-					evt,
-				)
-				break
-		}
+		return Tone.Transport.bpm.value || inputBpm
 	}
-
-	offsetMs = () => {
-		const bps = this.inputs.bpm() / 60
-		if (!bps) {
-			return 0
-		}
-		const beatMs = 1000.0 / bps
-		return beatMs * this.user.offset
-	}
+	bps = () => this.bpm() / 60
+	beatMs = () => 1000.0 / this.bps()
+	beatSec = () => 1.0 / this.bps()
+	offsetMs = () => this.beatMs() * this.user.offset
+	offsetSec = () => this.beatSec() * this.user.offset
 }

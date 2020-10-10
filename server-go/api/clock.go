@@ -12,11 +12,12 @@ import (
 )
 
 const (
-	WS_CLOCK_NOW        = `clock/now`
-	WS_CLOCK_ORIGIN     = `clock/origin`
-	WS_CLOCK_UPDATE     = `clock/update`
-	NOTE_METRONOME_DOWN = 34
-	NOTE_METRONOME_UP   = 35
+	WS_CLOCK_NOW               = `clock/now`
+	WS_CLOCK_ORIGIN            = `clock/origin`
+	WS_CLOCK_UPDATE            = `clock/update`
+	NOTE_METRONOME_BPM_CHANGED = 32
+	NOTE_METRONOME_DOWN        = 34
+	NOTE_METRONOME_UP          = 35
 )
 
 type ClockOpts struct {

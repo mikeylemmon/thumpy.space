@@ -128,13 +128,12 @@ export class PolySynth extends Instrument {
 
 	noteoff = (_avatar: Avatar, time: number, evt: MidiEventNote) => {
 		const freq = noteFreq(evt.note)
-		this.synth.triggerRelease(noteFreq(evt.note), time)
+		this.synth.triggerRelease(freq, time)
 		// Tone.PolySynth can leave voices dangling, so manually release all voices matching this note
 		Tone.Draw.schedule(() => {
 			for (const vv of (this.synth as any)._activeVoices) {
 				if (!vv.released && vv.midi === freq) {
-					// console.log('Releasing voice', vv.released, evt.note, delta)
-					vv.voice.triggerRelease(Tone.now())
+					vv.voice.triggerRelease(Tone.immediate())
 				}
 			}
 		}, `+${time - Tone.immediate()}`)
