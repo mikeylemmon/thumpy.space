@@ -21,7 +21,8 @@ const (
 )
 
 type ClockOpts struct {
-	BPM float64 `json:"bpm"`
+	BPM      float64 `json:"bpm"`
+	ClientId int     `json:"clientId"`
 }
 
 type ClockNowResp struct {
@@ -81,13 +82,20 @@ func ParseClockUpdate(body string) (*ClockOpts, error) {
 	return bpm, nil
 }
 
+func NewClockUpdateMsg(clk *ClockOpts, clientId int) ([]byte, error) {
+	clk.ClientId = clientId
+	resp, err := json.Marshal(clk)
+	if err != nil {
+		return nil, err
+	}
+	return []byte(WS_CLOCK_UPDATE + WS_HEADER_END + string(resp)), nil
+}
+
 func SendClockUpdate(conn net.Conn) error {
 	clk := Clock()
-	resp, err := json.Marshal(&clk)
+	msg, err := NewClockUpdateMsg(&clk, 0)
 	if err != nil {
 		return err
 	}
-	log.Debug().Interface(`clock`, &clk).Msg(`Sending clock settings`)
-	msg := []byte(WS_CLOCK_UPDATE + WS_HEADER_END + string(resp))
 	return wsutil.WriteServerMessage(conn, ws.OpText, msg)
 }

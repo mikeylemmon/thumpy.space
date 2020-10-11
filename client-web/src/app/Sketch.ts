@@ -1,7 +1,7 @@
 import * as p5 from 'p5'
 import * as Tone from 'tone'
 import WSClient, { DONT_REOPEN } from './serverApi/WSClient'
-import { NOTE_METRONOME_BPM_CHANGED, NOTE_METRONOME_DOWN } from './serverApi/serverClock'
+import { ClockOpts, NOTE_METRONOME_BPM_CHANGED, NOTE_METRONOME_DOWN } from './serverApi/serverClock'
 import {
 	userEventReq,
 	userUpdateReq,
@@ -20,7 +20,9 @@ import { EasyCam } from 'vendor/p5.easycam.js'
 import { engine3d, Avatar, Ground, Vec } from 'engine3d'
 import { SketchInputs } from './SketchInputs'
 import { SketchAudioKeys } from './SketchAudioKeys'
-import { Loop } from './Loop'
+import { Loop, Loops } from './Loop'
+const KEYCODE_ESC = 27
+const KEYCODE_SHIFT = 16
 
 type Instruments = { [key: string]: Instrument }
 
@@ -61,13 +63,14 @@ export default class Sketch {
 		sat: 0,
 		lgt: 0.2,
 	}
-	loops: number[] = []
-	loop = new Loop({
-		beats: 8,
+	loops = new Loops({
 		sketch: this,
+		recOffset: this.user.offset,
 	})
 	downbeat = 0 // Tone time of the first downbeat
 	transportStarted = false
+	_bpm = 95
+	_bpmNext = 95
 
 	constructor(_global: any) {
 		console.log('[Sketch #ctor]')
@@ -76,6 +79,7 @@ export default class Sketch {
 			clock: {
 				onSynced: () => {
 					this.syncing = false
+					this.transportStarted = false
 					this.inputs.setupInputsBPM()
 				},
 			},
@@ -85,7 +89,14 @@ export default class Sketch {
 				this.sendUserXform(this.avatar.getUserXform())
 				this.sendUserRequestXforms()
 			},
-			onClockUpdate: this.inputs.onClockUpdate,
+			onClockUpdate: (clkOpts: ClockOpts) => {
+				if (clkOpts.clientId === 0) {
+					// Clock update came from server, use to set BPM on next downbeat
+					this._bpmNext = clkOpts.bpm
+				} else {
+					this.inputs.onClockUpdate(clkOpts)
+				}
+			},
 			onUsers: this.onUsers,
 			onUserEvent: this.onUserEvent,
 			onUserForce: this.onUserForce,
@@ -171,6 +182,7 @@ export default class Sketch {
 	}
 
 	draw = (pp: p5) => {
+		this.loops.update()
 		engine3d.update()
 		let loading = false
 		for (const instName in this.instruments) {
@@ -190,7 +202,7 @@ export default class Sketch {
 			engine3d.draw2D(pp, this.pg)
 		}
 		this.inputs.draw(pp)
-		this.loop.draw(pp)
+		this.loops.draw(pp)
 		if (loading) {
 			this.drawMessage(pp, 'Loading instruments...')
 		} else if (this.syncing) {
@@ -225,16 +237,17 @@ export default class Sketch {
 		if (!this.keyboardInputDisabled()) {
 			this.avatar.keyPressed(evt)
 		}
-		if (evt.keyCode === 27) {
+		if (evt.keyCode === KEYCODE_ESC) {
 			// ESC pressed, clear loops
-			for (const loop of this.loops) {
-				Tone.Transport.clear(loop)
-			}
+			this.loops.clearAllEvents()
 		}
 	}
 	keyReleased = (evt: p5) => {
 		if (!this.keyboardInputDisabled()) {
 			this.avatar.keyReleased(evt)
+		}
+		if (evt.keyCode === KEYCODE_SHIFT) {
+			this.loops.sanitizeEvents()
 		}
 	}
 
@@ -349,27 +362,27 @@ export default class Sketch {
 			// 	}
 		}
 		const off = this.offsetMs()
-		const sendIt = () => {
-			const uevt = {
-				clientId: this.user.clientId,
-				instrument: instName,
-				midiEvent: evt,
-				timestamp: this.timeToneToGlobal(Tone.immediate()) + off,
-			}
-			const { conn, ready } = this.ws
-			if (!ready()) {
-				// websocket connection isn't ready, handle event locally
-				this.onUserEvent(uevt)
-				return
-			}
-			conn.send(userEventReq(uevt))
+		const uevt = {
+			clientId: this.user.clientId,
+			instrument: instName,
+			midiEvent: evt,
+			timestamp: this.nowMs() + off,
 		}
-		const shiftKeyDown = this.pp && this.pp.keyIsDown(16)
-		if (shiftKeyDown && Tone.Transport.state === 'started') {
-			this.loops.push(Tone.Transport.scheduleRepeat(_time => sendIt(), '2m'))
+		const shiftKeyDown = this.pp && this.pp.keyIsDown(KEYCODE_SHIFT)
+		if (shiftKeyDown) {
+			this.loops.loopUserEvent(uevt)
+		}
+		this._sendUserEvent(uevt)
+	}
+
+	_sendUserEvent = (uevt: UserEvent) => {
+		const { conn, ready } = this.ws
+		if (!ready()) {
+			// websocket connection isn't ready, handle event locally
+			this.onUserEvent(uevt)
 			return
 		}
-		sendIt()
+		conn.send(userEventReq(uevt))
 	}
 
 	onUserEvent = (evt: UserEvent) => {
@@ -389,7 +402,7 @@ export default class Sketch {
 		}
 		const tt = this.timeGlobalToTone(timestamp)
 		if (tt - Tone.immediate() < -1) {
-			console.warn(`[Sketch #onUserEvent] Received event ${tt - Tone.immediate()} seconds late`)
+			console.warn(`[Sketch #onUserEvent] Received event ${Tone.immediate() - tt} seconds late`)
 			return
 		}
 		const avatar = this.getAvatarSafe(clientId)
@@ -398,25 +411,7 @@ export default class Sketch {
 				const nn = midiEvent as MidiEventNote
 				inst.noteon(avatar, tt, nn)
 				if (isMetronome) {
-					if (!this.transportStarted && nn.note === NOTE_METRONOME_DOWN) {
-						console.log(
-							`[Sketch #onUserEvent] Starting Tone.Transport with downbeat synced to server. BPM:`,
-							this.inputs.bpm(),
-						)
-						this.transportStarted = true
-						Tone.Transport.start(tt) // Start the Transport on the first post-sync down beat
-						Tone.Transport.set({ bpm: this.inputs.bpm() })
-						this.downbeat = tt
-					} else if (nn.note === NOTE_METRONOME_BPM_CHANGED) {
-						console.log(
-							`[Sketch #onUserEvent] Received new downbeat from server. BPM:`,
-							this.inputs.bpm(),
-						)
-						Tone.Draw.schedule(() => {
-							Tone.Transport.set({ bpm: this.inputs.bpm() })
-							this.downbeat = tt
-						}, tt)
-					}
+					this.onMetronome(tt, nn.note)
 				}
 				break
 			}
@@ -444,6 +439,31 @@ export default class Sketch {
 				)
 				break
 		}
+	}
+
+	onMetronome = (time: number, note: number) => {
+		if (!this.transportStarted && note === NOTE_METRONOME_DOWN) {
+			console.log(`[Sketch #onUserEvent] Downbeat synced with server. BPM:`, this._bpmNext)
+			this.transportStarted = true
+			this._bpm = this._bpmNext
+			this.downbeat = this.timeToneToGlobal(time)
+			this.inputs.onClockUpdate({ bpm: this._bpm, clientId: 0 })
+			return
+		}
+		if (note !== NOTE_METRONOME_BPM_CHANGED) {
+			return
+		}
+		console.log(
+			`[Sketch #onUserEvent] Received new downbeat from server, will update clock in ${(
+				time - Tone.immediate()
+			).toFixed(1)} seconds`,
+		)
+		Tone.Draw.schedule(() => {
+			console.log(`[Sketch #onUserEvent] BPM updated:`, this._bpmNext)
+			this.downbeat = this.timeToneToGlobal(time)
+			this._bpm = this._bpmNext
+			this.inputs.onClockUpdate({ bpm: this._bpm, clientId: 0 })
+		}, time)
 	}
 
 	onUsers = (users: User[]) => {
@@ -515,15 +535,15 @@ export default class Sketch {
 	}
 
 	bpm = () => {
-		const inputBpm = this.inputs.bpm() || 95
-		if (Tone.Transport.state !== 'started') {
-			return inputBpm
+		if (!this.transportStarted) {
+			return this.inputs.bpm()
 		}
-		return Tone.Transport.bpm.value || inputBpm
+		return this._bpm
 	}
 	bps = () => this.bpm() / 60
 	beatMs = () => 1000.0 / this.bps()
 	beatSec = () => 1.0 / this.bps()
 	offsetMs = () => this.beatMs() * this.user.offset
 	offsetSec = () => this.beatSec() * this.user.offset
+	nowMs = () => this.ws.now()
 }

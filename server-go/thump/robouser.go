@@ -45,7 +45,8 @@ func runRoboUser1() {
 	upOn := &api.MidiEvent{Kind: `noteon`, Channel: 1, Note: api.NOTE_METRONOME_UP, Attack: 0.7}
 	upOff := &api.MidiEvent{Kind: `noteoff`, Channel: 1, Note: api.NOTE_METRONOME_UP, Attack: 0.7}
 	for {
-		bpm = api.Clock().BPM
+		clk := api.Clock()
+		bpm = clk.BPM
 		beatMs = 1000.0 / (bpm / 60.0)
 		downAt := lastBeatAt
 		downOnMsg, _ := newUserEventMsg(&api.UserEvent{ClientId: cid, Instrument: user.Instrument, MidiEvent: downOn, Timestamp: lastBeatAt})
@@ -61,8 +62,14 @@ func runRoboUser1() {
 		up3OffMsg, _ := newUserEventMsg(&api.UserEvent{ClientId: cid, Instrument: user.Instrument, MidiEvent: upOff, Timestamp: lastBeatAt + 0.5*beatMs})
 		lastBeatAt += beatMs
 		if bpm != lastBpm {
-			lastBpm = bpm
 			// bpm changed, signal to clients that there's a new downbeat
+			lastBpm = bpm
+			go func(da float64) {
+				// Send a clock update (new BPM) just before the bpm change takes effect
+				time.Sleep(time.Duration(1000*(da-api.Now()-400)) * time.Microsecond)
+				clkMsg, _ := api.NewClockUpdateMsg(&clk, 0)
+				events <- Event{Kind: api.WS_CLOCK_UPDATE, FromClient: cid, Raw: clkMsg}
+			}(downAt)
 			chgOnMsg, _ := newUserEventMsg(&api.UserEvent{ClientId: cid, Instrument: user.Instrument, MidiEvent: chgOn, Timestamp: downAt})
 			chgOffMsg, _ := newUserEventMsg(&api.UserEvent{ClientId: cid, Instrument: user.Instrument, MidiEvent: chgOff, Timestamp: downAt + 3.5*beatMs})
 			events <- Event{Kind: api.WS_USER_EVENT, FromClient: cid, Raw: chgOnMsg}

@@ -9,7 +9,10 @@ export const NOTE_METRONOME_UP = 35
 
 export type ClockNowResp = { nowMs: number }
 export type ClockOriginResp = { originMs: number }
-export type ClockOpts = { bpm: number }
+export type ClockOpts = {
+	bpm: number
+	clientId?: number
+}
 
 export const clockNowReq = () => WS_CLOCK_NOW + WS_HEADER_END
 export const clockUpdateReq = (clk: ClockOpts) => WS_CLOCK_UPDATE + WS_HEADER_END + JSON.stringify(clk)

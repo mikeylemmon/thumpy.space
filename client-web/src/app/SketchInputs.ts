@@ -129,6 +129,7 @@ export class SketchInputs {
 			const off = parseFloat(inOffset.value())
 			if (!Number.isNaN(off)) {
 				this.parent.updateUser({ offset: off })
+				this.parent.loops.updateRecOffset(off)
 			}
 		}
 		inOffset.input(() => {
@@ -212,6 +213,7 @@ export class SketchInputs {
 		inBPM.input(() => {
 			// console.log('[SketchInputs #setupInputsBPM] Changed:', inBPM.value())
 			this.clockOpts.bpm = inBPM.value()
+			this.clockOpts.clientId = this.parent.user.clientId
 			this.sendClockUpdate(this.clockOpts)
 		})
 		inBPM.elt.onfocus = () => (inBPM.focused = true)
@@ -258,7 +260,11 @@ export class SketchInputs {
 					const prec = Math.abs(this.parent.ws.clock.precisionNow)
 					const xp = input.x + input.width
 					pp.textAlign(pp.RIGHT, pp.BOTTOM)
-					if (prec < 1) {
+					if (!this.parent.ws.ready()) {
+						pp.fill(255, 0, 0)
+						pp.text(`NO CONNECTION TO SERVER`, xp, yy)
+						pp.fill(255)
+					} else if (prec < 1) {
 						pp.text(`Clock precision: ${(prec * 1000).toFixed(0)}µs`, xp, yy)
 					} else if (prec < 10) {
 						pp.text(`Clock precision: ${prec.toFixed(1)}ms`, xp, yy)
