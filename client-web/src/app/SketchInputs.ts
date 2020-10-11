@@ -16,6 +16,8 @@ export class SketchInputs {
 		offset?: any
 		bpm?: any
 		hide?: any
+		hideLoops?: any
+		hideDial?: any
 	} = {}
 	hidden = false
 	clockOpts: ClockOpts = {
@@ -75,10 +77,33 @@ export class SketchInputs {
 		if (this.inputs.hide) {
 			this.inputs.hide.remove()
 		}
-		const inHide = pp.createButton(this.hidden ? 'Show Settings' : 'Hide Settings') as any
-		inHide.position(pp.width - inHide.width - 50, pp.height - inHide.height - 10)
-		inHide.mousePressed(this.toggleHide)
-		this.inputs.hide = inHide
+		if (this.inputs.hideLoops) {
+			this.inputs.hideLoops.remove()
+		}
+		if (this.inputs.hideDial) {
+			this.inputs.hideDial.remove()
+		}
+		const { loops } = this.parent
+		this.inputs.hide = pp.createButton(this.hidden ? 'Show Settings' : 'Hide Settings') as any
+		this.inputs.hideLoops = pp.createButton(loops.toggleHideText()) as any
+		this.inputs.hideDial = pp.createButton(loops.toggleHideDialText()) as any
+		const { hide, hideLoops, hideDial } = this.inputs
+		let xx = pp.width - hideLoops.width - 50
+		const yy = pp.height - hideLoops.height - 10
+		hideLoops.position(xx, yy)
+		hideLoops.mousePressed(() => {
+			loops.toggleHide()
+			hideLoops.elt.innerHTML = loops.toggleHideText()
+		})
+		xx -= 130
+		hideDial.position(xx, yy)
+		hideDial.mousePressed(() => {
+			loops.toggleHideDial()
+			hideDial.elt.innerHTML = loops.toggleHideDialText()
+		})
+		xx -= 110
+		hide.position(xx, yy)
+		hide.mousePressed(this.toggleHide)
 	}
 
 	setupInputsUser = (clientId: number): any => {
@@ -209,7 +234,7 @@ export class SketchInputs {
 		}
 		const inBPM = this.pp.createSlider(30, 200, this.clockOpts.bpm) as any
 		inBPM.position(20, this.pp.height - 40)
-		inBPM.size(this.pp.width / 2)
+		inBPM.size(300)
 		inBPM.input(() => {
 			// console.log('[SketchInputs #setupInputsBPM] Changed:', inBPM.value())
 			this.clockOpts.bpm = inBPM.value()
@@ -229,9 +254,6 @@ export class SketchInputs {
 		pp.textAlign(pp.LEFT, pp.BOTTOM)
 		pp.textStyle(pp.BOLD)
 		for (const key in this.inputs) {
-			if (key === 'hide') {
-				continue
-			}
 			const input = (this.inputs as any)[key]
 			if (!input) {
 				continue
@@ -239,6 +261,10 @@ export class SketchInputs {
 			const xx = input.x + 3
 			const yy = input.y - 5
 			switch (true) {
+				case key === 'hide':
+				case key === 'hideLoops':
+				case key === 'hideDial':
+					continue
 				case key === 'offset':
 					const off = parseFloat(input.value())
 					let msg = ``

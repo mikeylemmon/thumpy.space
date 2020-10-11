@@ -223,6 +223,7 @@ export default class Sketch {
 
 	mousePressed = (pp: p5) => {
 		if (this.started) {
+			this.loops.mousePressed(pp)
 			return
 		}
 		this.started = true
@@ -239,7 +240,14 @@ export default class Sketch {
 		}
 		if (evt.keyCode === KEYCODE_ESC) {
 			// ESC pressed, clear loops
-			this.loops.clearAllEvents()
+			if (evt.keyIsDown(KEYCODE_SHIFT)) {
+				this.loops.clearAll()
+			} else {
+				this.loops.clearActiveLoop()
+			}
+		}
+		if (evt.key === 'm') {
+			this.loops.toggleActiveLoopMute()
 		}
 	}
 	keyReleased = (evt: p5) => {
