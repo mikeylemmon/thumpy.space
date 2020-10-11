@@ -20,7 +20,7 @@ import { EasyCam } from 'vendor/p5.easycam.js'
 import { engine3d, Avatar, Ground, Vec } from 'engine3d'
 import { SketchInputs } from './SketchInputs'
 import { SketchAudioKeys } from './SketchAudioKeys'
-import { Loop, Loops } from './Loop'
+import { Loops } from './Loop'
 const KEYCODE_ESC = 27
 const KEYCODE_SHIFT = 16
 
@@ -86,6 +86,7 @@ export default class Sketch {
 			onClientId: (clientId: number) => {
 				this.user.clientId = clientId
 				this.inputs.setupInputsUser(clientId)
+				this.loops.updateClientId(clientId)
 				this.sendUserXform(this.avatar.getUserXform())
 				this.sendUserRequestXforms()
 			},

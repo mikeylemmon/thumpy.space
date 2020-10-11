@@ -1,8 +1,10 @@
 import * as p5 from 'p5'
 import { UserEvent } from './serverApi/serverApi'
 import Sketch from './Sketch'
+import seedrandom from 'seedrandom'
 
 const KEYCODE_SHIFT = 16
+const BLACK_KEYS = [1, 3, 6, 8, 10]
 
 export type LoopOpts = {
 	beats: number
@@ -28,6 +30,10 @@ export class Loop {
 	isDial = false
 	isRecording = false
 	isMuted = false
+	pgControls?: p5.Graphics
+	pgNotes?: p5.Graphics
+	needsRenderControls = false
+	needsRenderNotes = false
 
 	constructor(opts: LoopOpts) {
 		this.opts = opts
@@ -35,6 +41,20 @@ export class Loop {
 			this.isDial = true
 		} else {
 			this.isActive = true
+		}
+	}
+
+	setRadius = (rad: number) => {
+		if (rad === this.opts.radius) {
+			return
+		}
+		this.opts.radius = rad
+		// redraw notes and controls
+		if (this.pgControls) {
+			this.needsRenderControls = true
+		}
+		if (this.pgNotes) {
+			this.needsRenderNotes = true
 		}
 	}
 
@@ -70,6 +90,12 @@ export class Loop {
 				console.warn('[Loop #loopUserEvent] No attack event found for release', levt)
 			}
 		}
+		if (kind === 'controlchange' || kind === 'pitchbend') {
+			this.needsRenderControls = true
+		}
+		if (kind === 'noteon' || kind === 'noteoff') {
+			this.needsRenderNotes = true
+		}
 		this.evts.push(levt)
 	}
 
@@ -78,12 +104,35 @@ export class Loop {
 		this.evts = this.evts.filter(ee => ee.evt.midiEvent.kind !== 'noteon' || ee.release)
 	}
 
+	updateClientId = (clientId: number) => {
+		this.evts.forEach(ee => (ee.evt.clientId = clientId))
+	}
+
 	attackEvents = () => this.evts.filter(ee => ee.evt.midiEvent.kind === 'noteon')
 	releaseEvents = () => this.evts.filter(ee => ee.evt.midiEvent.kind === 'noteoff')
+	controlEvents = () =>
+		this.evts.filter(
+			ee => ee.evt.midiEvent.kind === 'controlchange' || ee.evt.midiEvent.kind === 'pitchbend',
+		)
+	sortByLoopTime = (evts: LoopEvent[]) =>
+		evts.sort((aa: LoopEvent, bb: LoopEvent) => (aa.loopTime > bb.loopTime ? 1 : -1))
+	groupByController = (evts: LoopEvent[]) => {
+		const resp: { [key: number]: LoopEvent[] } = {}
+		for (const le of evts) {
+			const { controller } = le.evt.midiEvent
+			const ctrl = controller ? controller.number : 0
+			if (!resp[ctrl]) {
+				resp[ctrl] = []
+			}
+			resp[ctrl].push(le)
+		}
+		return resp
+	}
 	filterNote = (evts: LoopEvent[], note: number) => evts.filter(ee => ee.evt.midiEvent.note === note)
 
 	releaseAll = () => {
 		// Trigger any releases
+		// TODO: only release notes that are unreleased
 		const { sketch } = this.opts
 		const now = sketch.nowMs()
 		const recOff = sketch.offsetMs()
@@ -99,6 +148,13 @@ export class Loop {
 		this.releaseAll()
 		// Remove all loop events
 		this.evts = []
+		// Update note and control graphics
+		if (this.pgControls) {
+			this.needsRenderControls = true
+		}
+		if (this.pgNotes) {
+			this.needsRenderNotes = true
+		}
 	}
 
 	update = () => {
@@ -209,25 +265,53 @@ export class Loop {
 
 	// drawEvents draws an arc stroke for every note
 	drawEvents = (pp: p5) => {
-		const modNotes = 12
-		const { radius } = this.opts
-		pp.noFill()
-		pp.strokeWeight(radius / modNotes)
-		pp.colorMode(pp.HSL, 1)
-		for (const { loopTime, evt, release } of this.attackEvents()) {
-			let relTime = this.headRec
-			if (release) {
-				relTime = release.loopTime
-			}
-			const { note, attack } = evt.midiEvent
-			const rad = radius * (0.3 + (0.7 * (note % modNotes)) / modNotes)
-			const hue = (note % 12) / 12
-			let sat = attack ? 1 - attack : 0.5
-			sat = 1 - sat * sat
-			pp.stroke(hue, sat, 0.35)
-			this.drawArc(pp, rad, relTime, loopTime)
+		if (this.isDial) {
+			return
 		}
-		pp.colorMode(pp.RGB, 255)
+		this.drawControls(pp)
+		this.drawNotes(pp)
+	}
+
+	drawControls = (pp: p5) => {
+		const { radius } = this.opts
+		if (this.needsRenderControls) {
+			this.needsRenderControls = false
+			if (!this.pgControls) {
+				this.pgControls = pp.createGraphics(radius * 2, radius * 2)
+			}
+			// Stash the x and y coords and override with center of graphics
+			const [tmpx, tmpy] = [this.xx, this.yy]
+			this.xx = radius
+			this.yy = radius
+			this.renderControls()
+			this.xx = tmpx
+			this.yy = tmpy
+		}
+		if (this.pgControls) {
+			pp.image(this.pgControls, this.xx - radius, this.yy - radius)
+		}
+	}
+
+	drawNotes = (pp: p5) => {
+		const { radius } = this.opts
+		if (this.needsRenderNotes) {
+			this.needsRenderNotes = false
+			if (!this.pgNotes) {
+				this.pgNotes = pp.createGraphics(radius * 2, radius * 2)
+			}
+			const [tmpx, tmpy] = [this.xx, this.yy]
+			this.xx = radius
+			this.yy = radius
+			this.renderNotes()
+			this.xx = tmpx
+			this.yy = tmpy
+		}
+		if (this.pgNotes) {
+			pp.image(this.pgNotes, this.xx - radius, this.yy - radius)
+		}
+		if (this.isRecording) {
+			this._drawNotes(pp, true) // draw any unreleased notes
+		}
 	}
 
 	drawLine = (pp: p5, rad: number, loopTime: number) => {
@@ -241,6 +325,70 @@ export class Loop {
 		const theta = Math.PI * (2 * loopTime - 0.5)
 		const from = Math.PI * (2 * fromTime - 0.5)
 		pp.arc(this.xx, this.yy, rad * 2, rad * 2, from, theta)
+	}
+
+	renderControls = () => {
+		if (!this.pgControls) {
+			return
+		}
+		const pg = this.pgControls
+		pg.clear()
+		const cevts = this.groupByController(this.sortByLoopTime(this.controlEvents()))
+		if (!Object.keys(cevts).length) {
+			return
+		}
+		const { radius } = this.opts
+		pg.strokeWeight(2).noFill()
+		pg.colorMode(pg.HSL, 1)
+		for (const ctrl in cevts) {
+			const hue = seedrandom(ctrl).quick()
+			const sat = 0.8
+			const len = cevts[ctrl].length
+			for (let ii = 0; ii < len; ii++) {
+				const { loopTime, evt } = cevts[ctrl][ii]
+				const nextEvtIdx = ii === len - 1 ? 0 : ii + 1
+				const { loopTime: nextTime } = cevts[ctrl][nextEvtIdx]
+				const { kind, value } = evt.midiEvent
+				const isPitchbend = kind === 'pitchbend'
+				const vv = isPitchbend ? value / 2 + 0.5 : value
+				const rad = radius * (0.3 + 0.7 * vv)
+				pg.stroke(hue, sat, 0.4)
+				this.drawArc(pg, rad, nextTime, loopTime)
+			}
+		}
+	}
+
+	renderNotes = () => {
+		if (!this.pgNotes) {
+			return
+		}
+		this.pgNotes.clear()
+		this._drawNotes(this.pgNotes)
+	}
+
+	_drawNotes = (pp: p5, unreleasedOnly = false) => {
+		const modNotes = 12
+		const { radius } = this.opts
+		pp.strokeWeight(radius / modNotes).noFill()
+		pp.colorMode(pp.HSL, 1)
+		for (const { loopTime, evt, release } of this.attackEvents()) {
+			const { note, attack } = evt.midiEvent
+			let relTime = this.headRec
+			if (release) {
+				if (unreleasedOnly) {
+					continue
+				}
+				relTime = release.loopTime
+			}
+			const rad = radius * (0.3 + (0.7 * (note % modNotes)) / modNotes)
+			const nn = note % 12
+			let hue = BLACK_KEYS.includes(nn) ? 0.5 + nn / 24 : nn / 25
+			let sat = attack ? 1 - attack : 0.5
+			sat = 1 - sat * sat
+			pp.stroke(hue, sat, 0.4)
+			this.drawArc(pp, rad, relTime, loopTime)
+		}
+		pp.colorMode(pp.RGB, 255)
 	}
 
 	timeGlobalToLoop = (tt: number) => {
@@ -287,6 +435,9 @@ export type LoopsOpts = {
 	recOffset: number
 }
 
+const radBig = 50
+const radSmall = 35
+
 export class Loops {
 	sketch: Sketch
 	dial: Loop
@@ -303,13 +454,13 @@ export class Loops {
 		this.sketch = opts.sketch
 		this.dial = new Loop({
 			beats: this.dialBeats(opts.recOffset),
-			radius: 50,
+			radius: radBig,
 			sketch: opts.sketch,
 			isDial: true,
 		})
 		this.activeLoop = new Loop({
 			beats: 8,
-			radius: 50,
+			radius: radBig,
 			sketch: opts.sketch,
 		})
 		this.loops.push(this.activeLoop)
@@ -334,11 +485,11 @@ export class Loops {
 		const { loopLen, newLoopBtn } = this.inputs
 
 		// Draw active loop
-		let rad = 50
+		let rad = radBig
 		let yy = rad + 20
 		let xx = pp.width - 20
 		if (!hidden) {
-			activeLoop.opts.radius = rad
+			activeLoop.setRadius(rad)
 			activeLoop.isRecording = pp.keyIsDown(KEYCODE_SHIFT)
 			xx -= rad + 20
 			activeLoop.draw(pp, xx, yy)
@@ -368,11 +519,11 @@ export class Loops {
 		yy = newLoopBtn.y + newLoopBtn.elt.offsetHeight + 20
 
 		const othersTop = yy
-		rad = 35
+		rad = radSmall
 		xx = pp.width - rad - 20
 		for (const ll of this.inactiveLoops()) {
 			ll.isActive = false
-			ll.opts.radius = 35
+			ll.setRadius(radSmall)
 			yy += rad
 			ll.draw(pp, xx, yy)
 			yy += rad + 20
@@ -415,6 +566,10 @@ export class Loops {
 		this.activeLoop.clearAllEvents()
 	}
 
+	updateClientId = (clientId: number) => {
+		this.loops.forEach(ll => ll.updateClientId(clientId))
+	}
+
 	toggleActiveLoopMute = () => {
 		const al = this.activeLoop
 		al.isMuted = !al.isMuted
@@ -435,7 +590,7 @@ export class Loops {
 	addLoop = () => {
 		this.activeLoop = new Loop({
 			beats: this.inputs.loopLen.value(),
-			radius: 50,
+			radius: radBig,
 			sketch: this.sketch,
 		})
 		this.loops.push(this.activeLoop)
