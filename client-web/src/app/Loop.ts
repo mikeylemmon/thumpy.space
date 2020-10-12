@@ -2,9 +2,7 @@ import * as p5 from 'p5'
 import { UserEvent } from './serverApi/serverApi'
 import Sketch from './Sketch'
 import seedrandom from 'seedrandom'
-
-const KEYCODE_SHIFT = 16
-const BLACK_KEYS = [1, 3, 6, 8, 10]
+import { KEYCODE_SHIFT, BLACK_KEYS } from './constants'
 
 export type LoopOpts = {
 	beats: number

@@ -227,9 +227,11 @@ export class PolySynth extends Instrument {
 			for (const oo of objs) {
 				oo.xform.scale.applyMult(0.6)
 			}
-			pos.x = avatar.xform.pos.x
-			pos.y = avatar.xform.pos.y
-			pos.z = avatar.xform.pos.z
+			const { pos: apos, scale: ascale } = avatar.xform
+			const theta = Math.random() * Math.PI * 2
+			pos.x = apos.x + ascale.x * 5 * Math.sin(theta)
+			pos.y = apos.y
+			pos.z = apos.z + ascale.x * 5 * Math.cos(theta)
 		}
 		this.lastPos[clientId] = pos
 		const rot = new Vec(

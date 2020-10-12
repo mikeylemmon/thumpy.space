@@ -15,14 +15,12 @@ import {
 import MIDI, { MidiEvent, MidiEventCC, MidiEventNote, MidiEventPitchbend } from './MIDI'
 import { Instrument } from './Instrument'
 import { Dancer, EightOhEight, Metronome, Piano, PolySynth } from './instruments'
-import VisualNotes from './VisualNotes'
 import { EasyCam } from 'vendor/p5.easycam.js'
 import { engine3d, Avatar, Ground, Vec } from 'engine3d'
 import { SketchInputs } from './SketchInputs'
 import { SketchAudioKeys } from './SketchAudioKeys'
 import { Loops } from './Loop'
-const KEYCODE_ESC = 27
-const KEYCODE_SHIFT = 16
+import { KEYCODE_ESC, KEYCODE_SHIFT } from './constants'
 
 type Instruments = { [key: string]: Instrument }
 
@@ -35,7 +33,6 @@ const newAvatarPos = () => {
 export default class Sketch {
 	width: number = 0
 	height: number = 0
-	visualNotes: VisualNotes = new VisualNotes()
 	started: boolean = false
 	syncing: boolean = true
 	instruments: Instruments
@@ -119,7 +116,7 @@ export default class Sketch {
 		this.avatar = new Avatar({
 			user: this.user,
 			pos: newAvatarPos(),
-			scale: new Vec(40),
+			scale: new Vec(30),
 			phys: { worldScale },
 			onForce: this.sendUserXform,
 		})
@@ -171,14 +168,13 @@ export default class Sketch {
 		pp.createCanvas(this.width, this.height)
 		this.pg = pp.createGraphics(this.width, this.height, 'webgl')
 		this.cam = new EasyCam((this.pg as any)._renderer, { distance: 800 })
-		this.cam.setDistanceMin(1)
+		this.cam.setDistanceMin(40)
 		this.cam.setDistanceMax(3000)
-		this.cam.rotateX(Math.PI / 6)
+		this.cam.rotateX(-Math.PI / 6)
 		this.cam.attachMouseListeners((pp as any)._renderer)
 		this.cam.setViewport([0, 0, this.width, this.height])
-		this.cam.rotateY(Math.PI)
 		this.cam.rotateZ(Math.PI)
-		;(this.cam.state as any).center[2] = 40
+		// ;(this.cam.state as any).center[2] = 40
 		this.avatar.addFollowCam(this.cam)
 		this.inputs.setup(pp)
 	}
@@ -196,12 +192,13 @@ export default class Sketch {
 		pp.colorMode(pp.HSL, 1)
 		pp.background(this.bgCol.hue, this.bgCol.sat, this.bgCol.lgt)
 		pp.colorMode(pp.RGB, 255)
-		if (this.pg) {
-			// Draw notes to separate graphics canvas
-			this.visualNotes.draw(pp, this.pg)
-			engine3d.draw(this.pg)
-			pp.image(this.pg, 0, 0)
-			engine3d.draw2D(pp, this.pg)
+		const { pg } = this
+		if (pg) {
+			pg.perspective(Math.PI / 3, pg.width / pg.height, 1, 10000)
+			pg.clear()
+			engine3d.draw(pg)
+			pp.image(pg, 0, 0)
+			engine3d.draw2D(pp, pg)
 		}
 		this.inputs.draw(pp)
 		this.loops.draw(pp)

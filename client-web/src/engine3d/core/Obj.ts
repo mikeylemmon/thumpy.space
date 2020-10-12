@@ -66,6 +66,7 @@ export class Obj {
 
 	addChild = (obj: Obj) => {
 		engine3d.rmObj(obj, false) // remove Obj from root hierarchy
+		obj.parent = this
 		this.children.push(obj)
 	}
 	rmChild = (obj: Obj) => {

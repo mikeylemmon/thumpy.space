@@ -14,11 +14,13 @@ export class Dancer extends Instrument {
 
 	lr = -1
 	noteon = (avatar: Avatar, time: number, evt: MidiEventNote) => {
-		avatar.dancer.moves.dipOn(time, evt.attack)
+		// avatar.dancer.moves.dipOn(time, evt.attack)
+		avatar.dancer.moves.noteEvent(time, evt)
 	}
 
 	noteoff = (avatar: Avatar, time: number, evt: MidiEventNote) => {
-		avatar.dancer.moves.dipOff(time)
+		// avatar.dancer.moves.dipOff(time)
+		avatar.dancer.moves.noteEvent(time, evt)
 	}
 
 	// controlchange = (avatar: Avatar, time: number, evt: MidiEventCC) => {
