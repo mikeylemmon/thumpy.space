@@ -3,6 +3,7 @@ import { EasyCam } from 'vendor/p5.easycam.js'
 import { User, UserForce, UserXform } from 'app/serverApi/serverApi'
 import { Obj, ObjOpts, Vec } from '../core'
 import { Physical, PhysicalOpts, FollowCam } from '../components'
+import { DancerObj } from './DancerObj'
 
 type KeyMovement = {
 	up: boolean
@@ -27,6 +28,7 @@ export class Avatar extends Obj {
 	user: User
 	followCam?: FollowCam
 	onForce?: forceFunc
+	dancer: DancerObj
 
 	keys: KeyMovement = {
 		up: false,
@@ -44,12 +46,8 @@ export class Avatar extends Obj {
 		this.phys = new Physical(this, opts.phys)
 		this.comps = [this.phys]
 		this.onForce = opts.onForce
-		if (!this.drawFunc) {
-			this.drawFunc = this.render
-		}
-		if (!this.drawFunc2D) {
-			this.drawFunc2D = this.render2D
-		}
+		this.dancer = new DancerObj()
+		this.addChild(this.dancer)
 		console.log('[Avatar] ctor', this)
 	}
 
@@ -61,28 +59,7 @@ export class Avatar extends Obj {
 		}
 	}
 
-	draw(pg: p5.Graphics) {
-		super.draw(pg) // applys xform and calls this.render
-		// draw shadow
-		const { pos, scale } = this.xform
-		pg.push()
-		pg.fill(30)
-		pg.noStroke()
-		pg.translate(pos.x, 0, pos.z)
-		pg.scale(scale.x, 0, scale.z)
-		pg.rotateX(Math.PI/2)
-		pg.circle(0, 0, 2)
-		pg.pop()
-	}
-
-	render = (pg: p5.Graphics) => {
-		pg.fill(0)
-		pg.stroke(255)
-		pg.strokeWeight(2)
-		pg.sphere(1, 7, 7)
-	}
-
-	render2D = (pp: p5, pos: Vec, scale: number) => {
+	drawFunc2D = (pp: p5, pos: Vec, scale: number) => {
 		const { name, instrument, offset } = this.user
 		if (scale < 15) {
 			return
@@ -92,7 +69,7 @@ export class Avatar extends Obj {
 		pp.textAlign(pp.CENTER, pp.BOTTOM)
 		pp.fill(255)
 		pp.noStroke()
-		pp.textSize(ss/2)
+		pp.textSize(ss / 2)
 		pp.textStyle(pp.BOLD)
 		if (scale < 35) {
 			pp.text(name, 0, -ss * 0.8)
@@ -193,5 +170,4 @@ export class Avatar extends Obj {
 	// userUpdated = () => {
 	// 	console.log('[Avatar #userUpdated]', this.user.name)
 	// }
-
 }

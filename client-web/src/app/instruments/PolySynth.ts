@@ -5,7 +5,7 @@ import { Instrument } from '../Instrument'
 import { noteFreq } from './util'
 import { engine3d, Avatar, Obj, ObjOpts, Vec } from 'engine3d'
 
-export type SynthObjOpts = ObjOpts & {
+type SynthObjOpts = ObjOpts & {
 	noteEvt: MidiEventNote
 }
 

@@ -14,7 +14,7 @@ import {
 } from './serverApi/serverApi'
 import MIDI, { MidiEvent, MidiEventCC, MidiEventNote, MidiEventPitchbend } from './MIDI'
 import { Instrument } from './Instrument'
-import { EightOhEight, Metronome, Piano, PolySynth } from './instruments'
+import { Dancer, EightOhEight, Metronome, Piano, PolySynth } from './instruments'
 import VisualNotes from './VisualNotes'
 import { EasyCam } from 'vendor/p5.easycam.js'
 import { engine3d, Avatar, Ground, Vec } from 'engine3d'
@@ -48,7 +48,7 @@ export default class Sketch {
 	user: User = {
 		clientId: 0,
 		name: '',
-		instrument: 'synth',
+		instrument: 'dancer',
 		inputDevice: 'keyboard',
 		offset: 2,
 	}
@@ -105,6 +105,7 @@ export default class Sketch {
 			onUserRequestXforms: () => this.sendUserXform(this.avatar.getUserXform()),
 		})
 		this.instruments = {
+			dancer: new Dancer(),
 			synth: new PolySynth(),
 			eightOhEight: new EightOhEight(this),
 			piano: new Piano(),
@@ -236,9 +237,10 @@ export default class Sketch {
 		return this.inputs.isFocused() // Ignore keyboard if inputs are focused
 	}
 	keyPressed = (evt: p5) => {
-		if (!this.keyboardInputDisabled()) {
-			this.avatar.keyPressed(evt)
+		if (this.keyboardInputDisabled()) {
+			return
 		}
+		this.avatar.keyPressed(evt)
 		if (evt.keyCode === KEYCODE_ESC) {
 			// ESC pressed, clear loops
 			if (evt.keyIsDown(KEYCODE_SHIFT)) {
@@ -252,10 +254,12 @@ export default class Sketch {
 		}
 	}
 	keyReleased = (evt: p5) => {
-		if (!this.keyboardInputDisabled()) {
-			this.avatar.keyReleased(evt)
+		if (this.keyboardInputDisabled()) {
+			return
 		}
+		this.avatar.keyReleased(evt)
 		if (evt.keyCode === KEYCODE_SHIFT) {
+			// Stopped recording to loop, cleanup any dangling notes
 			this.loops.sanitizeEvents()
 		}
 	}
@@ -454,9 +458,7 @@ export default class Sketch {
 		if (!this.transportStarted && note === NOTE_METRONOME_DOWN) {
 			console.log(`[Sketch #onUserEvent] Downbeat synced with server. BPM:`, this._bpmNext)
 			this.transportStarted = true
-			this._bpm = this._bpmNext
-			this.downbeat = this.timeToneToGlobal(time)
-			this.inputs.onClockUpdate({ bpm: this._bpm, clientId: 0 })
+			this.setNewDownbeat(time)
 			return
 		}
 		if (note !== NOTE_METRONOME_BPM_CHANGED) {
@@ -469,10 +471,15 @@ export default class Sketch {
 		)
 		Tone.Draw.schedule(() => {
 			console.log(`[Sketch #onUserEvent] BPM updated:`, this._bpmNext)
-			this.downbeat = this.timeToneToGlobal(time)
-			this._bpm = this._bpmNext
-			this.inputs.onClockUpdate({ bpm: this._bpm, clientId: 0 })
+			this.setNewDownbeat(time)
 		}, time)
+	}
+
+	setNewDownbeat = (toneTime: number) => {
+		this.downbeat = this.timeToneToGlobal(toneTime)
+		this._bpm = this._bpmNext
+		this.inputs.onClockUpdate({ bpm: this._bpm, clientId: 0 })
+		Tone.Transport.bpm.value = this._bpm
 	}
 
 	onUsers = (users: User[]) => {

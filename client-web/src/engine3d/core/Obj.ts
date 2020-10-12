@@ -8,24 +8,34 @@ export type drawFunc = (pg: p5.Graphics) => void
 export type drawFunc2D = (pp: p5, pos: Vec, scale: number) => void
 
 export type ObjOpts = {
+	parent?: Obj
+	children?: Obj[]
 	comps?: Component[]
 	pos?: Vec
 	rot?: Vec
 	scale?: Vec
 	draw?: drawFunc
+	drawShadow?: drawFunc
 	draw2D?: drawFunc2D
 }
 
 export class Obj {
+	children: Obj[] = []
 	comps: Component[] = []
 	xform: Xform = new Xform()
+	parent?: Obj
 	drawFunc?: drawFunc
+	drawShadowFunc?: drawFunc
 	drawFunc2D?: drawFunc2D
 
-	constructor(opts: ObjOpts) {
+	constructor(opts: ObjOpts = {}) {
 		// console.log('[Obj] ctor', this)
 		this.drawFunc = opts.draw
 		this.drawFunc2D = opts.draw2D
+		this.parent = opts.parent
+		if (opts.children) {
+			this.children = opts.children
+		}
 		if (opts.comps) {
 			this.comps = opts.comps
 		}
@@ -43,16 +53,37 @@ export class Obj {
 
 	destroy = () => {
 		this.comps.forEach(cc => cc.destroy())
+		this.children.forEach(cc => cc.destroy())
 		// console.log('[Obj] destroyed')
 	}
 	rm = () => {
-		engine3d.rmObj(this)
+		if (this.parent) {
+			this.parent.rmChild(this)
+		} else {
+			engine3d.rmObj(this)
+		}
 	}
+
+	addChild = (obj: Obj) => {
+		engine3d.rmObj(obj, false) // remove Obj from root hierarchy
+		this.children.push(obj)
+	}
+	rmChild = (obj: Obj) => {
+		this.children = this.children.filter(cc => {
+			if (cc === obj) {
+				cc.destroy()
+				return false
+			}
+			return true
+		})
+	}
+	getChildren = (objType: any) => this.children.filter(oo => oo instanceof objType)
+	getChild = (objType: any): Obj | undefined => this.getChildren(objType)[0]
 
 	addComp = (comp: Component) => {
 		this.comps.push(comp)
 	}
-	rmComponent = (comp: Component) => {
+	rmComp = (comp: Component) => {
 		this.comps = this.comps.filter(cc => {
 			if (cc === comp) {
 				cc.destroy()
@@ -62,16 +93,11 @@ export class Obj {
 		})
 	}
 	getComps = (compType: any) => this.comps.filter(cc => cc instanceof compType)
-	getComp = (compType: any): Component | null => {
-		const cs = this.getComps(compType)
-		if (cs.length) {
-			return cs[0]
-		}
-		return null
-	}
+	getComp = (compType: any): Component | undefined => this.getComps(compType)[0]
 
 	update(dt: number) {
 		this.comps.forEach(cc => cc.update(dt))
+		this.children.forEach(cc => cc.update(dt))
 	}
 
 	draw(pg: p5.Graphics) {
@@ -80,6 +106,21 @@ export class Obj {
 		if (this.drawFunc) {
 			this.drawFunc(pg)
 		}
+		this.children.forEach(cc => cc.draw(pg))
+		pg.pop()
+	}
+
+	drawShadow(pg: p5.Graphics) {
+		// Similar to draw, but xformed to ground plane
+		pg.push()
+		const { pos, rot, scale } = this.xform
+		pg.translate(pos.x, 0, pos.z)
+		if (rot.y !== 0) pg.rotateY(rot.y)
+		pg.scale(scale.x, 1, scale.z)
+		if (this.drawShadowFunc) {
+			this.drawShadowFunc(pg)
+		}
+		this.children.forEach(cc => cc.drawShadow(pg))
 		pg.pop()
 	}
 
@@ -100,8 +141,8 @@ export class Obj {
 		const ndcPos3 = pos.cloneAdd(scale.cloneMult(new Vec(1, -1, -1))).cloneMultMat(mvp)
 		const ndcPos4 = pos.cloneAdd(scale.cloneMult(new Vec(-1, -1, 1))).cloneMultMat(mvp)
 		for (const ndc of [ndcPos, ndcPos2, ndcPos3, ndcPos4]) {
-			ndc.x = (ndc.x + 1) * pp.width / 2
-			ndc.y = (1 - ndc.y) * pp.height / 2
+			ndc.x = ((ndc.x + 1) * pp.width) / 2
+			ndc.y = ((1 - ndc.y) * pp.height) / 2
 			ndc.z = 0
 		}
 		const scale2d = Math.max(
@@ -112,6 +153,7 @@ export class Obj {
 		pp.push()
 		this.drawFunc2D(pp, ndcPos, scale2d)
 		pp.pop()
+		this.children.forEach(cc => cc.draw2D(pp, pg, mvp))
 	}
 
 	drawDebug = (pg: p5.Graphics) => {

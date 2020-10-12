@@ -382,7 +382,7 @@ export class Loop {
 			}
 			const rad = radius * (0.3 + (0.7 * (note % modNotes)) / modNotes)
 			const nn = note % 12
-			let hue = BLACK_KEYS.includes(nn) ? 0.5 + nn / 24 : nn / 25
+			let hue = BLACK_KEYS.includes(nn) ? 0.5 + nn / 36 : nn / 36
 			let sat = attack ? 1 - attack : 0.5
 			sat = 1 - sat * sat
 			pp.stroke(hue, sat, 0.4)
