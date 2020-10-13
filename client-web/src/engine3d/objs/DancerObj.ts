@@ -89,12 +89,17 @@ const sizes = {
 	head: new Vec(0.25),
 }
 
+const defaultArmsRot = () => ({
+	upper: new Vec(0, Math.PI * 0.4, Math.PI * 1.1),
+	lower: new Vec(Math.PI * 0.1, 0, 0),
+})
+
 export class DancerObj extends Obj {
 	moves: DanceMoves
 	rotHead = new Vec()
 	rotArms = {
-		l: { upper: new Vec(), lower: new Vec() },
-		r: { upper: new Vec(), lower: new Vec() },
+		l: defaultArmsRot(),
+		r: defaultArmsRot(),
 	}
 	stepLeftRight = 0
 

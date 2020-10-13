@@ -37,7 +37,7 @@ export class Avatar extends Obj {
 		right: false,
 		jump: false,
 		jumpInitial: false,
-		gain: 150,
+		gain: 100,
 	}
 
 	constructor(opts: AvatarOpts) {
@@ -62,7 +62,7 @@ export class Avatar extends Obj {
 	drawFunc2D = (pp: p5, pos: Vec, scale: number) => {
 		const { name, instrument, offset } = this.user
 		if (scale < 15) {
-			return
+			return // avatar is very small on screen, so no text
 		}
 		const ss = Math.min(scale, 50)
 		const sss = Math.min(scale, 200)
@@ -76,16 +76,11 @@ export class Avatar extends Obj {
 			pp.text(name, 0, -ss * 0.8)
 			return
 		} else {
-			// pp.text(name, 0, -ss * 1.1)
-			// pp.text(name, -scale * 0.5, -ss * 1.1)
 			pp.text(name, 0, -sss * 0.8)
 		}
 		pp.fill(225)
 		pp.textSize(ss * 0.3)
 		pp.textStyle(pp.ITALIC)
-		// pp.text(`${instrument} (@${offset > 0 ? '+' : ''}${offset})`, 0, -ss * 0.75)
-		// pp.text(`${instrument} (@${offset > 0 ? '+' : ''}${offset})`, -scale * 1.1, ss * 0.3)
-		// pp.text(`${instrument} (@${offset > 0 ? '+' : ''}${offset})`, -scale * 0.5, -ss * 0.75)
 		pp.text(`${instrument} (@${offset > 0 ? '+' : ''}${offset})`, 0, -sss * 0.8 + ss * 0.35)
 	}
 
@@ -150,7 +145,7 @@ export class Avatar extends Obj {
 		const { up, down, left, right, jump, jumpInitial, gain } = this.keys
 		const mov = new Vec()
 		mov.x = left && right ? 0 : left ? -gain : right ? gain : 0
-		mov.y = jumpInitial && this.xform.pos.y < this.xform.scale.y * 1.5 ? gain * 2 : jump ? 6 : 0
+		mov.y = jumpInitial && this.xform.pos.y < this.xform.scale.y * 1.5 ? gain * 3 : jump ? 6 : 0
 		mov.z = down && up ? 0 : up ? gain : down ? -gain : 0
 		if (!this.followCam) {
 			// Can't determine camera orientation, apply force in world-space
@@ -162,24 +157,18 @@ export class Avatar extends Obj {
 		}
 		// Convert movement vector to force based on camera orientation
 		const ca = this.followCam.cam.centerAxes() // X=screen-right Z=screen-up, parallel to ground plane
-		// const cax = new Vec(ca.x[0], ca.x[1], ca.x[2])
-		// const caz = new Vec(ca.z[0], ca.z[1], ca.z[2])
 		const cax = new Vec(ca.x[0], 0, ca.x[2])
 		const caz = new Vec(ca.z[0], 0, ca.z[2])
 		const ff = new Vec(0, mov.y, 0)
 		ff.applyAdd(cax.applyMult(mov.x))
 		ff.applyAdd(caz.applyMult(mov.z))
-		this.phys.force = ff.clone()
+		this.phys.force = ff
 		if (ff.x !== 0 || ff.z !== 0) {
-			ff.normalize()
+			// Orient avatar to movement direction
 			this.xform.rot.y = Math.atan2(ff.x, ff.z)
 		}
 		if (this.onForce) {
 			this.onForce(this.getUserXform())
 		}
 	}
-
-	// userUpdated = () => {
-	// 	console.log('[Avatar #userUpdated]', this.user.name)
-	// }
 }

@@ -19,7 +19,7 @@ import { EasyCam } from 'vendor/p5.easycam.js'
 import { engine3d, Avatar, Ground, Vec } from 'engine3d'
 import { SketchInputs } from './SketchInputs'
 import { SketchAudioKeys } from './SketchAudioKeys'
-import { Loops } from './Loop'
+import { Loops } from './Loops'
 import { KEYCODE_ESC, KEYCODE_SHIFT } from './constants'
 
 type Instruments = { [key: string]: Instrument }
@@ -27,7 +27,7 @@ type Instruments = { [key: string]: Instrument }
 const worldScale = 1000
 const newAvatarPos = () => {
 	const rr = () => Math.random() * 1.8 - 0.9
-	return new Vec(rr() * worldScale, 100, rr() * worldScale)
+	return new Vec(rr() * worldScale, 31, rr() * worldScale)
 }
 
 export default class Sketch {
@@ -60,18 +60,22 @@ export default class Sketch {
 		sat: 0,
 		lgt: 0.2,
 	}
-	loops = new Loops({
-		sketch: this,
-		recOffset: this.user.offset,
-	})
+	loops: Loops
 	downbeat = 0 // Tone time of the first downbeat
 	transportStarted = false
 	_bpm = 95
 	_bpmNext = 95
+	localStorage: Storage
 
-	constructor(_global: any) {
+	constructor(global: any) {
 		console.log('[Sketch #ctor]')
-		this.inputs = new SketchInputs(this)
+		this.localStorage = global.localStorage
+		const didLoad = this.loadFromStorage()
+		this.inputs = new SketchInputs(this, didLoad)
+		this.loops = new Loops({
+			sketch: this,
+			recOffset: this.user.offset,
+		})
 		this.ws = new WSClient(window, {
 			clock: {
 				onSynced: () => {
@@ -84,6 +88,7 @@ export default class Sketch {
 				this.user.clientId = clientId
 				this.inputs.setupInputsUser(clientId)
 				this.loops.updateClientId(clientId)
+				this.sendUserUpdate()
 				this.sendUserXform(this.avatar.getUserXform())
 				this.sendUserRequestXforms()
 			},
@@ -120,11 +125,18 @@ export default class Sketch {
 			phys: { worldScale },
 			onForce: this.sendUserXform,
 		})
-		// Tone.Destination.chain(
-		// 	new Tone.Reverb({ decay: 4, wet: 0.6 }),
-		// )
 		window.Tone = Tone
 		window.me = this
+	}
+
+	loadFromStorage = () => {
+		const ustr = this.localStorage.getItem('user')
+		if (!ustr || ustr === ``) {
+			console.error('No stored user')
+			return false
+		}
+		this.user = JSON.parse(ustr)
+		return true
 	}
 
 	destroy = () => {
@@ -167,14 +179,13 @@ export default class Sketch {
 		console.log(`[Sketch #setup] ${this.width} x ${this.height}`)
 		pp.createCanvas(this.width, this.height)
 		this.pg = pp.createGraphics(this.width, this.height, 'webgl')
-		this.cam = new EasyCam((this.pg as any)._renderer, { distance: 800 })
+		this.cam = new EasyCam((this.pg as any)._renderer, { distance: 100 })
 		this.cam.setDistanceMin(40)
 		this.cam.setDistanceMax(3000)
-		this.cam.rotateX(-Math.PI / 6)
+		this.cam.rotateX(-Math.PI / 8)
 		this.cam.attachMouseListeners((pp as any)._renderer)
 		this.cam.setViewport([0, 0, this.width, this.height])
 		this.cam.rotateZ(Math.PI)
-		// ;(this.cam.state as any).center[2] = 40
 		this.avatar.addFollowCam(this.cam)
 		this.inputs.setup(pp)
 	}
@@ -206,8 +217,8 @@ export default class Sketch {
 			this.drawMessage(pp, 'Loading instruments...')
 		} else if (this.syncing) {
 			this.drawMessage(pp, 'Syncing clock with server...')
-		} else if (!this.started) {
-			this.drawMessage(pp, 'Click to enable audio')
+			// } else if (!this.started) {
+			// 	this.drawMessage(pp, 'Click to enable audio')
 		}
 	}
 
@@ -221,13 +232,12 @@ export default class Sketch {
 	}
 
 	mousePressed = (pp: p5) => {
-		if (this.started) {
-			this.loops.mousePressed(pp)
-			return
+		if (!this.started) {
+			this.started = true
+			Tone.start()
+			console.log('[Sketch #mousePressed] Started Tone')
 		}
-		this.started = true
-		Tone.start()
-		console.log('[Sketch #mousePressed] Started Tone')
+		this.loops.mousePressed(pp)
 	}
 
 	keyboardInputDisabled = () => {
@@ -257,12 +267,13 @@ export default class Sketch {
 		this.avatar.keyReleased(evt)
 		if (evt.keyCode === KEYCODE_SHIFT) {
 			// Stopped recording to loop, cleanup any dangling notes
-			this.loops.sanitizeEvents()
+			this.loops.stopRecording()
 		}
 	}
 
 	updateUser = (uu: Partial<User>, sendUpdate: boolean = true) => {
 		this.user = Object.assign(this.user, uu)
+		this.localStorage.setItem('user', JSON.stringify(this.user))
 		if (sendUpdate) {
 			this.sendUserUpdate()
 		}
@@ -411,8 +422,11 @@ export default class Sketch {
 			return // don't handle metronome events until clock has synced
 		}
 		const tt = this.timeGlobalToTone(timestamp)
+		if (tt < 0) {
+			return // Negative tone time, probably just
+		}
 		if (tt - Tone.immediate() < -1) {
-			console.warn(`[Sketch #onUserEvent] Received event ${Tone.immediate() - tt} seconds late`)
+			console.log(`[Sketch #onUserEvent] Received event ${Tone.immediate() - tt} seconds late`)
 			return
 		}
 		const avatar = this.getAvatarSafe(clientId)

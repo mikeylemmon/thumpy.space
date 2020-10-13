@@ -24,8 +24,9 @@ export class SketchInputs {
 		bpm: 95,
 	}
 
-	constructor(parent: Sketch) {
+	constructor(parent: Sketch, loadedFromStorage = false) {
 		this.parent = parent
+		this.nameCustomized = loadedFromStorage
 	}
 
 	bpm = () => (this.inputs.bpm ? this.inputs.bpm.value() : this.clockOpts.bpm)
@@ -142,8 +143,9 @@ export class SketchInputs {
 		})
 		inName.elt.onfocus = () => (inName.focused = true)
 		inName.elt.onblur = () => (inName.focused = false)
-		inName.elt.focus()
-		inName.elt.select()
+		// // Uncomment to select name field on load:
+		// inName.elt.focus()
+		// inName.elt.select()
 		this.inputs.name = inName
 		this.parent.updateUser({ name: inName.value() }, false)
 

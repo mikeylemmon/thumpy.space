@@ -1,24 +1,37 @@
 import * as p5 from 'p5'
+import { v4 as uuid } from 'uuid'
 import { UserEvent } from './serverApi/serverApi'
 import Sketch from './Sketch'
 import seedrandom from 'seedrandom'
-import { KEYCODE_SHIFT, BLACK_KEYS } from './constants'
+import { BLACK_KEYS } from './constants'
+
+export const radBig = 50
+export const radSmall = 35
+
+type LoopEvent = {
+	evt: UserEvent
+	loopTime: number // normalized 0-1 to loop duration
+	release?: LoopEvent // reference to release for attack events
+}
+
+type LoopData = {
+	id: string
+	beats: number
+	evts: LoopEvent[]
+	isMuted: boolean
+}
 
 export type LoopOpts = {
+	id?: string
 	beats: number
 	radius: number
 	sketch: Sketch
 	isDial?: boolean
 }
 
-type LoopEvent = {
-	evt: UserEvent
-	loopTime: number // normalized 0-1 to loop duration
-	release?: LoopEvent
-}
-
 export class Loop {
 	opts: LoopOpts
+	id: string
 	xx = 0
 	yy = 0
 	evts: LoopEvent[] = []
@@ -28,18 +41,57 @@ export class Loop {
 	isDial = false
 	isRecording = false
 	isMuted = false
+	loaded = false
 	pgControls?: p5.Graphics
 	pgNotes?: p5.Graphics
 	needsRenderControls = false
 	needsRenderNotes = false
+	// data: LoopData
 
 	constructor(opts: LoopOpts) {
 		this.opts = opts
+		if (opts.id) {
+			this.id = opts.id
+			if (this.load()) {
+				console.log(`[Loop #ctor] Loaded loop ${opts.id} from local storage`)
+				this.needsRenderControls = true
+				this.needsRenderNotes = true
+				return // loaded loop from local storage
+			} else {
+				console.error(`[Loop #ctor] Failed to load loop ${opts.id} from local storage`)
+			}
+		} else {
+			this.id = uuid()
+		}
 		if (opts.isDial) {
 			this.isDial = true
 		} else {
 			this.isActive = true
 		}
+	}
+
+	save = () => {
+		const { id, isMuted, evts, opts } = this
+		const { beats, sketch } = opts
+		const data = { id, beats, evts, isMuted }
+		sketch.localStorage.setItem(id, JSON.stringify(data))
+		// console.log(`[Loop #save] Saved loop ${id} to local storage`)
+	}
+
+	load = () => {
+		const { id, opts } = this
+		const { sketch } = opts
+		const dataStr = sketch.localStorage.getItem(id)
+		if (!dataStr || dataStr === '') {
+			this.loaded = false
+			return false
+		}
+		const data = JSON.parse(dataStr) as LoopData
+		opts.beats = data.beats
+		this.evts = data.evts
+		this.isMuted = data.isMuted
+		this.loaded = true
+		return true
 	}
 
 	setRadius = (rad: number) => {
@@ -87,6 +139,8 @@ export class Loop {
 			} else {
 				console.warn('[Loop #loopUserEvent] No attack event found for release', levt)
 			}
+			this.needsRenderNotes = true
+			return
 		}
 		if (kind === 'controlchange' || kind === 'pitchbend') {
 			this.needsRenderControls = true
@@ -103,7 +157,12 @@ export class Loop {
 	}
 
 	updateClientId = (clientId: number) => {
-		this.evts.forEach(ee => (ee.evt.clientId = clientId))
+		for (const le of this.evts) {
+			le.evt.clientId = clientId
+			if (le.release) {
+				le.release.evt.clientId = clientId
+			}
+		}
 	}
 
 	attackEvents = () => this.evts.filter(ee => ee.evt.midiEvent.kind === 'noteon')
@@ -128,24 +187,10 @@ export class Loop {
 	}
 	filterNote = (evts: LoopEvent[], note: number) => evts.filter(ee => ee.evt.midiEvent.note === note)
 
-	releaseAll = () => {
-		// Trigger any releases
-		// TODO: only release notes that are unreleased
-		const { sketch } = this.opts
-		const now = sketch.nowMs()
-		const recOff = sketch.offsetMs()
-		for (const le of this.releaseEvents()) {
-			sketch._sendUserEvent({
-				...le.evt,
-				timestamp: now + recOff,
-			})
-		}
-	}
-
 	clearAllEvents = () => {
-		this.releaseAll()
 		// Remove all loop events
 		this.evts = []
+		this.save()
 		// Update note and control graphics
 		if (this.pgControls) {
 			this.needsRenderControls = true
@@ -173,7 +218,7 @@ export class Loop {
 
 		// Trigger looped events if an offset boundary was crossed
 		for (const levt of this.evts) {
-			const { evt, loopTime } = levt
+			const { evt, loopTime, release } = levt
 			let lt = loopTime
 			if (evt.timestamp > now - sketch.beatMs() / 2) {
 				continue // don't trigger the first event since it is sent directly
@@ -190,6 +235,16 @@ export class Loop {
 					...levt.evt,
 					timestamp: this.timeLoopNormToGlobal(now + recOff, lt),
 				})
+				if (release) {
+					let after = release.loopTime - loopTime
+					if (after <= 0) {
+						after += 1
+					}
+					sketch._sendUserEvent({
+						...release.evt,
+						timestamp: this.timeLoopNormToGlobal(now + recOff, lt + after),
+					})
+				}
 			}
 		}
 	}
@@ -250,8 +305,12 @@ export class Loop {
 			}
 		}
 
-		pp.stroke(0, 200, 0).strokeWeight(3)
-		if (!isMuted) {
+		if (isActive || !isMuted) {
+			if (isMuted) {
+				pp.stroke(100).strokeWeight(3)
+			} else {
+				pp.stroke(0, 200, 0).strokeWeight(3)
+			}
 			this.drawLine(pp, radius, headPlay)
 		}
 		if (isDial || isActive) {
@@ -275,7 +334,7 @@ export class Loop {
 		if (this.needsRenderControls) {
 			this.needsRenderControls = false
 			if (!this.pgControls) {
-				this.pgControls = pp.createGraphics(radius * 2, radius * 2)
+				this.pgControls = pp.createGraphics(radBig * 2, radBig * 2)
 			}
 			// Stash the x and y coords and override with center of graphics
 			const [tmpx, tmpy] = [this.xx, this.yy]
@@ -295,7 +354,7 @@ export class Loop {
 		if (this.needsRenderNotes) {
 			this.needsRenderNotes = false
 			if (!this.pgNotes) {
-				this.pgNotes = pp.createGraphics(radius * 2, radius * 2)
+				this.pgNotes = pp.createGraphics(radBig * 2, radBig * 2)
 			}
 			const [tmpx, tmpy] = [this.xx, this.yy]
 			this.xx = radius
@@ -425,191 +484,5 @@ export class Loop {
 			return false
 		}
 		return true
-	}
-}
-
-export type LoopsOpts = {
-	sketch: Sketch
-	recOffset: number
-}
-
-const radBig = 50
-const radSmall = 35
-
-export class Loops {
-	sketch: Sketch
-	dial: Loop
-	loops: Loop[] = []
-	activeLoop: Loop
-	inputs: {
-		loopLen?: any
-		newLoopBtn?: any
-	} = {}
-	hidden = false
-	hiddenDial = false
-
-	constructor(opts: LoopsOpts) {
-		this.sketch = opts.sketch
-		this.dial = new Loop({
-			beats: this.dialBeats(opts.recOffset),
-			radius: radBig,
-			sketch: opts.sketch,
-			isDial: true,
-		})
-		this.activeLoop = new Loop({
-			beats: 8,
-			radius: radBig,
-			sketch: opts.sketch,
-		})
-		this.loops.push(this.activeLoop)
-	}
-
-	update = () => {
-		this.dial.update()
-		this.loops.forEach(ll => ll.update())
-	}
-
-	draw = (pp: p5) => {
-		const { activeLoop, didSetup, hidden, hiddenDial } = this
-		if (hidden) {
-			if (didSetup) {
-				this.inputs.loopLen.remove()
-				this.inputs.newLoopBtn.remove()
-				this.didSetup = false
-			}
-		} else if (!didSetup) {
-			this.setupInputs(pp)
-		}
-		const { loopLen, newLoopBtn } = this.inputs
-
-		// Draw active loop
-		let rad = radBig
-		let yy = rad + 20
-		let xx = pp.width - 20
-		if (!hidden) {
-			activeLoop.setRadius(rad)
-			activeLoop.isRecording = pp.keyIsDown(KEYCODE_SHIFT)
-			xx -= rad + 20
-			activeLoop.draw(pp, xx, yy)
-			pp.fill(210).stroke(0).strokeWeight(1)
-			pp.textSize(14).textAlign(pp.CENTER, pp.TOP)
-			pp.text(`Active loop: ${loopLen.value()} beats`, xx, yy + rad + 10)
-			loopLen.position(xx - 60, yy + rad + 30)
-			const btnHalfwidth = Math.max(48, Math.floor(newLoopBtn.elt.offsetWidth / 2))
-			newLoopBtn.position(xx - btnHalfwidth, yy + rad + 60)
-			xx -= rad + 20
-		}
-
-		if (!hiddenDial) {
-			// Draw metronome dial
-			rad = this.dial.opts.radius
-			xx -= rad + 20
-			this.dial.draw(pp, xx, yy)
-			pp.fill(210).stroke(0).strokeWeight(1)
-			pp.textSize(14).textAlign(pp.CENTER, pp.TOP)
-			pp.text('Metronome', xx, yy + rad + 10)
-		}
-
-		if (hidden) {
-			return
-		}
-
-		yy = newLoopBtn.y + newLoopBtn.elt.offsetHeight + 20
-
-		const othersTop = yy
-		rad = radSmall
-		xx = pp.width - rad - 20
-		for (const ll of this.inactiveLoops()) {
-			ll.isActive = false
-			ll.setRadius(radSmall)
-			yy += rad
-			ll.draw(pp, xx, yy)
-			yy += rad + 20
-			if (yy > pp.height - rad * 3) {
-				yy = othersTop
-				xx -= rad * 2 + 20
-			}
-		}
-	}
-
-	didSetup = false
-	setupInputs = (pp: p5) => {
-		this.didSetup = true
-		this.inputs.loopLen = pp.createSlider(1, 64, this.activeLoop.opts.beats) as any
-		this.inputs.newLoopBtn = pp.createButton('Add new loop') as any
-		const { loopLen, newLoopBtn } = this.inputs
-		loopLen.size(120)
-		loopLen.input(() => {
-			this.activeLoop.releaseAll()
-			this.activeLoop.opts.beats = loopLen.value()
-		})
-		newLoopBtn.mousePressed(this.addLoop)
-	}
-
-	dialBeats = (recOffset: number) => 4 * Math.ceil((recOffset + 1) / 4)
-
-	updateRecOffset = (off: number) => {
-		this.dial.opts.beats = this.dialBeats(off)
-	}
-
-	loopUserEvent = (evt: UserEvent) => {
-		this.activeLoop.loopUserEvent(evt)
-	}
-
-	clearAll = () => {
-		this.loops.forEach(ll => ll.clearAllEvents())
-	}
-
-	clearActiveLoop = () => {
-		this.activeLoop.clearAllEvents()
-	}
-
-	updateClientId = (clientId: number) => {
-		this.loops.forEach(ll => ll.updateClientId(clientId))
-	}
-
-	toggleActiveLoopMute = () => {
-		const al = this.activeLoop
-		al.isMuted = !al.isMuted
-		if (al.isMuted) {
-			al.releaseAll()
-		}
-	}
-
-	toggleHide = () => (this.hidden = !this.hidden)
-	toggleHideText = () => (this.hidden ? 'Show Loops' : 'Hide Loops')
-	toggleHideDial = () => (this.hiddenDial = !this.hiddenDial)
-	toggleHideDialText = () => (this.hiddenDial ? 'Show Metronome' : 'Hide Metronome')
-
-	sanitizeEvents = () => {
-		this.loops.forEach(ll => ll.sanitizeEvents())
-	}
-
-	addLoop = () => {
-		this.activeLoop = new Loop({
-			beats: this.inputs.loopLen.value(),
-			radius: radBig,
-			sketch: this.sketch,
-		})
-		this.loops.push(this.activeLoop)
-	}
-
-	inactiveLoops = () => this.loops.filter(ll => ll !== this.activeLoop)
-
-	mousePressed = (pp: p5) => {
-		for (const loop of this.inactiveLoops()) {
-			if (loop.hitTest(pp.mouseX, pp.mouseY)) {
-				if (pp.keyIsDown(KEYCODE_SHIFT)) {
-					// Remove loop
-					this.loops = this.loops.filter(ll => ll !== loop)
-					return
-				}
-				this.inputs.loopLen.value(loop.opts.beats)
-				this.activeLoop.isActive = false
-				this.activeLoop = loop
-				loop.isActive = true
-				return
-			}
-		}
 	}
 }
