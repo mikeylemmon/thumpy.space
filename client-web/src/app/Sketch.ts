@@ -20,7 +20,6 @@ import { engine3d, Avatar, Ground, Vec } from 'engine3d'
 import { SketchInputs } from './SketchInputs'
 import { SketchAudioKeys } from './SketchAudioKeys'
 import { Loops } from './Loops'
-import { KEYCODE_ESC, KEYCODE_SHIFT } from './constants'
 
 type Instruments = { [key: string]: Instrument }
 
@@ -253,27 +252,14 @@ export default class Sketch {
 			return
 		}
 		this.avatar.keyPressed(evt)
-		if (evt.keyCode === KEYCODE_ESC) {
-			// ESC pressed, clear loops
-			if (evt.keyIsDown(KEYCODE_SHIFT)) {
-				this.loops.clearAll()
-			} else {
-				this.loops.clearActiveLoop()
-			}
-		}
-		if (evt.key === 'm') {
-			this.loops.toggleActiveLoopMute()
-		}
+		this.loops.keyPressed(evt)
 	}
 	keyReleased = (evt: p5) => {
 		if (this.keyboardInputDisabled()) {
 			return
 		}
 		this.avatar.keyReleased(evt)
-		if (evt.keyCode === KEYCODE_SHIFT) {
-			// Stopped recording to loop, cleanup any dangling notes
-			this.loops.stopRecording()
-		}
+		this.loops.keyReleased(evt)
 	}
 
 	updateUser = (uu: Partial<User>, sendUpdate: boolean = true) => {
@@ -358,6 +344,11 @@ export default class Sketch {
 				case 19: // master mute (local only)
 					Tone.Destination.mute = !evt.value
 					return
+				case 117: // record lock (local only)
+					if (evt.value) {
+						this.loops.recLock = !this.loops.recLock
+					}
+					return
 				case 18:
 				case 78:
 					instName = 'metronome'
@@ -394,8 +385,7 @@ export default class Sketch {
 			midiEvent: evt,
 			timestamp: this.nowMs() + off,
 		}
-		const shiftKeyDown = this.pp && this.pp.keyIsDown(KEYCODE_SHIFT)
-		if (shiftKeyDown) {
+		if (this.loops.isRecording(this.pp)) {
 			this.loops.loopUserEvent(uevt)
 		}
 		this._sendUserEvent(uevt)

@@ -108,7 +108,7 @@ export default class WSClient {
 				break
 			case WS_USERS_ALL:
 				this.users = parseUsersAll(body).filter(uu => !!uu)
-				console.log('[WSClient #onMessage] Received users', this.users)
+				// console.log('[WSClient #onMessage] Received users', this.users)
 				this.options.onUsers(this.users)
 				break
 			case WS_USER_EVENT: {

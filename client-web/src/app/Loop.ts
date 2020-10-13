@@ -263,12 +263,12 @@ export class Loop {
 			if (this.recStartedAt === null) {
 				this.recStartedAt = this.headRec
 			}
-			pp.fill(30).stroke(255, 0, 0).strokeWeight(2)
+			pp.fill(30).stroke(255, 0, 0).strokeWeight(4)
 		} else {
 			this.recStartedAt = null
 			pp.fill(30).stroke(0).strokeWeight(2)
 		}
-		pp.circle(this.xx, this.yy, radius * 2)
+		pp.circle(this.xx, this.yy, radius * 2 + (isRecording ? 2 : 0))
 
 		// Draw a line for every beat
 		for (let ii = 0; ii < beats; ii++) {

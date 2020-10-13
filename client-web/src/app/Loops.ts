@@ -1,7 +1,7 @@
 import * as p5 from 'p5'
 import { UserEvent } from './serverApi/serverApi'
 import Sketch from './Sketch'
-import { KEYCODE_SHIFT } from './constants'
+import { KEYCODE_BACKSPACE, KEYCODE_DELETE, KEYCODE_SHIFT, KEYCODE_ENTER, KEYCODE_RETURN } from './constants'
 import { radBig, radSmall, Loop } from './Loop'
 
 type LoopsOpts = {
@@ -18,6 +18,7 @@ export class Loops {
 		loopLen?: any
 		newLoopBtn?: any
 	} = {}
+	recLock = false
 	hidden = false
 	hiddenDial = false
 
@@ -32,11 +33,6 @@ export class Loops {
 		this.activeLoop = this.load()
 	}
 
-	saveAll = () => {
-		this.saveLoopRefs()
-		this.loops.forEach(ll => ll.save())
-		console.log('[Loops #save] Saved all loops to local storage')
-	}
 	saveLoopRefs = () => {
 		const store = this.sketch.localStorage
 		store.setItem('activeLoop', this.activeLoop.id)
@@ -55,6 +51,7 @@ export class Loops {
 			for (const lid of lids) {
 				const loop = new Loop({ id: lid, ...defaultParams })
 				if (loop.loaded) {
+					// loop loaded successfully from local storage, add to loops
 					this.loops.push(loop)
 					if (lid === aid) {
 						activeLoop = loop
@@ -96,7 +93,7 @@ export class Loops {
 		if (!hidden) {
 			activeLoop.isActive = true
 			activeLoop.setRadius(rad)
-			activeLoop.isRecording = pp.keyIsDown(KEYCODE_SHIFT)
+			activeLoop.isRecording = this.isRecording(pp)
 			xx -= rad + 20
 			activeLoop.draw(pp, xx, yy)
 			pp.fill(210).stroke(0).strokeWeight(1)
@@ -225,5 +222,36 @@ export class Loops {
 		if (didHit) {
 			this.saveLoopRefs()
 		}
+	}
+
+	keyPressed = (evt: p5) => {
+		if (evt.keyCode === KEYCODE_BACKSPACE || evt.keyCode === KEYCODE_DELETE) {
+			// Clear events from active loop, or all loops if Shift is being pressed
+			if (evt.keyIsDown(KEYCODE_SHIFT)) {
+				this.clearAll()
+			} else {
+				this.clearActiveLoop()
+			}
+		}
+		if (evt.keyCode === KEYCODE_ENTER || evt.keyCode === KEYCODE_RETURN) {
+			this.recLock = !this.recLock
+			if (!this.recLock) {
+				this.stopRecording()
+			}
+		}
+		if (evt.key === '\\' || evt.key === '|') {
+			this.toggleActiveLoopMute()
+		}
+	}
+
+	keyReleased = (evt: p5) => {
+		if (evt.keyCode === KEYCODE_SHIFT) {
+			// Stopped recording to loop, cleanup any dangling notes
+			this.stopRecording()
+		}
+	}
+
+	isRecording = (pp?: p5): boolean => {
+		return this.recLock || (!!pp && pp.keyIsDown(KEYCODE_SHIFT))
 	}
 }

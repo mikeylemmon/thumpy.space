@@ -23,6 +23,7 @@ export default class WSClock {
 	syncInitial = 0
 	serverOrigin = 0
 	precisionNow = 0
+	pingMs = 0
 	syncPeriod = SYNC_PERIOD_INITIAL_MS
 	synced = false
 	options: Partial<WSClockOptions>
@@ -72,6 +73,7 @@ export default class WSClock {
 		}
 		this.lastRespAt = this.nowRaw()
 		const dur = this.lastRespAt - this.lastReqAt
+		this.pingMs = dur
 		const mid = dur / 2 + this.lastReqAt
 		const delta = nowMs - mid
 		if (this.correction === 0) {

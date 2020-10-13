@@ -4,6 +4,17 @@ import { clockUpdateReq, ClockOpts } from './serverApi/serverClock'
 
 const userInputsY = 40
 
+function msToString(ms: number) {
+	if (ms < 0.001) {
+		return `${(ms * 1000).toFixed(1)}µs`
+	} else if (ms < 1) {
+		return `${(ms * 1000).toFixed(0)}µs`
+	} else if (ms < 10) {
+		return `${ms.toFixed(1)}ms`
+	}
+	return `${ms.toFixed(0)}ms`
+}
+
 export class SketchInputs {
 	parent: Sketch
 	pp?: p5
@@ -145,7 +156,6 @@ export class SketchInputs {
 	}
 
 	setupInputsUser = (clientId: number): any => {
-		console.log('[SketchInputs #setupInputsUser] clientId', clientId)
 		const uu = this.parent.user
 		const defaultName = this.nameCustomized ? uu.name : `User ${this.parent.ws.clientId}`
 		if (this.hidden) {
@@ -174,7 +184,7 @@ export class SketchInputs {
 		inName.size(80)
 		inName.position(20, userInputsY)
 		inName.input(() => {
-			console.log('[SketchInputs #inputs.name] Changed:', inName.value())
+			// console.log('[SketchInputs #inputs.name] Changed:', inName.value())
 			this.nameCustomized = true
 			this.parent.updateUser({ name: inName.value() })
 		})
@@ -224,7 +234,6 @@ export class SketchInputs {
 			}
 		}
 		inInst.changed(() => {
-			console.log('[SketchInputs #inputs.instrument] Changed:', inInst.value())
 			this.parent.updateUser({ instrument: inInst.value() })
 		})
 		inInst.elt.onfocus = () => (inInst.focused = true)
@@ -255,7 +264,6 @@ export class SketchInputs {
 		}
 		inMidi.selected(this.parent.user.inputDevice)
 		inMidi.changed(() => {
-			console.log('[SketchInputs #setupInputsMidi] Changed:', inMidi.value())
 			this.parent.updateUser({ inputDevice: inMidi.value() })
 		})
 		inMidi.elt.onfocus = () => (inMidi.focused = true)
@@ -275,7 +283,6 @@ export class SketchInputs {
 		inBPM.position(20, this.pp.height - 40)
 		inBPM.size(300)
 		inBPM.input(() => {
-			// console.log('[SketchInputs #setupInputsBPM] Changed:', inBPM.value())
 			this.clockOpts.bpm = inBPM.value()
 			this.clockOpts.clientId = this.parent.user.clientId
 			this.sendClockUpdate(this.clockOpts)
@@ -329,20 +336,19 @@ export class SketchInputs {
 					break
 				case key === 'bpm':
 					const prec = Math.abs(this.parent.ws.clock.precisionNow)
+					const ping = msToString(this.parent.ws.clock.pingMs)
 					const xp = input.x + input.width
 					pp.textAlign(pp.RIGHT, pp.BOTTOM)
 					if (!this.parent.ws.ready()) {
-						pp.fill(255, 0, 0)
+						pp.fill(255, 50, 50)
 						pp.text(`NO CONNECTION TO SERVER`, xp, yy)
 						pp.fill(255)
-					} else if (prec < 1) {
-						pp.text(`Clock precision: ${(prec * 1000).toFixed(0)}µs`, xp, yy)
-					} else if (prec < 10) {
-						pp.text(`Clock precision: ${prec.toFixed(1)}ms`, xp, yy)
-					} else {
-						pp.fill(255, 0, 0)
-						pp.text(`Clock precision: ${prec.toFixed(0)}ms`, xp, yy)
+					} else if (prec >= 10) {
+						pp.fill(255, 50, 50)
+						pp.text(`Clock precision: ${msToString(prec)}  |  ping: ${ping}`, xp, yy)
 						pp.fill(255)
+					} else {
+						pp.text(`Clock precision: ${msToString(prec)}  |  ping: ${ping}`, xp, yy)
 					}
 					pp.textAlign(pp.LEFT, pp.BOTTOM)
 				// fallthrough
