@@ -5,7 +5,7 @@ import { Instrument } from '../Instrument'
 import { noteFreq } from './util'
 import { engine3d, Avatar, Obj, ObjOpts, Vec } from 'engine3d'
 
-export type SynthObjOpts = ObjOpts & {
+type SynthObjOpts = ObjOpts & {
 	noteEvt: MidiEventNote
 }
 
@@ -128,13 +128,12 @@ export class PolySynth extends Instrument {
 
 	noteoff = (_avatar: Avatar, time: number, evt: MidiEventNote) => {
 		const freq = noteFreq(evt.note)
-		this.synth.triggerRelease(noteFreq(evt.note), time)
+		// this.synth.triggerRelease(freq, time) // sometimes fails to release
 		// Tone.PolySynth can leave voices dangling, so manually release all voices matching this note
 		Tone.Draw.schedule(() => {
 			for (const vv of (this.synth as any)._activeVoices) {
 				if (!vv.released && vv.midi === freq) {
-					// console.log('Releasing voice', vv.released, evt.note, delta)
-					vv.voice.triggerRelease(Tone.now())
+					vv.voice.triggerRelease(Tone.immediate())
 				}
 			}
 		}, `+${time - Tone.immediate()}`)
@@ -147,7 +146,7 @@ export class PolySynth extends Instrument {
 			case num === 1:
 				delayed = () => {
 					const vv = evt.value * evt.value
-					this.filter.set({ frequency: 20 + 10000 * vv })
+					this.filter.frequency.rampTo(20 + 10000 * vv, 0.005)
 					this.modwheel = evt.value
 				}
 				break
@@ -212,21 +211,29 @@ export class PolySynth extends Instrument {
 		this.synth.set({ detune: 100 * this.ps * this.psSpread })
 	}
 
+	lastPos: { [key: number]: Vec } = {}
 	addSynthObj = (avatar: Avatar, evt: MidiEventNote) => {
 		// Create obj for note
 		const objSize = 100
 		const { objs, maxObjs } = this
+		const { clientId } = avatar.user
 		let pos = avatar.xform.pos
-		if (objs.length) {
-			pos = objs[0].xform.pos
+		if (this.lastPos[clientId]) {
+			pos = this.lastPos[clientId]
 		}
 		const off = new Vec(srand(), Math.random(), srand()).applyMult(objSize * 0.6)
 		pos = pos.cloneAdd(off)
-		if (this.ii++ % 8 === 0) {
-			pos.x = avatar.xform.pos.x
-			pos.y = avatar.xform.pos.y
-			pos.z = avatar.xform.pos.z
+		if (this.ii++ % 8 === 0 || pos.y > 1000) {
+			for (const oo of objs) {
+				oo.xform.scale.applyMult(0.6)
+			}
+			const { pos: apos, scale: ascale } = avatar.xform
+			const theta = Math.random() * Math.PI * 2
+			pos.x = apos.x + ascale.x * 5 * Math.sin(theta)
+			pos.y = apos.y
+			pos.z = apos.z + ascale.x * 5 * Math.cos(theta)
 		}
+		this.lastPos[clientId] = pos
 		const rot = new Vec(
 			Math.random() * Math.PI * 2,
 			Math.random() * Math.PI * 2,

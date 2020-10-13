@@ -1,7 +1,7 @@
 import * as p5 from 'p5'
 import * as Tone from 'tone'
 import WSClient, { DONT_REOPEN } from './serverApi/WSClient'
-import { NOTE_METRONOME_DOWN } from './serverApi/serverClock'
+import { ClockOpts, NOTE_METRONOME_BPM_CHANGED, NOTE_METRONOME_DOWN } from './serverApi/serverClock'
 import {
 	userEventReq,
 	userUpdateReq,
@@ -14,25 +14,25 @@ import {
 } from './serverApi/serverApi'
 import MIDI, { MidiEvent, MidiEventCC, MidiEventNote, MidiEventPitchbend } from './MIDI'
 import { Instrument } from './Instrument'
-import { EightOhEight, Metronome, Piano, PolySynth } from './instruments'
-import VisualNotes from './VisualNotes'
+import { Dancer, EightOhEight, Metronome, Piano, PolySynth } from './instruments'
 import { EasyCam } from 'vendor/p5.easycam.js'
 import { engine3d, Avatar, Ground, Vec } from 'engine3d'
 import { SketchInputs } from './SketchInputs'
 import { SketchAudioKeys } from './SketchAudioKeys'
+import { Loops } from './Loops'
+import { KEYCODE_ESC, KEYCODE_SHIFT } from './constants'
 
 type Instruments = { [key: string]: Instrument }
 
 const worldScale = 1000
 const newAvatarPos = () => {
 	const rr = () => Math.random() * 1.8 - 0.9
-	return new Vec(rr() * worldScale, 100, rr() * worldScale)
+	return new Vec(rr() * worldScale, 31, rr() * worldScale)
 }
 
 export default class Sketch {
 	width: number = 0
 	height: number = 0
-	visualNotes: VisualNotes = new VisualNotes()
 	started: boolean = false
 	syncing: boolean = true
 	instruments: Instruments
@@ -45,7 +45,7 @@ export default class Sketch {
 	user: User = {
 		clientId: 0,
 		name: '',
-		instrument: 'synth',
+		instrument: 'dancer',
 		inputDevice: 'keyboard',
 		offset: 2,
 	}
@@ -60,25 +60,46 @@ export default class Sketch {
 		sat: 0,
 		lgt: 0.2,
 	}
-	loops: number[] = []
+	loops: Loops
+	downbeat = 0 // Tone time of the first downbeat
+	transportStarted = false
+	_bpm = 95
+	_bpmNext = 95
+	localStorage: Storage
 
-	constructor(_global: any) {
+	constructor(global: any) {
 		console.log('[Sketch #ctor]')
-		this.inputs = new SketchInputs(this)
+		this.localStorage = global.localStorage
+		const didLoad = this.loadFromStorage()
+		this.inputs = new SketchInputs(this, didLoad)
+		this.loops = new Loops({
+			sketch: this,
+			recOffset: this.user.offset,
+		})
 		this.ws = new WSClient(window, {
 			clock: {
 				onSynced: () => {
 					this.syncing = false
+					this.transportStarted = false
 					this.inputs.setupInputsBPM()
 				},
 			},
 			onClientId: (clientId: number) => {
 				this.user.clientId = clientId
 				this.inputs.setupInputsUser(clientId)
+				this.loops.updateClientId(clientId)
+				this.sendUserUpdate()
 				this.sendUserXform(this.avatar.getUserXform())
 				this.sendUserRequestXforms()
 			},
-			onClockUpdate: this.inputs.onClockUpdate,
+			onClockUpdate: (clkOpts: ClockOpts) => {
+				if (clkOpts.clientId === 0) {
+					// Clock update came from server, use to set BPM on next downbeat
+					this._bpmNext = clkOpts.bpm
+				} else {
+					this.inputs.onClockUpdate(clkOpts)
+				}
+			},
 			onUsers: this.onUsers,
 			onUserEvent: this.onUserEvent,
 			onUserForce: this.onUserForce,
@@ -86,6 +107,7 @@ export default class Sketch {
 			onUserRequestXforms: () => this.sendUserXform(this.avatar.getUserXform()),
 		})
 		this.instruments = {
+			dancer: new Dancer(),
 			synth: new PolySynth(),
 			eightOhEight: new EightOhEight(this),
 			piano: new Piano(),
@@ -99,15 +121,22 @@ export default class Sketch {
 		this.avatar = new Avatar({
 			user: this.user,
 			pos: newAvatarPos(),
-			scale: new Vec(40),
+			scale: new Vec(30),
 			phys: { worldScale },
 			onForce: this.sendUserXform,
 		})
-		// Tone.Destination.chain(
-		// 	new Tone.Reverb({ decay: 4, wet: 0.6 }),
-		// )
 		window.Tone = Tone
 		window.me = this
+	}
+
+	loadFromStorage = () => {
+		const ustr = this.localStorage.getItem('user')
+		if (!ustr || ustr === ``) {
+			console.error('No stored user')
+			return false
+		}
+		this.user = JSON.parse(ustr)
+		return true
 	}
 
 	destroy = () => {
@@ -150,20 +179,19 @@ export default class Sketch {
 		console.log(`[Sketch #setup] ${this.width} x ${this.height}`)
 		pp.createCanvas(this.width, this.height)
 		this.pg = pp.createGraphics(this.width, this.height, 'webgl')
-		this.cam = new EasyCam((this.pg as any)._renderer, { distance: 800 })
-		this.cam.setDistanceMin(1)
+		this.cam = new EasyCam((this.pg as any)._renderer, { distance: 100 })
+		this.cam.setDistanceMin(40)
 		this.cam.setDistanceMax(3000)
-		this.cam.rotateX(Math.PI / 6)
+		this.cam.rotateX(-Math.PI / 8)
 		this.cam.attachMouseListeners((pp as any)._renderer)
 		this.cam.setViewport([0, 0, this.width, this.height])
-		this.cam.rotateY(Math.PI)
 		this.cam.rotateZ(Math.PI)
-		;(this.cam.state as any).center[2] = 40
 		this.avatar.addFollowCam(this.cam)
 		this.inputs.setup(pp)
 	}
 
 	draw = (pp: p5) => {
+		this.loops.update()
 		engine3d.update()
 		let loading = false
 		for (const instName in this.instruments) {
@@ -175,20 +203,22 @@ export default class Sketch {
 		pp.colorMode(pp.HSL, 1)
 		pp.background(this.bgCol.hue, this.bgCol.sat, this.bgCol.lgt)
 		pp.colorMode(pp.RGB, 255)
-		if (this.pg) {
-			// Draw notes to separate graphics canvas
-			this.visualNotes.draw(pp, this.pg)
-			engine3d.draw(this.pg)
-			pp.image(this.pg, 0, 0)
-			engine3d.draw2D(pp, this.pg)
+		const { pg } = this
+		if (pg) {
+			pg.perspective(Math.PI / 3, pg.width / pg.height, 1, 10000)
+			pg.clear()
+			engine3d.draw(pg)
+			pp.image(pg, 0, 0)
+			engine3d.draw2D(pp, pg)
 		}
 		this.inputs.draw(pp)
+		this.loops.draw(pp)
 		if (loading) {
 			this.drawMessage(pp, 'Loading instruments...')
 		} else if (this.syncing) {
 			this.drawMessage(pp, 'Syncing clock with server...')
-		} else if (!this.started) {
-			this.drawMessage(pp, 'Click to enable audio')
+			// } else if (!this.started) {
+			// 	this.drawMessage(pp, 'Click to enable audio')
 		}
 	}
 
@@ -202,36 +232,48 @@ export default class Sketch {
 	}
 
 	mousePressed = (pp: p5) => {
-		if (this.started) {
-			return
+		if (!this.started) {
+			this.started = true
+			Tone.start()
+			console.log('[Sketch #mousePressed] Started Tone')
 		}
-		this.started = true
-		Tone.start()
-		console.log('[Sketch #mousePressed] Started Tone')
+		this.loops.mousePressed(pp)
 	}
 
 	keyboardInputDisabled = () => {
 		return this.inputs.isFocused() // Ignore keyboard if inputs are focused
 	}
 	keyPressed = (evt: p5) => {
-		if (!this.keyboardInputDisabled()) {
-			this.avatar.keyPressed(evt)
+		if (this.keyboardInputDisabled()) {
+			return
 		}
-		if (evt.keyCode === 27) {
+		this.avatar.keyPressed(evt)
+		if (evt.keyCode === KEYCODE_ESC) {
 			// ESC pressed, clear loops
-			for (const loop of this.loops) {
-				Tone.Transport.clear(loop)
+			if (evt.keyIsDown(KEYCODE_SHIFT)) {
+				this.loops.clearAll()
+			} else {
+				this.loops.clearActiveLoop()
 			}
+		}
+		if (evt.key === 'm') {
+			this.loops.toggleActiveLoopMute()
 		}
 	}
 	keyReleased = (evt: p5) => {
-		if (!this.keyboardInputDisabled()) {
-			this.avatar.keyReleased(evt)
+		if (this.keyboardInputDisabled()) {
+			return
+		}
+		this.avatar.keyReleased(evt)
+		if (evt.keyCode === KEYCODE_SHIFT) {
+			// Stopped recording to loop, cleanup any dangling notes
+			this.loops.stopRecording()
 		}
 	}
 
 	updateUser = (uu: Partial<User>, sendUpdate: boolean = true) => {
 		this.user = Object.assign(this.user, uu)
+		this.localStorage.setItem('user', JSON.stringify(this.user))
 		if (sendUpdate) {
 			this.sendUserUpdate()
 		}
@@ -341,27 +383,114 @@ export default class Sketch {
 			// 	}
 		}
 		const off = this.offsetMs()
-		const sendIt = () => {
-			const uevt = {
-				clientId: this.user.clientId,
-				instrument: instName,
-				midiEvent: evt,
-				timestamp: this.timeToneToGlobal(Tone.immediate()) + off,
-			}
-			const { conn, ready } = this.ws
-			if (!ready()) {
-				// websocket connection isn't ready, handle event locally
-				this.onUserEvent(uevt)
-				return
-			}
-			conn.send(userEventReq(uevt))
+		const uevt = {
+			clientId: this.user.clientId,
+			instrument: instName,
+			midiEvent: evt,
+			timestamp: this.nowMs() + off,
 		}
-		const shiftKeyDown = this.pp && this.pp.keyIsDown(16)
-		if (shiftKeyDown && Tone.Transport.state === 'started') {
-			this.loops.push(Tone.Transport.scheduleRepeat(_time => sendIt(), '2m'))
+		const shiftKeyDown = this.pp && this.pp.keyIsDown(KEYCODE_SHIFT)
+		if (shiftKeyDown) {
+			this.loops.loopUserEvent(uevt)
+		}
+		this._sendUserEvent(uevt)
+	}
+
+	_sendUserEvent = (uevt: UserEvent) => {
+		const { conn, ready } = this.ws
+		if (!ready()) {
+			// websocket connection isn't ready, handle event locally
+			this.onUserEvent(uevt)
 			return
 		}
-		sendIt()
+		conn.send(userEventReq(uevt))
+	}
+
+	onUserEvent = (evt: UserEvent) => {
+		const { clientId, instrument, midiEvent, timestamp } = evt
+		const { data, channel, kind } = midiEvent
+		const inst = this.instruments[instrument]
+		if (!inst) {
+			console.error('[Sketch #onUserEvent] Unable to find instrument', instrument)
+			return
+		}
+		if (!inst.loaded()) {
+			return // don't send events if instrument hasn't finished loading
+		}
+		const isMetronome = instrument === 'metronome'
+		if (isMetronome && this.syncing) {
+			return // don't handle metronome events until clock has synced
+		}
+		const tt = this.timeGlobalToTone(timestamp)
+		if (tt < 0) {
+			return // Negative tone time, probably just
+		}
+		if (tt - Tone.immediate() < -1) {
+			console.log(`[Sketch #onUserEvent] Received event ${Tone.immediate() - tt} seconds late`)
+			return
+		}
+		const avatar = this.getAvatarSafe(clientId)
+		switch (kind) {
+			case 'noteon': {
+				const nn = midiEvent as MidiEventNote
+				inst.noteon(avatar, tt, nn)
+				if (isMetronome) {
+					this.onMetronome(tt, nn.note)
+				}
+				break
+			}
+			case 'noteoff': {
+				const nn = midiEvent as MidiEventNote
+				inst.noteoff(avatar, tt, nn)
+				break
+			}
+			case 'controlchange': {
+				const cc = midiEvent as MidiEventCC
+				inst.controlchange(avatar, tt, cc)
+				break
+			}
+			case 'pitchbend': {
+				const pb = midiEvent as MidiEventPitchbend
+				inst.pitchbend(avatar, tt, pb)
+				break
+			}
+			default:
+				console.warn(
+					`[Sketch #onUserEvent] Unhandled MIDI event on channel ${channel}:`,
+					kind,
+					data,
+					evt,
+				)
+				break
+		}
+	}
+
+	onMetronome = (time: number, note: number) => {
+		if (!this.transportStarted && note === NOTE_METRONOME_DOWN) {
+			console.log(`[Sketch #onUserEvent] Downbeat synced with server. BPM:`, this._bpmNext)
+			this.transportStarted = true
+			this.setNewDownbeat(time)
+			return
+		}
+		if (note !== NOTE_METRONOME_BPM_CHANGED) {
+			return
+		}
+		console.log(
+			`[Sketch #onUserEvent] Received new downbeat from server, will update clock in ${(
+				time - Tone.immediate()
+			).toFixed(1)} seconds`,
+		)
+		Tone.Draw.schedule(() => {
+			console.log(`[Sketch #onUserEvent] BPM updated:`, this._bpmNext)
+			this.setNewDownbeat(time)
+		}, time)
+	}
+
+	setNewDownbeat = (toneTime: number) => {
+		this.downbeat = this.timeToneToGlobal(toneTime)
+		this._bpm = this._bpmNext
+		this.inputs.onClockUpdate({ bpm: this._bpm, clientId: 0 })
+		Tone.Transport.bpm.value = this._bpm
 	}
 
 	onUsers = (users: User[]) => {
@@ -432,71 +561,16 @@ export default class Sketch {
 		avatar.setUserXform(evt)
 	}
 
-	onUserEvent = (evt: UserEvent) => {
-		const { clientId, instrument, midiEvent, timestamp } = evt
-		const { data, channel, kind } = midiEvent
-		const inst = this.instruments[instrument]
-		if (!inst) {
-			console.error('[Sketch #onUserEvent] Unable to find instrument', instrument)
-			return
+	bpm = () => {
+		if (!this.transportStarted) {
+			return this.inputs.bpm()
 		}
-		if (!inst.loaded()) {
-			return // don't send events if instrument hasn't finished loading
-		}
-		const isMetronome = instrument === 'metronome'
-		if (isMetronome && this.syncing) {
-			return // don't handle metronome events until clock has synced
-		}
-		const tt = this.timeGlobalToTone(timestamp)
-		if (tt - Tone.immediate() < -1) {
-			console.warn(`[Sketch #onUserEvent] Received event ${tt - Tone.immediate()} seconds late`)
-			return
-		}
-		const avatar = this.getAvatarSafe(clientId)
-		switch (kind) {
-			case 'noteon': {
-				const nn = midiEvent as MidiEventNote
-				inst.noteon(avatar, tt, nn)
-				if (isMetronome && nn.note === NOTE_METRONOME_DOWN) {
-					if (Tone.Transport.state !== 'started') {
-						Tone.Transport.set({ bpm: this.inputs.bpm() })
-						Tone.Transport.start(tt) // Start the Transport on the first post-sync down beat
-					}
-				}
-				break
-			}
-			case 'noteoff': {
-				const nn = midiEvent as MidiEventNote
-				inst.noteoff(avatar, tt, nn)
-				break
-			}
-			case 'controlchange': {
-				const cc = midiEvent as MidiEventCC
-				inst.controlchange(avatar, tt, cc)
-				break
-			}
-			case 'pitchbend': {
-				const pb = midiEvent as MidiEventPitchbend
-				inst.pitchbend(avatar, tt, pb)
-				break
-			}
-			default:
-				console.warn(
-					`[Sketch #onUserEvent] Unhandled MIDI event on channel ${channel}:`,
-					kind,
-					data,
-					evt,
-				)
-				break
-		}
+		return this._bpm
 	}
-
-	offsetMs = () => {
-		const bps = this.inputs.bpm() / 60
-		if (!bps) {
-			return 0
-		}
-		const beatMs = 1000.0 / bps
-		return beatMs * this.user.offset
-	}
+	bps = () => this.bpm() / 60
+	beatMs = () => 1000.0 / this.bps()
+	beatSec = () => 1.0 / this.bps()
+	offsetMs = () => this.beatMs() * this.user.offset
+	offsetSec = () => this.beatSec() * this.user.offset
+	nowMs = () => this.ws.now()
 }

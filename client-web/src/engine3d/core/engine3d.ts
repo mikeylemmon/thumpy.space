@@ -17,10 +17,12 @@ export class Engine3D {
 	}
 
 	addObj = (obj: Obj) => this.objs.push(obj)
-	rmObj = (obj: Obj) => {
+	rmObj = (obj: Obj, destroy = true) => {
 		this.objs = this.objs.filter(oo => {
 			if (oo === obj) {
-				oo.destroy()
+				if (destroy) {
+					oo.destroy()
+				}
 				return false
 			}
 			return true
@@ -41,6 +43,7 @@ export class Engine3D {
 	draw = (pg: p5.Graphics) => {
 		for (const obj of this.objs) {
 			obj.draw(pg)
+			obj.drawShadow(pg)
 			if (this.debug) {
 				obj.drawDebug(pg)
 			}

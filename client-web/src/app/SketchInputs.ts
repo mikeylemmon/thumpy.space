@@ -16,14 +16,17 @@ export class SketchInputs {
 		offset?: any
 		bpm?: any
 		hide?: any
+		hideLoops?: any
+		hideDial?: any
 	} = {}
 	hidden = false
 	clockOpts: ClockOpts = {
 		bpm: 95,
 	}
 
-	constructor(parent: Sketch) {
+	constructor(parent: Sketch, loadedFromStorage = false) {
 		this.parent = parent
+		this.nameCustomized = loadedFromStorage
 	}
 
 	bpm = () => (this.inputs.bpm ? this.inputs.bpm.value() : this.clockOpts.bpm)
@@ -75,10 +78,33 @@ export class SketchInputs {
 		if (this.inputs.hide) {
 			this.inputs.hide.remove()
 		}
-		const inHide = pp.createButton(this.hidden ? 'Show Settings' : 'Hide Settings') as any
-		inHide.position(pp.width - inHide.width - 50, pp.height - inHide.height - 10)
-		inHide.mousePressed(this.toggleHide)
-		this.inputs.hide = inHide
+		if (this.inputs.hideLoops) {
+			this.inputs.hideLoops.remove()
+		}
+		if (this.inputs.hideDial) {
+			this.inputs.hideDial.remove()
+		}
+		const { loops } = this.parent
+		this.inputs.hide = pp.createButton(this.hidden ? 'Show Settings' : 'Hide Settings') as any
+		this.inputs.hideLoops = pp.createButton(loops.toggleHideText()) as any
+		this.inputs.hideDial = pp.createButton(loops.toggleHideDialText()) as any
+		const { hide, hideLoops, hideDial } = this.inputs
+		let xx = pp.width - hideLoops.width - 50
+		const yy = pp.height - hideLoops.height - 10
+		hideLoops.position(xx, yy)
+		hideLoops.mousePressed(() => {
+			loops.toggleHide()
+			hideLoops.elt.innerHTML = loops.toggleHideText()
+		})
+		xx -= 130
+		hideDial.position(xx, yy)
+		hideDial.mousePressed(() => {
+			loops.toggleHideDial()
+			hideDial.elt.innerHTML = loops.toggleHideDialText()
+		})
+		xx -= 110
+		hide.position(xx, yy)
+		hide.mousePressed(this.toggleHide)
 	}
 
 	setupInputsUser = (clientId: number): any => {
@@ -117,8 +143,9 @@ export class SketchInputs {
 		})
 		inName.elt.onfocus = () => (inName.focused = true)
 		inName.elt.onblur = () => (inName.focused = false)
-		inName.elt.focus()
-		inName.elt.select()
+		// // Uncomment to select name field on load:
+		// inName.elt.focus()
+		// inName.elt.select()
 		this.inputs.name = inName
 		this.parent.updateUser({ name: inName.value() }, false)
 
@@ -129,6 +156,7 @@ export class SketchInputs {
 			const off = parseFloat(inOffset.value())
 			if (!Number.isNaN(off)) {
 				this.parent.updateUser({ offset: off })
+				this.parent.loops.updateRecOffset(off)
 			}
 		}
 		inOffset.input(() => {
@@ -208,10 +236,11 @@ export class SketchInputs {
 		}
 		const inBPM = this.pp.createSlider(30, 200, this.clockOpts.bpm) as any
 		inBPM.position(20, this.pp.height - 40)
-		inBPM.size(this.pp.width / 2)
+		inBPM.size(300)
 		inBPM.input(() => {
 			// console.log('[SketchInputs #setupInputsBPM] Changed:', inBPM.value())
 			this.clockOpts.bpm = inBPM.value()
+			this.clockOpts.clientId = this.parent.user.clientId
 			this.sendClockUpdate(this.clockOpts)
 		})
 		inBPM.elt.onfocus = () => (inBPM.focused = true)
@@ -227,9 +256,6 @@ export class SketchInputs {
 		pp.textAlign(pp.LEFT, pp.BOTTOM)
 		pp.textStyle(pp.BOLD)
 		for (const key in this.inputs) {
-			if (key === 'hide') {
-				continue
-			}
 			const input = (this.inputs as any)[key]
 			if (!input) {
 				continue
@@ -237,6 +263,10 @@ export class SketchInputs {
 			const xx = input.x + 3
 			const yy = input.y - 5
 			switch (true) {
+				case key === 'hide':
+				case key === 'hideLoops':
+				case key === 'hideDial':
+					continue
 				case key === 'offset':
 					const off = parseFloat(input.value())
 					let msg = ``
@@ -258,7 +288,11 @@ export class SketchInputs {
 					const prec = Math.abs(this.parent.ws.clock.precisionNow)
 					const xp = input.x + input.width
 					pp.textAlign(pp.RIGHT, pp.BOTTOM)
-					if (prec < 1) {
+					if (!this.parent.ws.ready()) {
+						pp.fill(255, 0, 0)
+						pp.text(`NO CONNECTION TO SERVER`, xp, yy)
+						pp.fill(255)
+					} else if (prec < 1) {
 						pp.text(`Clock precision: ${(prec * 1000).toFixed(0)}µs`, xp, yy)
 					} else if (prec < 10) {
 						pp.text(`Clock precision: ${prec.toFixed(1)}ms`, xp, yy)
