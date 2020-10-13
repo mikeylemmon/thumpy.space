@@ -253,6 +253,7 @@ export default class Sketch {
 		}
 		this.avatar.keyPressed(evt)
 		this.loops.keyPressed(evt)
+		this.audioKeys.keyPressedP5(evt)
 	}
 	keyReleased = (evt: p5) => {
 		if (this.keyboardInputDisabled()) {
@@ -260,6 +261,7 @@ export default class Sketch {
 		}
 		this.avatar.keyReleased(evt)
 		this.loops.keyReleased(evt)
+		this.audioKeys.keyReleasedP5(evt)
 	}
 
 	updateUser = (uu: Partial<User>, sendUpdate: boolean = true) => {
@@ -336,6 +338,7 @@ export default class Sketch {
 	sendUserEvent = (inputName: string, _eventName: string, evt: MidiEvent) => {
 		let instName = this.user.instrument
 		if (evt.controller) {
+			console.log(_eventName, evt)
 			// Hardcode some CC events to control instrument volumes
 			switch (evt.controller.number) {
 				case 79: // master volume (local only)
