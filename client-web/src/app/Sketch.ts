@@ -338,7 +338,6 @@ export default class Sketch {
 	sendUserEvent = (inputName: string, _eventName: string, evt: MidiEvent) => {
 		let instName = this.user.instrument
 		if (evt.controller) {
-			console.log(_eventName, evt)
 			// Hardcode some CC events to control instrument volumes
 			switch (evt.controller.number) {
 				case 79: // master volume (local only)

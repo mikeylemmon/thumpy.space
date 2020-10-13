@@ -129,6 +129,13 @@ export class Loops {
 			ll.setRadius(radSmall)
 			yy += rad
 			ll.draw(pp, xx, yy)
+			if (pp.keyIsDown(KEYCODE_SHIFT)) {
+				// inform user they can click here to delete this loop
+				pp.fill(50, 150).noStroke()
+				pp.circle(xx, yy, rad * 2)
+				pp.fill(200).textSize(12).textStyle(pp.NORMAL).textAlign(pp.CENTER, pp.CENTER)
+				pp.text('Click to\ndelete', xx, yy)
+			}
 			yy += rad + 20
 			if (yy > pp.height - rad * 3) {
 				yy = othersTop
