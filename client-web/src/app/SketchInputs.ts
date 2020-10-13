@@ -18,11 +18,18 @@ export class SketchInputs {
 		hide?: any
 		hideLoops?: any
 		hideDial?: any
+		showHelp?: any
 	} = {}
 	hidden = false
 	clockOpts: ClockOpts = {
 		bpm: 95,
 	}
+	help = false
+	helpRetoggle = {
+		loops: true,
+		dial: true,
+	}
+	helpImg?: p5.Image
 
 	constructor(parent: Sketch, loadedFromStorage = false) {
 		this.parent = parent
@@ -54,7 +61,10 @@ export class SketchInputs {
 
 	setup = (pp: p5) => {
 		this.pp = pp
-		if (this.hidden) {
+		if (!this.helpImg) {
+			this.helpImg = pp.loadImage('/help-overlay.png')
+		}
+		if (this.hidden || this.help) {
 			for (const key in this.inputs) {
 				const input = (this.inputs as any)[key]
 				if (!input) {
@@ -84,13 +94,40 @@ export class SketchInputs {
 		if (this.inputs.hideDial) {
 			this.inputs.hideDial.remove()
 		}
+		if (this.inputs.showHelp) {
+			this.inputs.showHelp.remove()
+		}
 		const { loops } = this.parent
+		this.inputs.showHelp = pp.createButton(this.help ? 'Hide Help' : 'Show Help') as any
+		const { showHelp } = this.inputs
+		let xx = pp.width - showHelp.width - 50
+		const yy = pp.height - showHelp.height - 10
+		showHelp.position(xx, yy)
+		showHelp.mousePressed(() => {
+			this.help = !this.help
+			if (this.help) {
+				this.helpRetoggle.loops = !loops.hidden
+				this.helpRetoggle.dial = !loops.hiddenDial
+			}
+			if (this.helpRetoggle.loops) {
+				loops.toggleHide()
+			}
+			if (this.helpRetoggle.dial) {
+				loops.toggleHideDial()
+			}
+			this.setup(pp)
+			if (!this.help && !this.hidden) {
+				this.setupInputsBPM()
+			}
+		})
+		if (this.help) {
+			return
+		}
+		xx -= 100
 		this.inputs.hide = pp.createButton(this.hidden ? 'Show Settings' : 'Hide Settings') as any
 		this.inputs.hideLoops = pp.createButton(loops.toggleHideText()) as any
 		this.inputs.hideDial = pp.createButton(loops.toggleHideDialText()) as any
 		const { hide, hideLoops, hideDial } = this.inputs
-		let xx = pp.width - hideLoops.width - 50
-		const yy = pp.height - hideLoops.height - 10
 		hideLoops.position(xx, yy)
 		hideLoops.mousePressed(() => {
 			loops.toggleHide()
@@ -249,6 +286,11 @@ export class SketchInputs {
 	}
 
 	draw = (pp: p5) => {
+		if (this.help) {
+			this.drawHelp(pp)
+			return
+		}
+		// Draw labels for inputs
 		pp.textSize(12)
 		pp.fill(255)
 		pp.strokeWeight(1)
@@ -266,6 +308,7 @@ export class SketchInputs {
 				case key === 'hide':
 				case key === 'hideLoops':
 				case key === 'hideDial':
+				case key === 'showHelp':
 					continue
 				case key === 'offset':
 					const off = parseFloat(input.value())
@@ -308,6 +351,19 @@ export class SketchInputs {
 					break
 			}
 		}
+	}
+
+	drawHelp = (pp: p5) => {
+		if (!this.helpImg) {
+			return
+		}
+		const haspect = this.helpImg.height / this.helpImg.width
+		const hx = 40
+		const ww = pp.width - hx * 2
+		const hh = haspect * ww
+		const hy = (pp.height - hh) / 2
+		pp.background(60, 220)
+		pp.image(this.helpImg, hx, hy, ww, hh)
 	}
 
 	sendClockUpdate = (clk: ClockOpts) => {

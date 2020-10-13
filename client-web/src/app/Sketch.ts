@@ -66,6 +66,7 @@ export default class Sketch {
 	_bpm = 95
 	_bpmNext = 95
 	localStorage: Storage
+	// helpImg?: p5.Image
 
 	constructor(global: any) {
 		console.log('[Sketch #ctor]')
@@ -168,6 +169,7 @@ export default class Sketch {
 
 	sketch = (pp: p5) => {
 		this.pp = pp
+		// pp.preload = () => (this.helpImg = pp.loadImage('/help-overlay.png'))
 		pp.setup = () => this.setup(pp)
 		pp.draw = () => this.draw(pp)
 		pp.mousePressed = () => this.mousePressed(pp)
@@ -209,16 +211,19 @@ export default class Sketch {
 			pg.clear()
 			engine3d.draw(pg)
 			pp.image(pg, 0, 0)
-			engine3d.draw2D(pp, pg)
+			if (!this.inputs.help) {
+				engine3d.draw2D(pp, pg)
+			}
 		}
 		this.inputs.draw(pp)
 		this.loops.draw(pp)
+		if (this.inputs.help) {
+			return
+		}
 		if (loading) {
 			this.drawMessage(pp, 'Loading instruments...')
 		} else if (this.syncing) {
 			this.drawMessage(pp, 'Syncing clock with server...')
-			// } else if (!this.started) {
-			// 	this.drawMessage(pp, 'Click to enable audio')
 		}
 	}
 

@@ -94,6 +94,10 @@ export class Loop {
 		return true
 	}
 
+	remove = () => {
+		this.opts.sketch.localStorage.removeItem(this.id)
+	}
+
 	setRadius = (rad: number) => {
 		if (rad === this.opts.radius) {
 			return

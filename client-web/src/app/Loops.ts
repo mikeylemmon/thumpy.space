@@ -211,6 +211,7 @@ export class Loops {
 				didHit = true
 				if (pp.keyIsDown(KEYCODE_SHIFT)) {
 					// Remove loop
+					loop.remove()
 					this.loops = this.loops.filter(ll => ll !== loop)
 					break
 				}
