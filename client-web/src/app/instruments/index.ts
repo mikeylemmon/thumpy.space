@@ -1,3 +1,4 @@
+export * from './BlackHole'
 export * from './Dancer'
 export * from './EightOhEight'
 export * from './Metronome'

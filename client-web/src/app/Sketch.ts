@@ -14,7 +14,7 @@ import {
 } from './serverApi/serverApi'
 import MIDI, { MidiEvent, MidiEventCC, MidiEventNote, MidiEventPitchbend } from './MIDI'
 import { Instrument } from './Instrument'
-import { Dancer, EightOhEight, Metronome, Piano, PolySynth } from './instruments'
+import { BlackHole, Dancer, EightOhEight, Metronome, Piano, PolySynth } from './instruments'
 import { EasyCam } from 'vendor/p5.easycam.js'
 import { engine3d, Avatar, Ground, Vec } from 'engine3d'
 import { SketchInputs } from './SketchInputs'
@@ -29,10 +29,10 @@ const newAvatarPos = () => {
 	const rr = () => Math.random() * 1.8 - 0.9
 	return new Vec(rr() * worldScale, 31, rr() * worldScale)
 }
-
-// export let sketch: Sketch | null = null
-// export const setSketch = (sk: Sketch) => (sketch = sk)
-// export const setSketch = (sk: Sketch) => (sketch = sk)
+function nearestPowerOf2(n: number) {
+	// via https://stackoverflow.com/questions/26965171/fast-nearest-power-of-2-in-javascript
+	return 1 << (31 - Math.clz32(n))
+}
 
 export default class Sketch {
 	width: number = 0
@@ -71,7 +71,8 @@ export default class Sketch {
 	_bpm = 95
 	_bpmNext = 95
 	localStorage: Storage
-	blackHole = new BlackHoleObj({ pos: new Vec(0, 100, 0), scale: new Vec(100) })
+	// blackHole = new BlackHoleObj({ pos: new Vec(0, 100, 0), scale: new Vec(100) })
+	blackHole = new BlackHoleObj()
 
 	constructor(global: any) {
 		console.log('[Sketch #ctor]')
@@ -115,6 +116,7 @@ export default class Sketch {
 		this.instruments = {
 			dancer: new Dancer(),
 			synth: new PolySynth(),
+			blackHole: new BlackHole(),
 			eightOhEight: new EightOhEight(this),
 			piano: new Piano(),
 			metronome: new Metronome(this),
@@ -184,14 +186,16 @@ export default class Sketch {
 		pp.mousePressed = () => this.mousePressed(pp)
 		pp.keyPressed = () => this.keyPressed(pp)
 		pp.keyReleased = () => this.keyReleased(pp)
-		// pp.windowResized = () => pp.resizeCanvas(pp.windowWidth, pp.windowHeight)
 	}
 
 	setup = (pp: p5) => {
 		console.log(`[Sketch #setup] ${this.width} x ${this.height}`)
 		pp.createCanvas(this.width, this.height)
 		this.pg = pp.createGraphics(this.width, this.height, 'webgl')
-		this.backbuffer = pp.createGraphics(this.width, this.height)
+		this.pg.textureWrap(pp.REPEAT) // applies to textures rendered to pg (i.e. backbuffer)
+		const bbsize = nearestPowerOf2(this.width) // backbuffer size is ^2 so p5 doesn't force mode to CLAMP
+		this.backbuffer = pp.createGraphics(bbsize, bbsize, pp.WEBGL)
+		console.log('bbsize', bbsize, this.backbuffer.width, this.backbuffer.height)
 		this.cam = new EasyCam((this.pg as any)._renderer, { distance: 100 })
 		this.cam.setDistanceMin(40)
 		this.cam.setDistanceMax(3000)
@@ -221,10 +225,11 @@ export default class Sketch {
 			pg.perspective(Math.PI / 3, pg.width / pg.height, 1, 10000)
 			pg.clear()
 			engine3d.draw(pg)
-			pg.fill(0, 0).stroke(255).box(50, 50, 50)
 			pp.image(pg, 0, 0)
-			if (this.backbuffer) {
-				this.backbuffer.image(pg, 0, 0)
+			const { backbuffer } = this
+			if (backbuffer) {
+				const { width, height } = backbuffer
+				backbuffer.image(pg, -width / 2, -height / 2, width, height)
 			}
 			if (!this.inputs.help) {
 				engine3d.draw2D(pp, pg)

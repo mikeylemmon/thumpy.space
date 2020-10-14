@@ -126,6 +126,7 @@ export class Obj {
 	}
 
 	draw2D(pp: p5, pg: p5.Graphics, mvp: number[]) {
+		this.children.forEach(cc => cc.draw2D(pp, pg, mvp))
 		if (!this.drawFunc2D) {
 			return
 		}
@@ -154,7 +155,6 @@ export class Obj {
 		pp.push()
 		this.drawFunc2D(pp, ndcPos, scale2d)
 		pp.pop()
-		this.children.forEach(cc => cc.draw2D(pp, pg, mvp))
 	}
 
 	drawDebug = (pg: p5.Graphics) => {
