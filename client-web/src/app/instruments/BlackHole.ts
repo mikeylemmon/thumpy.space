@@ -3,7 +3,7 @@ import * as Tone from 'tone'
 import { MidiEventCC, MidiEventNote, MidiEventPitchbend } from '../MIDI'
 import { Instrument } from '../Instrument'
 import { noteFreq } from './util'
-import { engine3d, Avatar, Obj, ObjOpts, Vec } from 'engine3d'
+import { Avatar, Obj, ObjOpts, Vec } from 'engine3d'
 import { sketch } from '../Sketch'
 
 type BHObjOpts = ObjOpts & {

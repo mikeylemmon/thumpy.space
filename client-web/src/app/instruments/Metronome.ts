@@ -36,19 +36,6 @@ export class Metronome extends Sampler {
 	noteon = (_avatar: Avatar, time: number, note: MidiEventNote) => {
 		let nn = this.modNote(note.note)
 		this.sampler.triggerAttack(noteFreq(nn), time, note.attack)
-		if (nn % samps.length === 0) {
-			// Update ground color on down beat
-			Tone.Draw.schedule(() => {
-				this.sketch.ground.hue = Math.random()
-				this.sketch.ground.sat = Math.random() * 0.4 + 0.5
-			}, time)
-		} else {
-			// Update sky color on other beats
-			Tone.Draw.schedule(() => {
-				this.sketch.bgCol.hue = Math.random()
-				this.sketch.bgCol.sat = Math.random() * 0.4 + 0.5
-			}, time)
-		}
 	}
 
 	noteoff = (_avatar: Avatar, time: number, note: MidiEventNote) => {

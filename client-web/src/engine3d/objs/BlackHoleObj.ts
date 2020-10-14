@@ -15,7 +15,7 @@ export class BlackHoleObj extends Obj {
 			sketch.shaderBlackHole.setUniform('size', [pg.width, pg.height])
 			sketch.shaderBlackHole.setUniform('rotate', blackHole.modwheel * Math.PI)
 		}
-		pg.fill(0, 0).stroke(sketch.ground.hue, 1.0, 0.7) // .noStroke()
+		pg.fill(0, 0).noStroke()
 		super.draw(pg) // apply xform and draw children
 		pg.resetShader()
 	}

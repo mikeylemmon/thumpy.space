@@ -16,7 +16,7 @@ import MIDI, { MidiEvent, MidiEventCC, MidiEventNote, MidiEventPitchbend } from 
 import { Instrument } from './Instrument'
 import { BlackHole, Dancer, EightOhEight, Metronome, Piano, PolySynth } from './instruments'
 import { EasyCam } from 'vendor/p5.easycam.js'
-import { engine3d, Avatar, Ground, Vec } from 'engine3d'
+import { engine3d, Avatar, Vec } from 'engine3d'
 import { SketchInputs } from './SketchInputs'
 import { SketchAudioKeys } from './SketchAudioKeys'
 import { Loops } from './Loops'
@@ -58,7 +58,7 @@ export default class Sketch {
 	users: User[] = []
 	avatars: Avatar[] = []
 	inputs: SketchInputs
-	ground = new Ground({ pos: new Vec(0, -1, 0), scale: new Vec(worldScale) })
+	// ground = new Ground({ pos: new Vec(0, -1, 0), scale: new Vec(worldScale) })
 	engine3d = engine3d
 	bgCol = {
 		hue: 0.5,
