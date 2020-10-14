@@ -20,6 +20,7 @@ import { engine3d, Avatar, Ground, Vec } from 'engine3d'
 import { SketchInputs } from './SketchInputs'
 import { SketchAudioKeys } from './SketchAudioKeys'
 import { Loops } from './Loops'
+import { BlackHoleObj } from 'engine3d/objs/BlackHoleObj'
 
 type Instruments = { [key: string]: Instrument }
 
@@ -28,6 +29,10 @@ const newAvatarPos = () => {
 	const rr = () => Math.random() * 1.8 - 0.9
 	return new Vec(rr() * worldScale, 31, rr() * worldScale)
 }
+
+// export let sketch: Sketch | null = null
+// export const setSketch = (sk: Sketch) => (sketch = sk)
+// export const setSketch = (sk: Sketch) => (sketch = sk)
 
 export default class Sketch {
 	width: number = 0
@@ -38,8 +43,9 @@ export default class Sketch {
 	ws: WSClient
 	midi: MIDI
 	audioKeys: SketchAudioKeys
-	pp?: p5
-	pg?: p5.Graphics
+	pp?: p5 // Main canvas, gets WebGL graphics + 2D elements (loops, labels, etc)
+	pg?: p5.Graphics // WebGL graphics context for 3D virtual space
+	backbuffer?: p5.Graphics // A graphics buffer for the previously rendered frame
 	cam?: EasyCam
 	user: User = {
 		clientId: 0,
@@ -65,7 +71,7 @@ export default class Sketch {
 	_bpm = 95
 	_bpmNext = 95
 	localStorage: Storage
-	// helpImg?: p5.Image
+	blackHole = new BlackHoleObj({ pos: new Vec(0, 100, 0), scale: new Vec(100) })
 
 	constructor(global: any) {
 		console.log('[Sketch #ctor]')
@@ -166,20 +172,26 @@ export default class Sketch {
 		this.height = height
 	}
 
+	shaderBlackHole?: p5.Shader
 	sketch = (pp: p5) => {
 		this.pp = pp
-		// pp.preload = () => (this.helpImg = pp.loadImage('/help-overlay.png'))
+		pp.pixelDensity(1)
+		pp.preload = () => {
+			this.shaderBlackHole = pp.loadShader('/shaders/simple.vert', '/shaders/blackHole.frag')
+		}
 		pp.setup = () => this.setup(pp)
 		pp.draw = () => this.draw(pp)
 		pp.mousePressed = () => this.mousePressed(pp)
 		pp.keyPressed = () => this.keyPressed(pp)
 		pp.keyReleased = () => this.keyReleased(pp)
+		// pp.windowResized = () => pp.resizeCanvas(pp.windowWidth, pp.windowHeight)
 	}
 
 	setup = (pp: p5) => {
 		console.log(`[Sketch #setup] ${this.width} x ${this.height}`)
 		pp.createCanvas(this.width, this.height)
 		this.pg = pp.createGraphics(this.width, this.height, 'webgl')
+		this.backbuffer = pp.createGraphics(this.width, this.height)
 		this.cam = new EasyCam((this.pg as any)._renderer, { distance: 100 })
 		this.cam.setDistanceMin(40)
 		this.cam.setDistanceMax(3000)
@@ -202,14 +214,18 @@ export default class Sketch {
 			}
 		}
 		pp.colorMode(pp.HSL, 1)
-		pp.background(this.bgCol.hue, this.bgCol.sat, this.bgCol.lgt)
-		pp.colorMode(pp.RGB, 255)
+			.background(this.bgCol.hue, this.bgCol.sat, this.bgCol.lgt)
+			.colorMode(pp.RGB, 255)
 		const { pg } = this
 		if (pg) {
 			pg.perspective(Math.PI / 3, pg.width / pg.height, 1, 10000)
 			pg.clear()
 			engine3d.draw(pg)
+			pg.fill(0, 0).stroke(255).box(50, 50, 50)
 			pp.image(pg, 0, 0)
+			if (this.backbuffer) {
+				this.backbuffer.image(pg, 0, 0)
+			}
 			if (!this.inputs.help) {
 				engine3d.draw2D(pp, pg)
 			}
@@ -224,6 +240,9 @@ export default class Sketch {
 		} else if (this.syncing) {
 			this.drawMessage(pp, 'Syncing clock with server...')
 		}
+		// if (!this.blackHole) {
+		// 	this.blackHole = new BlackHoleObj({ scale: new Vec(100) })
+		// }
 	}
 
 	drawMessage = (pp: p5, msg: string) => {
@@ -571,3 +590,5 @@ export default class Sketch {
 	offsetSec = () => this.beatSec() * this.user.offset
 	nowMs = () => this.ws.now()
 }
+
+export const sketch = new Sketch(window)

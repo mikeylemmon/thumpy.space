@@ -1,9 +1,8 @@
 import React, { useEffect, useRef } from 'react'
-import Sketch from './Sketch'
+import { sketch } from './Sketch'
 
 const VideoOutput: React.FC = () => {
 	const ref = useRef<HTMLDivElement>(null)
-	const sk = useRef<Sketch>(new Sketch(window))
 	const msg = useRef<string>(`Loading`)
 	useEffect(() => {
 		if (!ref.current) {
@@ -16,12 +15,11 @@ const VideoOutput: React.FC = () => {
 			elem.removeChild(elem.childNodes[0]) // remove previous sketch
 		}
 		const { clientWidth, clientHeight } = elem
-		const skObj = sk.current
-		skObj.setSize(clientWidth, clientHeight)
-		const sketch = new window.p5(skObj.sketch, elem)
+		sketch.setSize(clientWidth, clientHeight)
+		const canvas = new window.p5(sketch.sketch, elem)
 		return () => {
-			skObj.destroy()
-			sketch.remove()
+			sketch.destroy()
+			canvas.remove()
 			console.log('[VideoOutput #useEffect.return]')
 		}
 	})

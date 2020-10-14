@@ -16,7 +16,7 @@ export class Engine3D {
 		}
 	}
 
-	addObj = (obj: Obj) => this.objs.push(obj)
+	addObj = (obj: Obj) => this.objs.unshift(obj)
 	rmObj = (obj: Obj, destroy = true) => {
 		this.objs = this.objs.filter(oo => {
 			if (oo === obj) {

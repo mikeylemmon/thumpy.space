@@ -110,5 +110,5 @@ export class SketchAudioKeys {
 		} as MidiEvent)
 	}
 
-	keyReleasedP5 = (evt: p5) => {}
+	keyReleasedP5 = (_evt: p5) => {}
 }
