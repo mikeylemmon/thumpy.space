@@ -89,6 +89,7 @@ export class Loop {
 		const data = JSON.parse(dataStr) as LoopData
 		opts.beats = data.beats
 		this.evts = data.evts
+		this.evts.forEach(le => (le.evt.timestamp = 0))
 		this.isMuted = data.isMuted
 		this.loaded = true
 		return true
