@@ -210,13 +210,6 @@ export default class Sketch {
 	draw = (pp: p5) => {
 		this.loops.update()
 		engine3d.update()
-		let loading = false
-		for (const instName in this.instruments) {
-			if (!this.instruments[instName].loaded()) {
-				loading = true
-				break
-			}
-		}
 		pp.colorMode(pp.HSL, 1)
 			.background(this.bgCol.hue, this.bgCol.sat, this.bgCol.lgt)
 			.colorMode(pp.RGB, 255)
@@ -233,21 +226,26 @@ export default class Sketch {
 			}
 			if (!this.inputs.help) {
 				engine3d.draw2D(pp, pg)
-			}
+			} // else: help being displayed, so don't draw2D because the avatar labels are distracting
 		}
 		this.inputs.draw(pp)
 		this.loops.draw(pp)
 		if (this.inputs.help) {
 			return
 		}
+		let loading = false
+		// set loading to true if any instruments haven't finished loading
+		for (const instName in this.instruments) {
+			if (!this.instruments[instName].loaded()) {
+				loading = true
+				break
+			}
+		}
 		if (loading) {
 			this.drawMessage(pp, 'Loading instruments...')
 		} else if (this.syncing) {
 			this.drawMessage(pp, 'Syncing clock with server...')
 		}
-		// if (!this.blackHole) {
-		// 	this.blackHole = new BlackHoleObj({ scale: new Vec(100) })
-		// }
 	}
 
 	drawMessage = (pp: p5, msg: string) => {

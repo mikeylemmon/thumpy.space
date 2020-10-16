@@ -4,15 +4,20 @@ import { clockUpdateReq, ClockOpts } from './serverApi/serverClock'
 
 const userInputsY = 40
 
-function msToString(ms: number) {
-	if (ms < 0.001) {
-		return `${(ms * 1000).toFixed(1)}µs`
-	} else if (ms < 1) {
-		return `${(ms * 1000).toFixed(0)}µs`
-	} else if (ms < 10) {
-		return `${ms.toFixed(1)}ms`
+function prettyUnit(unit: string, val: number, coarse = false) {
+	let uu = unit
+	let vv = val
+	const thresh = coarse ? 0.1 : 1
+	if (vv < thresh) {
+		vv *= 1000
+		uu = `m${unit}`
 	}
-	return `${ms.toFixed(0)}ms`
+	if (vv < thresh) {
+		vv *= 1000
+		uu = `µ${unit}`
+	}
+	const dec = vv >= 10 ? 0 : vv >= 1 ? 1 : 2
+	return `${vv.toFixed(dec)}${uu}`
 }
 
 export class SketchInputs {
@@ -41,6 +46,7 @@ export class SketchInputs {
 		dial: true,
 	}
 	helpImg?: p5.Image
+	pingBeats = 0 // number of beats it takes for a round-trip message to/from the server
 
 	constructor(parent: Sketch, loadedFromStorage = false) {
 		this.parent = parent
@@ -297,13 +303,13 @@ export class SketchInputs {
 			this.drawHelp(pp)
 			return
 		}
+		if (this.hidden) {
+			return
+		}
 		// Draw labels for inputs
-		pp.textSize(12)
-		pp.fill(255)
-		pp.strokeWeight(1)
-		pp.stroke(0)
-		pp.textAlign(pp.LEFT, pp.BOTTOM)
-		pp.textStyle(pp.BOLD)
+		this.drawClockStats(pp)
+		pp.textSize(12).textAlign(pp.LEFT, pp.BOTTOM).textStyle(pp.BOLD)
+		pp.fill(255).strokeWeight(1).stroke(0)
 		for (const key in this.inputs) {
 			const input = (this.inputs as any)[key]
 			if (!input) {
@@ -318,45 +324,68 @@ export class SketchInputs {
 				case key === 'showHelp':
 					continue
 				case key === 'offset':
+					pp.push()
 					const off = parseFloat(input.value())
 					let msg = ``
 					if (Number.isNaN(off)) {
 						// Show the user that they have an invalid value
-						pp.fill(255, 0, 0)
+						pp.fill(255, 40, 40)
 						msg = ` (NaN!)`
+					} else if (this.pingBeats > off / 2) {
+						pp.fill(255, 128, 0)
+						msg = ` (check ping)`
 					}
-					pp.text(`${key.toUpperCase()}${msg}${'\n'}(in beats)`, xx, yy)
-					if (Number.isNaN(off)) {
-						// put fill color back
-						pp.fill(255)
-					}
+					pp.text(`${key.toUpperCase()}${msg}${'\n'}in beats`, xx, yy)
+					pp.pop()
 					break
 				case key in this.parent.user:
 					pp.text(key.toUpperCase(), xx, yy)
 					break
-				case key === 'bpm':
-					const prec = Math.abs(this.parent.ws.clock.precisionNow)
-					const ping = msToString(this.parent.ws.clock.pingMs)
-					const xp = input.x + input.width
-					pp.textAlign(pp.RIGHT, pp.BOTTOM)
-					if (!this.parent.ws.ready()) {
-						pp.fill(255, 50, 50)
-						pp.text(`NO CONNECTION TO SERVER`, xp, yy)
-						pp.fill(255)
-					} else if (prec >= 10) {
-						pp.fill(255, 50, 50)
-						pp.text(`Clock precision: ${msToString(prec)}  |  ping: ${ping}`, xp, yy)
-						pp.fill(255)
-					} else {
-						pp.text(`Clock precision: ${msToString(prec)}  |  ping: ${ping}`, xp, yy)
-					}
-					pp.textAlign(pp.LEFT, pp.BOTTOM)
-				// fallthrough
 				default:
 					pp.text(`${key.toUpperCase()}: ${input.value()}`, xx, yy)
 					break
 			}
 		}
+	}
+
+	drawClockStats = (pp: p5) => {
+		pp.push()
+		pp.colorMode(pp.HSL, 1)
+		const ppLabel = () => pp.fill(0, 0, 0.7).textAlign(pp.RIGHT, pp.BOTTOM)
+		const ppValue = (warn: boolean) =>
+			pp.textAlign(pp.LEFT, pp.BOTTOM).fill(0, warn ? 1 : 0, warn ? 0.65 : 0.85)
+		const beatMs = this.parent.beatMs()
+		const xx = 20,
+			xc = xx + 60 // x pos for colon in aligned '<label>: <value>' rows
+		let yy = pp.height - 140
+		// draw heading
+		pp.fill(0.58, 0.8, 0.65).strokeWeight(1).stroke(0)
+		pp.textAlign(pp.LEFT, pp.BOTTOM).textSize(13).textStyle(pp.BOLD)
+		pp.text(`Clock stats (B = beat = ${prettyUnit('s', beatMs / 1000)})`, xx, yy)
+		pp.textSize(12).strokeWeight(1)
+		yy += 20
+		if (!this.parent.ws.ready()) {
+			ppValue(true).text(`NO CONNECTION TO SERVER`, xx, yy)
+			pp.pop()
+			return
+		}
+
+		// draw precision and ping stats
+		const { offset } = this.parent.user
+		const { precisionNow, pingMs } = this.parent.ws.clock
+		this.pingBeats = pingMs / beatMs
+		const prec = Math.abs(precisionNow)
+		const precStr = `${prettyUnit('s', prec / 1000)} (${prettyUnit('B', prec / beatMs, true)})`
+		const pingStr = `${prettyUnit('s', pingMs / 1000)} (${prettyUnit('B', this.pingBeats, true)})`
+		// pp.textAlign(pp.LEFT, pp.BOTTOM).textStyle(pp.BOLD).fill(200)
+		ppLabel().text(`precision:`, xc, yy)
+		ppValue(prec / beatMs >= 1.0 / 32) // warn if clock precision is worse than 128th note
+			.text(precStr, xc + 5, yy)
+		yy += 20
+		ppLabel().text(`ping:`, xc, yy)
+		ppValue(this.pingBeats > offset / 2) // warn if ping is close to offset value
+			.text(pingStr, xc + 5, yy)
+		pp.pop()
 	}
 
 	drawHelp = (pp: p5) => {
