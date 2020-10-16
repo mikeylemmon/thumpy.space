@@ -2,7 +2,7 @@ import * as p5 from 'p5'
 import * as Tone from 'tone'
 import { MidiEventCC, MidiEventNote, MidiEventPitchbend } from '../MIDI'
 import { Instrument } from '../Instrument'
-import { noteFreq } from './util'
+import { noteFreq, srand, srandVec } from './util'
 import { Avatar, Obj, ObjOpts, Vec } from 'engine3d'
 import { sketch } from '../Sketch'
 
@@ -11,9 +11,6 @@ type BHObjOpts = ObjOpts & {
 	twist: number
 	mass: number
 }
-
-const srand = () => Math.random() * 2 - 1
-const srandVec = () => new Vec(srand(), srand(), srand())
 
 class BHObj extends Obj {
 	inst: BlackHole

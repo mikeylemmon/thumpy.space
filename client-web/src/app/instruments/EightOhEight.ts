@@ -58,10 +58,14 @@ export class EightOhEight extends Sampler {
 	noteon = (_avatar: Avatar, time: number, note: MidiEventNote) => {
 		let nn = this.modNote(note.note)
 		this.sampler.triggerAttack(noteFreq(nn), time, note.attack)
-		// Update sky color
 		Tone.Draw.schedule(() => {
-			this.sketch.bgCol.hue = Math.random()
-			this.sketch.bgCol.sat = Math.random() * 0.4 + 0.5
+			// Update color of sky & ground
+			const { bgCol, ground } = this.sketch
+			bgCol.hue = Math.random()
+			bgCol.sat = Math.random() * 0.4 + 0.5
+			ground.hue = bgCol.hue
+			ground.sat = bgCol.sat
+			ground.lgt = bgCol.lgt * 1.35
 		}, time)
 	}
 
