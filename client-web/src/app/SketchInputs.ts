@@ -29,7 +29,7 @@ export class SketchInputs {
 		name?: any
 		instrument?: any
 		inputDevice?: any
-		offset?: any
+		latency?: any
 		bpm?: any
 		hide?: any
 		hideLoops?: any
@@ -171,22 +171,20 @@ export class SketchInputs {
 			return
 		}
 		if (!this.pp) {
-			console.warn(
+			console.log(
 				'[SketchInputs #setupInputsUser] Attempted to setup user input before sketch was initialized',
 			)
-			return
-		}
-		if (this.inputs.name && this.nameCustomized) {
-			// Don't re-create the input if the user has already customized their name
 			return
 		}
 		if (this.inputs.name) {
 			this.inputs.name.remove()
 		}
-		if (this.inputs.offset) {
-			this.inputs.offset.remove()
+		if (this.inputs.latency) {
+			this.inputs.latency.remove()
 		}
-		const inName = this.pp.createInput(defaultName) as any
+		this.inputs.name = this.pp.createInput(defaultName) as any
+		this.inputs.latency = this.pp.createInput(`${this.parent.user.offset}`) as any
+		const { name: inName, latency: inLatency } = this.inputs
 		inName.size(80)
 		inName.position(20, userInputsY)
 		inName.input(() => {
@@ -199,38 +197,35 @@ export class SketchInputs {
 		// // Uncomment to select name field on load:
 		// inName.elt.focus()
 		// inName.elt.select()
-		this.inputs.name = inName
 		this.parent.updateUser({ name: inName.value() }, false)
 
-		const inOffset = this.pp.createInput(`${this.parent.user.offset}`) as any
-		inOffset.size(50)
-		inOffset.position(inName.x + inName.width + 10, userInputsY)
-		const setOffset = () => {
-			const off = parseFloat(inOffset.value())
-			if (!Number.isNaN(off)) {
-				this.parent.updateUser({ offset: off })
-				this.parent.loops.updateRecOffset(off)
+		inLatency.size(50)
+		inLatency.position(inName.x + inName.width + 10, userInputsY)
+		const setLatency = () => {
+			const lat = parseFloat(inLatency.value())
+			if (!Number.isNaN(lat)) {
+				this.parent.updateUser({ offset: lat })
+				this.parent.loops.updateRecOffset(lat)
 			}
 		}
-		inOffset.input(() => {
-			console.log('[SketchInputs #inputs.offset] Changed:', inOffset.value())
-			setOffset()
+		inLatency.input(() => {
+			console.log('[SketchInputs #inputs.latency] Changed:', inLatency.value())
+			setLatency()
 		})
-		inOffset.elt.onfocus = () => (inOffset.focused = true)
-		inOffset.elt.onblur = () => (inOffset.focused = false)
-		this.inputs.offset = inOffset
-		setOffset()
+		inLatency.elt.onfocus = () => (inLatency.focused = true)
+		inLatency.elt.onblur = () => (inLatency.focused = false)
+		setLatency()
 	}
 
 	setupInputsInstrument = () => {
-		if (!this.pp || !this.inputs.offset || this.hidden) {
+		if (!this.pp || !this.inputs.latency || this.hidden) {
 			return
 		}
 		if (this.inputs.instrument) {
 			this.inputs.instrument.remove()
 		}
 		const inInst = this.pp.createSelect() as any
-		inInst.position(this.inputs.offset.x + this.inputs.offset.width + 10, userInputsY)
+		inInst.position(this.inputs.latency.x + this.inputs.latency.width + 10, userInputsY)
 		const uinst = this.parent.user.instrument
 		inInst.size(130)
 		for (const instName in this.parent.instruments) {
@@ -323,15 +318,16 @@ export class SketchInputs {
 				case key === 'hideDial':
 				case key === 'showHelp':
 					continue
-				case key === 'offset':
+				case key === 'latency':
 					pp.push()
-					const off = parseFloat(input.value())
+					const lat = parseFloat(input.value())
 					let msg = ``
-					if (Number.isNaN(off)) {
+					if (Number.isNaN(lat)) {
 						// Show the user that they have an invalid value
 						pp.fill(255, 40, 40)
 						msg = ` (NaN!)`
-					} else if (this.pingBeats > off / 2) {
+					} else if (this.pingBeats > lat / 2) {
+						// Warn user that latency is less than half of ping
 						pp.fill(255, 128, 0)
 						msg = ` (check ping)`
 					}
@@ -369,21 +365,19 @@ export class SketchInputs {
 			pp.pop()
 			return
 		}
-
 		// draw precision and ping stats
-		const { offset } = this.parent.user
+		const { offset: latency } = this.parent.user
 		const { precisionNow, pingMs } = this.parent.ws.clock
 		this.pingBeats = pingMs / beatMs
 		const prec = Math.abs(precisionNow)
 		const precStr = `${prettyUnit('s', prec / 1000)} (${prettyUnit('B', prec / beatMs, true)})`
 		const pingStr = `${prettyUnit('s', pingMs / 1000)} (${prettyUnit('B', this.pingBeats, true)})`
-		// pp.textAlign(pp.LEFT, pp.BOTTOM).textStyle(pp.BOLD).fill(200)
 		ppLabel().text(`precision:`, xc, yy)
 		ppValue(prec / beatMs >= 1.0 / 32) // warn if clock precision is worse than 128th note
 			.text(precStr, xc + 5, yy)
 		yy += 20
 		ppLabel().text(`ping:`, xc, yy)
-		ppValue(this.pingBeats > offset / 2) // warn if ping is close to offset value
+		ppValue(this.pingBeats > latency / 2) // warn if ping is close to latency value
 			.text(pingStr, xc + 5, yy)
 		pp.pop()
 	}
