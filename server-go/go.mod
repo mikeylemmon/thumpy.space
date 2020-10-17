@@ -1,4 +1,4 @@
-module bitbucket.org/mlem/cmpo385/thump
+module bitbucket.org/mlem/cmpo385/thump/server-go
 
 go 1.13
 

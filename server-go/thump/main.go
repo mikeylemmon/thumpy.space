@@ -27,6 +27,10 @@ func main() {
 		Usage:   `a server implementation for the web-based A/V workstation`,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
+				Name:  `certs`,
+				Usage: `location of certificates for https support`,
+			},
+			&cli.StringFlag{
 				Name:  `port`,
 				Usage: `port on which the server will listen for http requests`,
 				Value: `38883`,
@@ -48,7 +52,17 @@ func mainAction(cc *cli.Context) error {
 	go runSubscriptionLoop()
 	go runRoboUser1()
 
-	http.ListenAndServe(`:`+port, http.HandlerFunc(handleWS))
+	handler := http.HandlerFunc(handleWS)
+	if certs := cc.String(`certs`); certs != `` {
+		go func() {
+			if err := http.ListenAndServeTLS(`:443`, certs+`/fullchain.pem`, certs+`/privkey.pem`, handler); err != nil {
+				log.Error().Err(err).Msg(`failed listening for https requests`)
+			}
+		}()
+	}
+	if err := http.ListenAndServe(`:`+port, handler); err != nil {
+		log.Error().Err(err).Msg(`failed listening for http requests`)
+	}
 
 	log.Info().Msg(`Goodbye`)
 
