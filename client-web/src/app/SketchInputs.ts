@@ -76,6 +76,28 @@ export class SketchInputs {
 		}
 	}
 
+	toggleHelp = () => {
+		if (!this.pp) {
+			return
+		}
+		const { loops } = this.parent
+		this.help = !this.help
+		if (this.help) {
+			this.helpRetoggle.loops = !loops.hidden
+			this.helpRetoggle.dial = !loops.hiddenDial
+		}
+		if (this.helpRetoggle.loops) {
+			loops.toggleHide()
+		}
+		if (this.helpRetoggle.dial) {
+			loops.toggleHideDial()
+		}
+		this.setup(this.pp)
+		if (!this.help && !this.hidden) {
+			this.setupInputsBPM()
+		}
+	}
+
 	setup = (pp: p5) => {
 		this.pp = pp
 		if (!this.helpImg) {
@@ -120,23 +142,7 @@ export class SketchInputs {
 		let xx = pp.width - showHelp.width - 50
 		const yy = pp.height - showHelp.height - 10
 		showHelp.position(xx, yy)
-		showHelp.mousePressed(() => {
-			this.help = !this.help
-			if (this.help) {
-				this.helpRetoggle.loops = !loops.hidden
-				this.helpRetoggle.dial = !loops.hiddenDial
-			}
-			if (this.helpRetoggle.loops) {
-				loops.toggleHide()
-			}
-			if (this.helpRetoggle.dial) {
-				loops.toggleHideDial()
-			}
-			this.setup(pp)
-			if (!this.help && !this.hidden) {
-				this.setupInputsBPM()
-			}
-		})
+		showHelp.mousePressed(this.toggleHelp)
 		if (this.help) {
 			return
 		}

@@ -1,5 +1,6 @@
 import * as p5 from 'p5'
 import * as Tone from 'tone'
+import { KEYCODE_ESC } from './constants'
 import WSClient, { DONT_REOPEN } from './serverApi/WSClient'
 import { ClockOpts, NOTE_METRONOME_BPM_CHANGED, NOTE_METRONOME_DOWN } from './serverApi/serverClock'
 import {
@@ -271,6 +272,10 @@ export default class Sketch {
 	}
 	keyPressed = (evt: p5) => {
 		if (this.keyboardInputDisabled()) {
+			return
+		}
+		if (evt.keyIsDown(KEYCODE_ESC)) {
+			this.inputs.toggleHelp()
 			return
 		}
 		this.avatar.keyPressed(evt)
