@@ -29,6 +29,7 @@ export class Avatar extends Obj {
 	followCam?: FollowCam
 	onForce?: forceFunc
 	dancer: DancerObj
+	facing: Vec
 
 	keys: KeyMovement = {
 		up: false,
@@ -47,6 +48,7 @@ export class Avatar extends Obj {
 		this.comps = [this.phys]
 		this.onForce = opts.onForce
 		this.dancer = new DancerObj()
+		this.facing = new Vec(0, 0, -1)
 		this.addChild(this.dancer)
 		console.log('[Avatar] ctor', this)
 	}
@@ -166,6 +168,7 @@ export class Avatar extends Obj {
 		if (ff.x !== 0 || ff.z !== 0) {
 			// Orient avatar to movement direction
 			this.xform.rot.y = Math.atan2(ff.x, ff.z)
+			this.facing = ff.clone().normalize()
 		}
 		if (this.onForce) {
 			this.onForce(this.getUserXform())

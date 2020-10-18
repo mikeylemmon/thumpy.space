@@ -215,11 +215,13 @@ export class BlackHole extends Instrument {
 			for (const oo of objs) {
 				oo.xform.scale.applyMult(0.6)
 			}
-			const { pos: apos, scale: ascale } = avatar.xform
+			const { facing, xform } = avatar
+			const { pos: apos, scale: ascale } = xform
 			const theta = Math.random() * Math.PI * 2
-			pos.x = apos.x + ascale.x * 5 * Math.sin(theta)
+			const ff = facing.cloneMult(objSize * 4)
+			pos.x = apos.x + ff.x + ascale.x * 3 * Math.sin(theta)
 			pos.y = apos.y
-			pos.z = apos.z + ascale.x * 5 * Math.cos(theta)
+			pos.z = apos.z + ff.z + ascale.x * 3 * Math.cos(theta)
 		}
 		this.lastPos[clientId] = pos
 		const rot = new Vec(
