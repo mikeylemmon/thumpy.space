@@ -2,6 +2,7 @@ import * as p5 from 'p5'
 import AudioKeys from 'audiokeys'
 import Sketch from './Sketch'
 import { MidiEvent } from './MIDI'
+import { KEYCODE_CONTROL } from './constants'
 
 type AudioKeysEvent = {
 	// the midi number of the note
@@ -45,6 +46,10 @@ export class SketchAudioKeys {
 	keyPressed = (evt: AudioKeysEvent) => {
 		const { note, velocity } = evt
 		if (this.sketch.keyboardInputDisabled()) {
+			return
+		}
+		const { pp } = this.sketch
+		if (pp && pp.keyIsDown(KEYCODE_CONTROL)) {
 			return
 		}
 		if (this.sketch.user.inputDevice !== 'keyboard') {

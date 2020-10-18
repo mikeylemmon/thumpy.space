@@ -1,7 +1,14 @@
 import * as p5 from 'p5'
 import { UserEvent } from './serverApi/serverApi'
 import Sketch from './Sketch'
-import { KEYCODE_BACKSPACE, KEYCODE_DELETE, KEYCODE_SHIFT, KEYCODE_ENTER, KEYCODE_RETURN } from './constants'
+import {
+	KEYCODE_BACKSPACE,
+	KEYCODE_CONTROL,
+	KEYCODE_DELETE,
+	KEYCODE_SHIFT,
+	KEYCODE_ENTER,
+	KEYCODE_RETURN,
+} from './constants'
 import { radBig, radSmall, Loop } from './Loop'
 
 type LoopsOpts = {
@@ -246,7 +253,8 @@ export class Loops {
 				this.stopRecording()
 			}
 		}
-		if (evt.key === '\\' || evt.key === '|') {
+		const ctrlM = evt.key === 'm' && evt.keyIsDown(KEYCODE_CONTROL)
+		if (ctrlM || evt.key === '\\' || evt.key === '|') {
 			this.toggleActiveLoopMute()
 		}
 	}
