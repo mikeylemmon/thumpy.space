@@ -83,6 +83,13 @@ export default class Sketch {
 			sketch: this,
 			recOffset: this.user.offset,
 		})
+		this.avatar = new Avatar({
+			user: this.user,
+			pos: newAvatarPos(),
+			scale: new Vec(30),
+			phys: { worldScale },
+			onForce: this.sendUserXform,
+		})
 		this.ws = new WSClient(window, {
 			clock: {
 				onSynced: () => {
@@ -127,13 +134,6 @@ export default class Sketch {
 			onMessage: this.sendUserEvent,
 		})
 		this.audioKeys = new SketchAudioKeys(this)
-		this.avatar = new Avatar({
-			user: this.user,
-			pos: newAvatarPos(),
-			scale: new Vec(30),
-			phys: { worldScale },
-			onForce: this.sendUserXform,
-		})
 		window.Tone = Tone
 		window.me = this
 	}
@@ -212,7 +212,7 @@ export default class Sketch {
 		this.loops.update()
 		engine3d.update()
 		pp.colorMode(pp.HSL, 1)
-			.background(this.bgCol.hue, this.bgCol.sat, this.bgCol.lgt)
+			.background(this.bgCol.hue, this.bgCol.sat, this.bgCol.lgt, 0.2)
 			.colorMode(pp.RGB, 255)
 		const { pg } = this
 		if (pg) {

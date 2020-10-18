@@ -28,6 +28,8 @@ export class Engine3D {
 			return true
 		})
 	}
+	getObjs = (objType: any) => this.objs.filter(oo => oo instanceof objType)
+	getObj = (objType: any): Obj | undefined => this.getObjs(objType)[0]
 
 	update = () => {
 		if (!this.lastUpdate) {

@@ -79,7 +79,7 @@ export class BlackHole extends Instrument {
 	release = 0.6
 	modwheel = 0.3
 	objs: Obj[] = []
-	maxObjs = 24
+	maxObjs = 32
 	ii = 0
 
 	constructor() {
@@ -202,7 +202,7 @@ export class BlackHole extends Instrument {
 			return
 		}
 		// Create obj for note
-		const objSize = 100
+		const objSize = 130
 		const { objs, maxObjs } = this
 		const { clientId } = avatar.user
 		let pos = avatar.xform.pos
@@ -211,9 +211,9 @@ export class BlackHole extends Instrument {
 		}
 		const off = new Vec(srand(), Math.random(), srand()).applyMult(objSize * 0.6)
 		pos = pos.cloneAdd(off)
-		if (this.ii++ % 8 === 0 || pos.y > 1000) {
+		if (this.ii++ % 16 === 0 || pos.y > 1000) {
 			for (const oo of objs) {
-				oo.xform.scale.applyMult(0.6)
+				oo.xform.scale.applyMult(0.8)
 			}
 			const { facing, xform } = avatar
 			const { pos: apos, scale: ascale } = xform
@@ -229,11 +229,13 @@ export class BlackHole extends Instrument {
 			Math.random() * Math.PI * 2,
 			Math.random() * Math.PI * 2,
 		)
+		let extraScale = pos.y / 1000
+		extraScale *= extraScale * extraScale * 10 * objSize
 		const obj = new BHObj(this, {
 			noteEvt: evt,
 			pos: pos,
 			rot: rot,
-			scale: new Vec(objSize),
+			scale: new Vec(objSize * 0.7 + extraScale),
 			twist: this.modwheel * this.modwheel,
 			mass: evt.attack || 0.7,
 		})

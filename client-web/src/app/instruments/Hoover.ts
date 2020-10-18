@@ -2,7 +2,7 @@ import * as Tone from 'tone'
 import { MidiEventCC, MidiEventNote, MidiEventPitchbend } from '../MIDI'
 import { Instrument } from '../Instrument'
 import { noteFreq } from './util'
-import { Avatar } from 'engine3d'
+import { engine3d, Avatar, Obj, ObjOpts, Vec } from 'engine3d'
 
 // Hoover implements a very rough approximation of a Alpha Juno 2 'rave hoover'
 // by amplitude-modulating a fatsawtooth by a fatsquare (would have used pulse
@@ -29,6 +29,9 @@ export class Hoover extends Instrument {
 	harmonicity = new Tone.Multiply(3.03)
 	freq = 440
 	attacks = 0
+	obj: Obj
+	wave: Tone.Waveform
+	fft: Tone.FFT
 
 	constructor() {
 		super()
@@ -64,6 +67,22 @@ export class Hoover extends Instrument {
 			.connect(modScale)
 		this.synth.frequency.chain(this.harmonicity, this.amOsc.frequency)
 		this.updateModwheel(this.modwheel)
+		// Waveform and FFT
+		this.wave = new Tone.Waveform(32)
+		this.panVol.connect(this.wave)
+		this.fft = new Tone.FFT({
+			size: 16,
+			normalRange: true,
+		})
+		this.panVol.connect(this.fft)
+		const obj = engine3d.getObj(HooverObj)
+		if (obj) {
+			this.obj = obj
+		} else {
+			this.obj = new HooverObj(this, {
+				scale: new Vec(4),
+			})
+		}
 	}
 
 	loaded() {
@@ -191,5 +210,68 @@ export class Hoover extends Instrument {
 
 	updatePitchbend = () => {
 		this.synth.set({ detune: 100 * this.ps * this.psSpread })
+	}
+}
+
+class HooverObj extends Obj {
+	inst: Hoover
+	hue = 0
+
+	constructor(hoover: Hoover, opts: ObjOpts) {
+		super(opts)
+		this.inst = hoover
+	}
+
+	every = 0
+	ff = 0.0
+	drawFunc = (pg: p5.Graphics) => {
+		pg.rotateX(this.ff / 59371)
+		pg.rotateY(this.ff / -37523)
+		pg.rotateZ(this.ff / 294783)
+		const fft = this.inst.fft.getValue()
+		let fftVals: number[] = []
+		const fftStart = 2
+		for (let ii = fftStart; ii < fft.length; ii++) {
+			fftVals[ii - fftStart] = fft[ii] * ii * 100
+		}
+		const max = Math.max(0.001, ...fftVals)
+		fftVals = fftVals.map(ff => ff / max).filter(ff => ff > 0.05)
+		const vals = this.inst.wave.getValue()
+
+		// Draw waveform lasers, with colors modulated by fft values
+		pg.colorMode(pg.HSL, 1)
+		pg.noFill().strokeWeight(3)
+		for (let ii = 0; ii < vals.length; ii++) {
+			const val = vals[ii] * 2000
+			this.ff++
+			const ff = this.ff % fftVals.length || 0
+			const hh = ((ff / fft.length) * 6.7 + ((this.ff / 100000) % 1.0)) % 1.0
+			const ss = (fftVals[ff] || 0) / 2 + 0.5
+			pg.stroke(hh, ss, 0.5)
+			pg.rotateZ((Math.PI * 2) / vals.length)
+			pg.line(0, 0, 0, val)
+		}
+		pg.rotateX(-Math.PI / 2)
+		for (let ii = 0; ii < vals.length; ii++) {
+			const val = vals[ii] * 2000
+			this.ff++
+			const ff = this.ff % fftVals.length || 0
+			const hh = ((ff / fft.length) * 6.7 + ((this.ff / 100000) % 1.0)) % 1.0
+			const ss = (fftVals[ff] || 0) / 2 + 0.5
+			pg.stroke(hh, ss, 0.5)
+			pg.rotateZ((Math.PI * 2) / vals.length)
+			pg.line(0, 0, 0, val)
+		}
+		pg.rotateY(-Math.PI / 2)
+		for (let ii = 0; ii < vals.length; ii++) {
+			const val = vals[ii] * 2000
+			this.ff++
+			const ff = this.ff % fftVals.length || 0
+			const hh = ((ff / fft.length) * 6.7 + ((this.ff / 100000) % 1.0)) % 1.0
+			const ss = (fftVals[ff] || 0) / 2 + 0.5
+			pg.stroke(hh, ss, 0.5)
+			pg.rotateZ((Math.PI * 2) / vals.length)
+			pg.line(0, 0, 0, val)
+		}
 	}
 }
