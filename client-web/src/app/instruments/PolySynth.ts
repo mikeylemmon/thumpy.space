@@ -96,7 +96,7 @@ export class PolySynth extends Instrument {
 		}).connect(this.filterVol)
 		this.synth = new Tone.PolySynth(Tone.Synth, {
 			oscillator: {
-				type: 'fatsawtooth',
+				type: 'fatsquare',
 				count: 3,
 				spread: 30,
 			},

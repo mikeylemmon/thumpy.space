@@ -14,7 +14,7 @@ import {
 } from './serverApi/serverApi'
 import MIDI, { MidiEvent, MidiEventCC, MidiEventNote, MidiEventPitchbend } from './MIDI'
 import { Instrument } from './Instrument'
-import { BlackHole, Dancer, EightOhEight, Metronome, Piano, PolySynth } from './instruments'
+import { BlackHole, Dancer, EightOhEight, Hoover, Metronome, Piano, PolySynth } from './instruments'
 import { EasyCam } from 'vendor/p5.easycam.js'
 import { engine3d, Avatar, Ground, Vec } from 'engine3d'
 import { SketchInputs } from './SketchInputs'
@@ -71,7 +71,6 @@ export default class Sketch {
 	_bpm = 95
 	_bpmNext = 95
 	localStorage: Storage
-	// blackHole = new BlackHoleObj({ pos: new Vec(0, 100, 0), scale: new Vec(100) })
 	blackHole = new BlackHoleObj()
 
 	constructor(global: any) {
@@ -117,6 +116,7 @@ export default class Sketch {
 			dancer: new Dancer(),
 			synth: new PolySynth(),
 			blackHole: new BlackHole(),
+			hoover: new Hoover(),
 			eightOhEight: new EightOhEight(this),
 			piano: new Piano(),
 			metronome: new Metronome(this),
