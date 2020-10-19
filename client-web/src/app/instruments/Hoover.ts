@@ -1,7 +1,7 @@
 import * as Tone from 'tone'
 import { MidiEventCC, MidiEventNote, MidiEventPitchbend } from '../MIDI'
-import { Instrument } from '../Instrument'
-import { noteFreq } from './util'
+import { ControlChange, Instrument } from '../Instrument'
+import { noteFreq } from '../util'
 import { engine3d, Avatar, Obj, ObjOpts, Vec } from 'engine3d'
 
 // Hoover implements a very rough approximation of a Alpha Juno 2 'rave hoover'
@@ -15,17 +15,12 @@ import { engine3d, Avatar, Obj, ObjOpts, Vec } from 'engine3d'
 export class Hoover extends Instrument {
 	chorus: Tone.Chorus
 	filter: Tone.Filter
-	gain: Tone.Gain
+	amGain: Tone.Gain
 	synth: Tone.Synth
 	amOsc: Tone.OmniOscillator<Tone.FatOscillator>
 	panVol: Tone.PanVol
 	ps = 0
 	psSpread = 7
-	attack = 0.01
-	decay = 0.07
-	sustain = 1.0
-	release = 0.3
-	modwheel = 0.0
 	harmonicity = new Tone.Multiply(3.03)
 	freq = 440
 	attacks = 0
@@ -35,6 +30,32 @@ export class Hoover extends Instrument {
 
 	constructor() {
 		super()
+		for (const key in this.ctrls.sliders) {
+			// set default values for controls
+			const ss = this.ctrls.sliders[key]
+			const vv = ss.value
+			switch (key) {
+				case 'mod':
+					vv.value = ss.valueNext = 0.0
+					break
+				case 'a':
+					vv.value = ss.valueNext = 0.6
+					break
+				case 'd':
+					vv.value = ss.valueNext = 0.07
+					break
+				case 's':
+					vv.value = ss.valueNext = 1.0
+					break
+				case 'r':
+					vv.value = ss.valueNext = 0.6
+					break
+				case 'vol':
+					vv.value = ss.valueNext = 0.9
+					break
+			}
+		}
+
 		this.panVol = new Tone.PanVol(0, 0).toDestination()
 		this.chorus = new Tone.Chorus(0.15, 30, 1).connect(this.panVol)
 		this.filter = new Tone.Filter({
@@ -42,7 +63,7 @@ export class Hoover extends Instrument {
 			frequency: 1000,
 			Q: 0,
 		}).connect(this.chorus)
-		this.gain = new Tone.Gain(1).connect(this.filter)
+		this.amGain = new Tone.Gain(1).connect(this.filter)
 		this.synth = new Tone.Synth({
 			oscillator: {
 				type: 'fatsawtooth',
@@ -50,23 +71,18 @@ export class Hoover extends Instrument {
 				spread: 59,
 			},
 			portamento: 0.25,
-			envelope: {
-				attack: this.attack,
-				decay: this.decay,
-				sustain: this.sustain,
-				release: this.release,
-			},
-		}).connect(this.gain)
-		const modScale = new Tone.AudioToGain().connect(this.gain.gain)
+		}).connect(this.amGain)
+		this.envelope = this.synth.envelope
+		const amScale = new Tone.AudioToGain().connect(this.amGain.gain)
 		this.amOsc = new Tone.OmniOscillator({
 			type: 'fatsquare',
 			count: 3,
 			spread: 30,
 		})
 			.start()
-			.connect(modScale)
+			.connect(amScale)
 		this.synth.frequency.chain(this.harmonicity, this.amOsc.frequency)
-		this.updateModwheel(this.modwheel)
+
 		// Waveform and FFT
 		this.wave = new Tone.Waveform(32)
 		this.panVol.connect(this.wave)
@@ -82,6 +98,71 @@ export class Hoover extends Instrument {
 			this.obj = new HooverObj(this, {
 				scale: new Vec(4),
 			})
+		}
+
+		this.updateValsFromSliders()
+	}
+
+	updateValForCtrl(cc: ControlChange) {
+		super.updateValForCtrl(cc)
+		const { evt, slider } = cc
+
+		if (slider && slider.label === 'mod') {
+			this.updateModwheel(slider.value.value)
+			return
+		}
+
+		// Handle customized control events
+		if (!evt) {
+			return
+		}
+		const num = evt.controller.number
+		let vv = evt.value * evt.value
+		switch (true) {
+			case num === 21:
+				this.harmonicity.value = vv * 20
+				break
+			case num === 22:
+				this.filter.frequency.rampTo(20 + 10000 * vv, 0.005)
+				break
+			case num === 23:
+				this.filter.set({ Q: vv * 8 })
+				break
+			case num === 24:
+				this.synth.set({ portamento: vv * 2 })
+				break
+			// case num === 26:
+			// 	delayed = () => {
+			// 		this.psSpread = evt.value * 12
+			// 		this.updatePitchbend()
+			// 	}
+			// 	break
+			case num === 27:
+				this.panVol.set({ pan: evt.value * 2 - 1 })
+				break
+			// case 71 <= num && num <= 74: {
+			// 	let vv = evt.value * evt.value * evt.value * evt.value
+			// 	const key = ['attack', 'decay', 'sustain', 'release'][num - 71]
+			// 	delayed = () => {
+			// 		vv = key === 'sustain' ? evt.value : 10 * vv
+			// 		;(this as any)[key] = vv
+			// 		this.synth.envelope.set({ [key]: vv })
+			// 	}
+			// 	break
+			// }
+			case 75 <= num && num <= 79:
+				this.panVol.mute = !evt.value
+				this.panVol.set({ volume: (evt.value - 1) * 50 })
+				break
+			case 15 <= num && num <= 19:
+				this.panVol.mute = !evt.value
+				break
+			default:
+			// console.log(
+			// 	`[Hoover #controlchange] Unsupported CC event on channel ${evt.channel}:`,
+			// 	evt.controller,
+			// 	evt.value,
+			// )
 		}
 	}
 
@@ -108,82 +189,89 @@ export class Hoover extends Instrument {
 		}
 	}
 
-	controlchange = (_avatar: Avatar, time: number, evt: MidiEventCC) => {
-		const num = evt.controller.number
-		let delayed: (() => void) | null = null
-		switch (true) {
-			case num === 1:
-				delayed = () => {
-					this.updateModwheel(evt.value)
-				}
-				break
-			case num === 21:
-				delayed = () => {
-					const vv = evt.value * evt.value
-					this.harmonicity.value = vv * 20
-				}
-				break
-			case num === 22:
-				delayed = () => {
-					const vv = evt.value * evt.value
-					this.filter.frequency.rampTo(20 + 10000 * vv, 0.005)
-				}
-				break
-			case num === 23:
-				delayed = () => {
-					const vv = evt.value * evt.value
-					this.filter.set({ Q: vv * 8 })
-				}
-				break
-			case num === 24:
-				delayed = () => {
-					const vv = evt.value * evt.value
-					this.synth.set({ portamento: vv * 2 })
-				}
-				break
-			case num === 27:
-				delayed = () => {
-					this.psSpread = evt.value * 12
-					this.updatePitchbend()
-				}
-				break
-			case num === 28:
-				delayed = () => {
-					this.panVol.set({ pan: evt.value * 2 - 1 })
-				}
-				break
-			case 71 <= num && num <= 74: {
-				let vv = evt.value * evt.value * evt.value * evt.value
-				const key = ['attack', 'decay', 'sustain', 'release'][num - 71]
-				delayed = () => {
-					vv = key === 'sustain' ? evt.value : 10 * vv
-					;(this as any)[key] = vv
-					this.synth.envelope.set({ [key]: vv })
-				}
-				break
-			}
-			case 75 <= num && num <= 79:
-				delayed = () => {
-					this.panVol.mute = !evt.value
-					this.panVol.set({ volume: (evt.value - 1) * 50 })
-				}
-				break
-			case 15 <= num && num <= 19:
-				delayed = () => {
-					this.panVol.mute = !evt.value
-				}
-				break
-			default:
-			// console.log(
-			// 	`[Hoover #controlchange] Unsupported CC event on channel ${evt.channel}:`,
-			// 	evt.controller,
-			// 	evt.value,
-			// )
-		}
-		if (delayed) {
-			Tone.Draw.schedule(delayed, time)
-		}
-	}
+	// controlchange = (avatar: Avatar, time: number, evt: MidiEventCC) => {
+	// 	const num = evt.controller.number
+	// 	let delayed: (() => void) | undefined = undefined
+	// 	super.controlchange(avatar, time, evt, () => {
+	// 		// callback runs at time
+	// 		this.updateValForCtrl(num)
+	// 		if (delayed) {
+	// 			delayed()
+	// 		}
+	// 	})
+	// 	switch (true) {
+	// 		// case num === 1:
+	// 		// 	delayed = () => {
+	// 		// 		this.updateModwheel(evt.value)
+	// 		// 	}
+	// 		// 	break
+	// 		case num === 21:
+	// 			delayed = () => {
+	// 				const vv = evt.value * evt.value
+	// 				this.harmonicity.value = vv * 20
+	// 			}
+	// 			break
+	// 		case num === 22:
+	// 			delayed = () => {
+	// 				const vv = evt.value * evt.value
+	// 				this.filter.frequency.rampTo(20 + 10000 * vv, 0.005)
+	// 			}
+	// 			break
+	// 		case num === 23:
+	// 			delayed = () => {
+	// 				const vv = evt.value * evt.value
+	// 				this.filter.set({ Q: vv * 8 })
+	// 			}
+	// 			break
+	// 		case num === 24:
+	// 			delayed = () => {
+	// 				const vv = evt.value * evt.value
+	// 				this.synth.set({ portamento: vv * 2 })
+	// 			}
+	// 			break
+	// 		// case num === 26:
+	// 		// 	delayed = () => {
+	// 		// 		this.psSpread = evt.value * 12
+	// 		// 		this.updatePitchbend()
+	// 		// 	}
+	// 		// 	break
+	// 		case num === 27:
+	// 			delayed = () => {
+	// 				this.panVol.set({ pan: evt.value * 2 - 1 })
+	// 			}
+	// 			break
+	// 		// case 71 <= num && num <= 74: {
+	// 		// 	let vv = evt.value * evt.value * evt.value * evt.value
+	// 		// 	const key = ['attack', 'decay', 'sustain', 'release'][num - 71]
+	// 		// 	delayed = () => {
+	// 		// 		vv = key === 'sustain' ? evt.value : 10 * vv
+	// 		// 		;(this as any)[key] = vv
+	// 		// 		this.synth.envelope.set({ [key]: vv })
+	// 		// 	}
+	// 		// 	break
+	// 		// }
+	// 		case 75 <= num && num <= 79:
+	// 			delayed = () => {
+	// 				this.panVol.mute = !evt.value
+	// 				this.panVol.set({ volume: (evt.value - 1) * 50 })
+	// 			}
+	// 			break
+	// 		case 15 <= num && num <= 19:
+	// 			delayed = () => {
+	// 				this.panVol.mute = !evt.value
+	// 			}
+	// 			break
+	// 		default:
+	// 		// console.log(
+	// 		// 	`[Hoover #controlchange] Unsupported CC event on channel ${evt.channel}:`,
+	// 		// 	evt.controller,
+	// 		// 	evt.value,
+	// 		// )
+	// 	}
+	// 	// if (delayed) {
+	// 	// 	Tone.Draw.schedule(delayed, time)
+	// 	// }
+	// }
 
 	pitchbend = (_avatar: Avatar, time: number, evt: MidiEventPitchbend) => {
 		Tone.Draw.schedule(() => {
@@ -193,7 +281,6 @@ export class Hoover extends Instrument {
 	}
 
 	updateModwheel = (val: number) => {
-		this.modwheel = val
 		const sin = Math.sin(val * Math.PI)
 		let ss = 1 - sin
 		ss = 1 - ss * ss

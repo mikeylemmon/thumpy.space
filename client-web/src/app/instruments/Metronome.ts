@@ -2,7 +2,7 @@ import * as Tone from 'tone'
 import { Avatar } from 'engine3d'
 import { Sampler } from './Sampler'
 import { MidiEventNote } from '../MIDI'
-import { noteFreq } from './util'
+import { noteFreq } from '../util'
 import Sketch from '../Sketch'
 
 const samps = ['MA.WAV', 'RS.WAV']

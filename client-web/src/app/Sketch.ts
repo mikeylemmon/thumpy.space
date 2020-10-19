@@ -78,7 +78,7 @@ export default class Sketch {
 		console.log('[Sketch #ctor]')
 		this.localStorage = global.localStorage
 		const didLoad = this.loadFromStorage()
-		this.inputs = new SketchInputs(this, didLoad)
+		this.inputs = new SketchInputs(didLoad)
 		this.loops = new Loops({
 			sketch: this,
 			recOffset: this.user.offset,
@@ -185,6 +185,7 @@ export default class Sketch {
 		pp.setup = () => this.setup(pp)
 		pp.draw = () => this.draw(pp)
 		pp.mousePressed = () => this.mousePressed(pp)
+		pp.mouseReleased = () => this.mouseReleased(pp)
 		pp.keyPressed = () => this.keyPressed(pp)
 		pp.keyReleased = () => this.keyReleased(pp)
 	}
@@ -209,6 +210,7 @@ export default class Sketch {
 	}
 
 	draw = (pp: p5) => {
+		this.inputs.sliders.update(pp)
 		this.loops.update()
 		engine3d.update()
 		pp.colorMode(pp.HSL, 1)
@@ -264,7 +266,13 @@ export default class Sketch {
 			Tone.start()
 			console.log('[Sketch #mousePressed] Started Tone')
 		}
+		if (this.inputs.sliders.mousePressed(pp)) {
+			return
+		}
 		this.loops.mousePressed(pp)
+	}
+	mouseReleased = (pp: p5) => {
+		this.inputs.sliders.mouseReleased(pp)
 	}
 
 	keyboardInputDisabled = () => {
@@ -296,6 +304,10 @@ export default class Sketch {
 		this.localStorage.setItem('user', JSON.stringify(this.user))
 		if (sendUpdate) {
 			this.sendUserUpdate()
+		}
+		if (uu.instrument) {
+			const inst = this.instruments[uu.instrument]
+			this.inputs.sliders = inst.ctrls
 		}
 	}
 

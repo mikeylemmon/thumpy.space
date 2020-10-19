@@ -2,7 +2,7 @@ import * as p5 from 'p5'
 import * as Tone from 'tone'
 import { MidiEventCC, MidiEventNote, MidiEventPitchbend } from '../MIDI'
 import { Instrument } from '../Instrument'
-import { noteFreq, srand, srandVec } from './util'
+import { noteFreq, srand, srandVec } from '../util'
 import { engine3d, Avatar, Obj, ObjOpts, Vec } from 'engine3d'
 
 type SynthObjOpts = ObjOpts & {
@@ -86,6 +86,7 @@ export class PolySynth extends Instrument {
 
 	constructor() {
 		super()
+		this.ctrls.sliders = {}
 		this.panVol = new Tone.PanVol(0, 0).toDestination()
 		this.reverb = new Tone.Reverb({ decay: 4, wet: 0.6 }).connect(this.panVol)
 		this.filterVol = new Tone.Volume(0).connect(this.reverb)

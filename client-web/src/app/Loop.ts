@@ -2,8 +2,8 @@ import * as p5 from 'p5'
 import { v4 as uuid } from 'uuid'
 import { UserEvent } from './serverApi/serverApi'
 import Sketch from './Sketch'
-import seedrandom from 'seedrandom'
 import { BLACK_KEYS } from './constants'
+import { ctrlColor } from './util'
 
 export const radBig = 50
 export const radSmall = 35
@@ -403,8 +403,7 @@ export class Loop {
 		pg.strokeWeight(2).noFill()
 		pg.colorMode(pg.HSL, 1)
 		for (const ctrl in cevts) {
-			const hue = seedrandom(ctrl).quick()
-			const sat = 0.8
+			const col = ctrlColor(ctrl)
 			const len = cevts[ctrl].length
 			for (let ii = 0; ii < len; ii++) {
 				const { loopTime, evt } = cevts[ctrl][ii]
@@ -413,8 +412,8 @@ export class Loop {
 				const { kind, value } = evt.midiEvent
 				const isPitchbend = kind === 'pitchbend'
 				const vv = isPitchbend ? value / 2 + 0.5 : value
-				const rad = radius * (0.3 + 0.7 * vv)
-				pg.stroke(hue, sat, 0.4)
+				const rad = radius * (0.3 + 0.65 * vv)
+				pg.stroke(col.hue, col.sat, col.lgt)
 				this.drawArc(pg, rad, nextTime, loopTime)
 			}
 		}

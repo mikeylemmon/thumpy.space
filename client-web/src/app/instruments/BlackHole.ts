@@ -2,65 +2,9 @@ import * as p5 from 'p5'
 import * as Tone from 'tone'
 import { MidiEventCC, MidiEventNote, MidiEventPitchbend } from '../MIDI'
 import { Instrument } from '../Instrument'
-import { noteFreq, srand, srandVec } from './util'
+import { noteFreq, srand, srandVec } from '../util'
 import { Avatar, Obj, ObjOpts, Vec } from 'engine3d'
 import { sketch } from '../Sketch'
-
-type BHObjOpts = ObjOpts & {
-	noteEvt: MidiEventNote
-	twist: number
-	mass: number
-}
-
-class BHObj extends Obj {
-	inst: BlackHole
-	createdAt: number
-	noteEvt: MidiEventNote
-	scaleOrig: Vec
-	voice: Tone.Synth | null = null
-	hue = Math.random()
-	mass: number
-	twist = 0
-
-	constructor(inst: BlackHole, opts: BHObjOpts) {
-		super(opts)
-		this.inst = inst
-		this.createdAt = new Date().valueOf() / 1000
-		this.noteEvt = opts.noteEvt
-		this.scaleOrig = this.xform.scale.clone()
-		this.mass = 1 - opts.mass // invert to apply square
-		this.mass = 1 - this.mass * this.mass // un-invert the square
-		if (opts.twist) {
-			this.twist = Math.random() > 0.5 ? opts.twist : -opts.twist
-		}
-	}
-
-	update = (dt: number) => {
-		let mod = 1 - this.inst.modwheel // invert to apply square
-		mod = 1 - mod * mod // un-invert the square
-		this.xform.rot.applyAdd(srandVec().applyMult(dt * mod))
-	}
-
-	origin2D = new Vec()
-	scale2D = 1
-	drawFunc = (pg: p5.Graphics) => {
-		if (sketch.shaderBlackHole) {
-			sketch.shaderBlackHole.setUniform('origin', [
-				this.origin2D.x / pg.width,
-				this.origin2D.y / pg.height,
-			])
-			sketch.shaderBlackHole.setUniform('scale', this.scale2D / pg.width)
-			sketch.shaderBlackHole.setUniform('rotate', this.twist * Math.PI)
-			sketch.shaderBlackHole.setUniform('mass', this.mass)
-		}
-		pg.sphere(1, 3, 4)
-	}
-
-	drawFunc2D = (pp: p5, pos: Vec, scale: number) => {
-		this.origin2D = pos
-		this.scale2D = Math.min(pp.height * 2, scale)
-	}
-}
 
 export class BlackHole extends Instrument {
 	synth: Tone.Synth
@@ -84,6 +28,7 @@ export class BlackHole extends Instrument {
 
 	constructor() {
 		super()
+		this.ctrls.sliders = {}
 		this.panVol = new Tone.PanVol(0, 0).toDestination()
 		this.reverb = new Tone.Reverb({ decay: 4, wet: 0.6 }).connect(this.panVol)
 		const filter = new Tone.Filter({
@@ -247,5 +192,61 @@ export class BlackHole extends Instrument {
 			blackHole.rmChild(objs[objs.length - 1])
 			this.objs = objs.slice(0, maxObjs)
 		}
+	}
+}
+
+type BHObjOpts = ObjOpts & {
+	noteEvt: MidiEventNote
+	twist: number
+	mass: number
+}
+
+class BHObj extends Obj {
+	inst: BlackHole
+	createdAt: number
+	noteEvt: MidiEventNote
+	scaleOrig: Vec
+	voice: Tone.Synth | null = null
+	hue = Math.random()
+	mass: number
+	twist = 0
+
+	constructor(inst: BlackHole, opts: BHObjOpts) {
+		super(opts)
+		this.inst = inst
+		this.createdAt = new Date().valueOf() / 1000
+		this.noteEvt = opts.noteEvt
+		this.scaleOrig = this.xform.scale.clone()
+		this.mass = 1 - opts.mass // invert to apply square
+		this.mass = 1 - this.mass * this.mass // un-invert the square
+		if (opts.twist) {
+			this.twist = Math.random() > 0.5 ? opts.twist : -opts.twist
+		}
+	}
+
+	update = (dt: number) => {
+		let mod = 1 - this.inst.modwheel // invert to apply square
+		mod = 1 - mod * mod // un-invert the square
+		this.xform.rot.applyAdd(srandVec().applyMult(dt * mod))
+	}
+
+	origin2D = new Vec()
+	scale2D = 1
+	drawFunc = (pg: p5.Graphics) => {
+		if (sketch.shaderBlackHole) {
+			sketch.shaderBlackHole.setUniform('origin', [
+				this.origin2D.x / pg.width,
+				this.origin2D.y / pg.height,
+			])
+			sketch.shaderBlackHole.setUniform('scale', this.scale2D / pg.width)
+			sketch.shaderBlackHole.setUniform('rotate', this.twist * Math.PI)
+			sketch.shaderBlackHole.setUniform('mass', this.mass)
+		}
+		pg.sphere(1, 3, 4)
+	}
+
+	drawFunc2D = (pp: p5, pos: Vec, scale: number) => {
+		this.origin2D = pos
+		this.scale2D = Math.min(pp.height * 2, scale)
 	}
 }

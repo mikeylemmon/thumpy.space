@@ -1,8 +1,13 @@
-import { MidiEventCC, MidiEventNote, MidiEventPitchbend } from '../MIDI'
+import { MidiEventNote } from '../MIDI'
 import { Instrument } from '../Instrument'
 import { Avatar } from 'engine3d'
 
 export class Dancer extends Instrument {
+	constructor() {
+		super()
+		this.ctrls.sliders = {}
+	}
+
 	loaded() {
 		return true
 	}

@@ -1,6 +1,7 @@
 import * as p5 from 'p5'
-import Sketch from './Sketch'
+import { sketch } from './Sketch'
 import { clockUpdateReq, ClockOpts } from './serverApi/serverClock'
+import { InstSliders } from './InstSliders'
 
 const userInputsY = 40
 
@@ -21,7 +22,6 @@ function prettyUnit(unit: string, val: number, coarse = false) {
 }
 
 export class SketchInputs {
-	parent: Sketch
 	pp?: p5
 	nameCustomized = false
 	inputs: {
@@ -47,9 +47,9 @@ export class SketchInputs {
 	}
 	helpImg?: p5.Image
 	pingBeats = 0 // number of beats it takes for a round-trip message to/from the server
+	sliders = new InstSliders()
 
-	constructor(parent: Sketch, loadedFromStorage = false) {
-		this.parent = parent
+	constructor(loadedFromStorage = false) {
 		this.nameCustomized = loadedFromStorage
 	}
 
@@ -80,7 +80,7 @@ export class SketchInputs {
 		if (!this.pp) {
 			return
 		}
-		const { loops } = this.parent
+		const { loops } = sketch
 		this.help = !this.help
 		if (this.help) {
 			this.helpRetoggle.loops = !loops.hidden
@@ -115,11 +115,13 @@ export class SketchInputs {
 			this.setupInputsHide(this.pp)
 			return
 		}
-		this.setupInputsUser(this.parent.ws.clientId)
+		this.setupInputsUser(sketch.ws.clientId)
 		this.setupInputsInstrument()
-		if (!this.inputs.inputDevice) {
-			this.setupInputsMidi(this.parent.midi.webMidi)
-		}
+		// // setupInputsMidi is commented out because the inputDevice does nothing right now
+		// // (it's disabled in Sketch.sendUserEvent because it's easier to dev if all inputs are handled)
+		// if (!this.inputs.inputDevice) {
+		// 	this.setupInputsMidi(sketch.midi.webMidi)
+		// }
 		this.setupInputsHide(pp)
 	}
 
@@ -136,7 +138,7 @@ export class SketchInputs {
 		if (this.inputs.showHelp) {
 			this.inputs.showHelp.remove()
 		}
-		const { loops } = this.parent
+		const { loops } = sketch
 		this.inputs.showHelp = pp.createButton(this.help ? 'Hide Help' : 'Show Help') as any
 		const { showHelp } = this.inputs
 		let xx = pp.width - showHelp.width - 50
@@ -168,11 +170,11 @@ export class SketchInputs {
 	}
 
 	setupInputsUser = (clientId: number): any => {
-		const uu = this.parent.user
-		const defaultName = this.nameCustomized ? uu.name : `User ${this.parent.ws.clientId}`
+		const uu = sketch.user
+		const defaultName = this.nameCustomized ? uu.name : `User ${sketch.ws.clientId}`
 		if (this.hidden) {
 			if (uu.name === '') {
-				this.parent.updateUser({ name: defaultName })
+				sketch.updateUser({ name: defaultName })
 			}
 			return
 		}
@@ -189,29 +191,29 @@ export class SketchInputs {
 			this.inputs.latency.remove()
 		}
 		this.inputs.name = this.pp.createInput(defaultName) as any
-		this.inputs.latency = this.pp.createInput(`${this.parent.user.offset}`) as any
+		this.inputs.latency = this.pp.createInput(`${sketch.user.offset}`) as any
 		const { name: inName, latency: inLatency } = this.inputs
 		inName.size(80)
 		inName.position(20, userInputsY)
 		inName.input(() => {
 			// console.log('[SketchInputs #inputs.name] Changed:', inName.value())
 			this.nameCustomized = true
-			this.parent.updateUser({ name: inName.value() })
+			sketch.updateUser({ name: inName.value() })
 		})
 		inName.elt.onfocus = () => (inName.focused = true)
 		inName.elt.onblur = () => (inName.focused = false)
 		// // Uncomment to select name field on load:
 		// inName.elt.focus()
 		// inName.elt.select()
-		this.parent.updateUser({ name: inName.value() }, false)
+		sketch.updateUser({ name: inName.value() }, false)
 
 		inLatency.size(50)
 		inLatency.position(inName.x + inName.width + 10, userInputsY)
 		const setLatency = () => {
 			const lat = parseFloat(inLatency.value())
 			if (!Number.isNaN(lat)) {
-				this.parent.updateUser({ offset: lat })
-				this.parent.loops.updateRecOffset(lat)
+				sketch.updateUser({ offset: lat })
+				sketch.loops.updateRecOffset(lat)
 			}
 		}
 		inLatency.input(() => {
@@ -232,21 +234,21 @@ export class SketchInputs {
 		}
 		const inInst = this.pp.createSelect() as any
 		inInst.position(this.inputs.latency.x + this.inputs.latency.width + 10, userInputsY)
-		const uinst = this.parent.user.instrument
+		const uinst = sketch.user.instrument
 		inInst.size(130)
-		for (const instName in this.parent.instruments) {
+		for (const instName in sketch.instruments) {
 			inInst.option(instName)
 			if (instName === uinst) {
 				inInst.selected(instName)
 			}
 		}
 		inInst.changed(() => {
-			this.parent.updateUser({ instrument: inInst.value() })
+			sketch.updateUser({ instrument: inInst.value() })
 		})
 		inInst.elt.onfocus = () => (inInst.focused = true)
 		inInst.elt.onblur = () => (inInst.focused = false)
 		this.inputs.instrument = inInst
-		this.parent.updateUser({ instrument: inInst.value() }, false)
+		sketch.updateUser({ instrument: inInst.value() }, false)
 	}
 
 	setupInputsMidi = (webMidi: any) => {
@@ -269,14 +271,14 @@ export class SketchInputs {
 			}
 			inMidi.option(_midiInput.name)
 		}
-		inMidi.selected(this.parent.user.inputDevice)
+		inMidi.selected(sketch.user.inputDevice)
 		inMidi.changed(() => {
-			this.parent.updateUser({ inputDevice: inMidi.value() })
+			sketch.updateUser({ inputDevice: inMidi.value() })
 		})
 		inMidi.elt.onfocus = () => (inMidi.focused = true)
 		inMidi.elt.onblur = () => (inMidi.focused = false)
 		this.inputs.inputDevice = inMidi
-		this.parent.updateUser({ inputDevice: inMidi.value() }, false)
+		sketch.updateUser({ inputDevice: inMidi.value() }, false)
 	}
 
 	setupInputsBPM = () => {
@@ -291,7 +293,7 @@ export class SketchInputs {
 		inBPM.size(300)
 		inBPM.input(() => {
 			this.clockOpts.bpm = inBPM.value()
-			this.clockOpts.clientId = this.parent.user.clientId
+			this.clockOpts.clientId = sketch.user.clientId
 			this.sendClockUpdate(this.clockOpts)
 		})
 		inBPM.elt.onfocus = () => (inBPM.focused = true)
@@ -309,6 +311,7 @@ export class SketchInputs {
 		}
 		// Draw labels for inputs
 		this.drawClockStats(pp)
+		this.sliders.draw(pp)
 		pp.textSize(12).textAlign(pp.LEFT, pp.BOTTOM).textStyle(pp.BOLD)
 		pp.fill(255).strokeWeight(1).stroke(0)
 		for (const key in this.inputs) {
@@ -340,7 +343,7 @@ export class SketchInputs {
 					pp.text(`${key.toUpperCase()}${msg}${'\n'}in beats`, xx, yy)
 					pp.pop()
 					break
-				case key in this.parent.user:
+				case key in sketch.user:
 					pp.text(key.toUpperCase(), xx, yy)
 					break
 				default:
@@ -356,7 +359,7 @@ export class SketchInputs {
 		const ppLabel = () => pp.fill(0, 0, 0.7).textAlign(pp.RIGHT, pp.BOTTOM)
 		const ppValue = (warn: boolean) =>
 			pp.textAlign(pp.LEFT, pp.BOTTOM).fill(0, warn ? 1 : 0, warn ? 0.65 : 0.85)
-		const beatMs = this.parent.beatMs()
+		const beatMs = sketch.beatMs()
 		const xx = 20,
 			xc = xx + 60 // x pos for colon in aligned '<label>: <value>' rows
 		let yy = pp.height - 140
@@ -366,14 +369,14 @@ export class SketchInputs {
 		pp.text(`Clock stats (B = beat = ${prettyUnit('s', beatMs / 1000)})`, xx, yy)
 		pp.textSize(12).strokeWeight(1)
 		yy += 20
-		if (!this.parent.ws.ready()) {
+		if (!sketch.ws.ready()) {
 			ppValue(true).text(`NO CONNECTION TO SERVER`, xx, yy)
 			pp.pop()
 			return
 		}
 		// draw precision and ping stats
-		const { offset: latency } = this.parent.user
-		const { precisionNow, pingMs } = this.parent.ws.clock
+		const { offset: latency } = sketch.user
+		const { precisionNow, pingMs } = sketch.ws.clock
 		this.pingBeats = pingMs / beatMs
 		const prec = Math.abs(precisionNow)
 		const precStr = `${prettyUnit('s', prec / 1000)} (${prettyUnit('B', prec / beatMs, true)})`
@@ -402,7 +405,7 @@ export class SketchInputs {
 	}
 
 	sendClockUpdate = (clk: ClockOpts) => {
-		const { conn, ready } = this.parent.ws
+		const { conn, ready } = sketch.ws
 		if (!ready()) {
 			console.warn(
 				"[SketchInputs #sendClockUpdate] Can't send bpm update, websocket connection is not open",
