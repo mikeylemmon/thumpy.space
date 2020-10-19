@@ -4,18 +4,18 @@ import { sketch } from './Sketch'
 import { ctrlColor } from './util'
 import { MidiEvent, MidiEventCC } from './MIDI'
 
-type Sliders = { [key: string]: InstSlider }
-type InstSlidersOpts = { sliders: Sliders }
+// type Sliders = { [key: string]: InstSlider }
+type InstSlidersOpts = { sliders: InstSlider[] }
 
 export class InstSliders {
-	sliders: Sliders
+	sliders: InstSlider[]
 
-	constructor(opts: InstSlidersOpts = { sliders: {} }) {
+	constructor(opts: InstSlidersOpts = { sliders: [] }) {
 		this.sliders = opts.sliders
 	}
 
 	update = (pp: p5) => {
-		for (const ss of Object.values(this.sliders)) {
+		for (const ss of this.sliders) {
 			ss.update(pp)
 		}
 	}
@@ -24,13 +24,16 @@ export class InstSliders {
 		pp.push()
 		const { sliders } = this
 		let xx = 30
-		for (const kk in sliders) {
-			const ss = sliders[kk]
+		for (const ss of sliders) {
 			ss.xx = xx
 			ss.draw(pp)
 			xx += ss.width
-			if (['mod', 'r'].includes(kk)) {
-				xx += ss.width // extra space after modwheel
+			if (['a', 'd', 's'].includes(ss.label)) {
+				// no margin
+			} else if (['pan'].includes(ss.label)) {
+				xx += ss.width / 2 // half margin
+			} else {
+				xx += ss.width // full margin
 			}
 		}
 		pp.pop()
@@ -38,7 +41,7 @@ export class InstSliders {
 
 	mousePressed = (evt: p5) => {
 		const { mouse } = sketch.cam || {}
-		for (const ss of Object.values(this.sliders)) {
+		for (const ss of this.sliders) {
 			if (ss.mousePressed(evt.mouseX, evt.mouseY)) {
 				if (mouse) {
 					mouse.ismousedown = false
@@ -50,7 +53,7 @@ export class InstSliders {
 	}
 
 	mouseReleased = (_evt: p5) => {
-		Object.values(this.sliders).forEach(ss => ss.mouseReleased())
+		this.sliders.forEach(ss => ss.mouseReleased())
 	}
 
 	controlchangeNext = (evt: MidiEventCC): InstSlider | undefined => {
@@ -70,7 +73,7 @@ export class InstSliders {
 	}
 
 	sliderForCtrl = (ctrl: number): InstSlider | undefined => {
-		const sliders = Object.values(this.sliders).filter(s => s.ctrl === ctrl)
+		const sliders = this.sliders.filter(s => s.ctrl === ctrl)
 		return sliders[0]
 	}
 }
@@ -78,8 +81,8 @@ export class InstSliders {
 export class InstSlider {
 	height = 150
 	width = 20
-	value = new Tone.Signal(0.5)
-	valueNext = 0.5
+	value = new Tone.Signal(0)
+	valueNext = 0
 	strokeWeight = 4
 	xx = 40
 	yy = 100
@@ -87,9 +90,20 @@ export class InstSlider {
 	label: string
 	ctrl: number
 
-	constructor(opts: { label: string; ctrl: number }) {
+	constructor(opts: { label: string; ctrl: number; value?: number }) {
 		this.label = opts.label
 		this.ctrl = opts.ctrl
+		if (opts.value) {
+			this.value.value = opts.value
+			this.valueNext = opts.value
+		}
+	}
+
+	update(pp: p5) {
+		if (!this.pressed) {
+			return
+		}
+		this.setValueNext(pp.mouseY)
 	}
 
 	draw(pp: p5) {
@@ -119,19 +133,15 @@ export class InstSlider {
 		if (mouseY < this.yy || mouseY > this.yy + this.height) {
 			return false
 		}
-		this.setValueNextMouse(mouseY)
+		this.setValueNext(mouseY)
 		this.pressed = true
 		return true
 	}
-
-	update(pp: p5) {
-		if (!this.pressed) {
-			return
-		}
-		this.setValueNextMouse(pp.mouseY)
+	mouseReleased() {
+		this.pressed = false
 	}
 
-	setValueNextMouse(mouseY: number) {
+	setValueNext(mouseY: number) {
 		const tt = this.yy + this.width / 2
 		const hh = this.height - this.width - this.strokeWeight / 2
 		this.valueNext = 1 - Math.max(0, Math.min(1, (mouseY - tt) / hh))
@@ -159,5 +169,10 @@ export class InstSlider {
 		return (1 - val) * hh + tt - this.width / 2 + this.strokeWeight / 2
 	}
 
-	mouseReleased = () => (this.pressed = false)
+	set(val: number) {
+		this.value.value = val
+		if (!this.pressed) {
+			this.valueNext = val
+		}
+	}
 }

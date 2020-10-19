@@ -28,7 +28,7 @@ export class BlackHole extends Instrument {
 
 	constructor() {
 		super()
-		this.ctrls.sliders = {}
+		this.ctrls.sliders = []
 		this.panVol = new Tone.PanVol(0, 0).toDestination()
 		this.reverb = new Tone.Reverb({ decay: 4, wet: 0.6 }).connect(this.panVol)
 		const filter = new Tone.Filter({

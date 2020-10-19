@@ -1,7 +1,7 @@
 import * as p5 from 'p5'
 import * as Tone from 'tone'
 import { MidiEventCC, MidiEventNote, MidiEventPitchbend } from '../MIDI'
-import { Instrument } from '../Instrument'
+import { ControlChange, Instrument } from '../Instrument'
 import { noteFreq, srand, srandVec } from '../util'
 import { engine3d, Avatar, Obj, ObjOpts, Vec } from 'engine3d'
 
@@ -75,10 +75,6 @@ export class PolySynth extends Instrument {
 	panVol: Tone.PanVol
 	ps = 0
 	psSpread = 7
-	attack = 0.01
-	decay = 0.07
-	sustain = 0.3
-	release = 0.6
 	modwheel = 0.3
 	objs: Obj[] = []
 	maxObjs = 24
@@ -86,7 +82,26 @@ export class PolySynth extends Instrument {
 
 	constructor() {
 		super()
-		this.ctrls.sliders = {}
+		for (const ss of this.ctrls.sliders) {
+			// set default values for controls
+			switch (ss.label) {
+				case 'mod':
+					ss.set(0.5)
+					break
+				case 'a':
+					ss.set(0.01)
+					break
+				case 'd':
+					ss.set(0.4)
+					break
+				case 's':
+					ss.set(0.66)
+					break
+				case 'r':
+					ss.set(0.5)
+					break
+			}
+		}
 		this.panVol = new Tone.PanVol(0, 0).toDestination()
 		this.reverb = new Tone.Reverb({ decay: 4, wet: 0.6 }).connect(this.panVol)
 		this.filterVol = new Tone.Volume(0).connect(this.reverb)
@@ -101,18 +116,15 @@ export class PolySynth extends Instrument {
 				count: 3,
 				spread: 30,
 			},
-			envelope: {
-				attack: this.attack,
-				decay: this.decay,
-				sustain: this.sustain,
-				release: this.release,
-			},
 		}).connect(this.filter)
-	}
-
-	setFilterGain = (db: number) => {
-		this.filter.set({ gain: db })
-		this.filterVol.volume.set({ value: Math.min(0, -db) })
+		this.envelope = {
+			// enable base class to auto-bind ASDR sliders
+			set: (props: { [key: string]: number }) => this.synth.set({ envelope: props }),
+		}
+		// Initialize values from sliders
+		for (const ss of this.ctrls.sliders) {
+			this.handleCC({ slider: ss })
+		}
 	}
 
 	loaded() {
@@ -137,64 +149,31 @@ export class PolySynth extends Instrument {
 		}, `+${time - Tone.immediate()}`)
 	}
 
-	controlchange = (_avatar: Avatar, time: number, evt: MidiEventCC) => {
-		const num = evt.controller.number
-		let delayed: (() => void) | null = null
-		switch (true) {
-			case num === 1:
-				delayed = () => {
-					const vv = evt.value * evt.value
-					this.filter.frequency.rampTo(20 + 10000 * vv, 0.005)
-					this.modwheel = evt.value
-				}
-				break
-			case num === 21:
-				delayed = () => {
-					const vv = evt.value * evt.value
-					this.filter.set({ Q: vv * 8 })
-				}
-				break
-			case num === 27:
-				delayed = () => {
-					this.psSpread = evt.value * 12
-					this.updatePitchbend()
-				}
-				break
-			case num === 28:
-				delayed = () => {
-					this.panVol.set({ pan: evt.value * 2 - 1 })
-				}
-				break
-			case 71 <= num && num <= 74: {
-				let vv = evt.value * evt.value * evt.value * evt.value
-				const key = ['attack', 'decay', 'sustain', 'release'][num - 71]
-				delayed = () => {
-					vv = key === 'sustain' ? evt.value : 10 * vv
-					;(this as any)[key] = vv
-					this.synth.set({ envelope: { [key]: vv } })
-				}
-				break
-			}
-			case 75 <= num && num <= 79:
-				delayed = () => {
-					this.panVol.mute = !evt.value
-					this.panVol.set({ volume: (evt.value - 1) * 50 })
-				}
-				break
-			case 15 <= num && num <= 19:
-				delayed = () => {
-					this.panVol.mute = !evt.value
-				}
-				break
-			default:
-				console.log(
-					`[PolySynth #controlchange] Unsupported CC event on channel ${evt.channel}:`,
-					evt.controller,
-					evt.value,
-				)
+	handleCC(cc: ControlChange) {
+		super.handleCC(cc)
+		const { evt, slider } = cc
+		if (slider && slider.label === 'mod') {
+			this.updateModwheel(slider.value.value)
+			return
 		}
-		if (delayed) {
-			Tone.Draw.schedule(delayed, time)
+		// Handle customized control events that don't have sliders
+		if (!evt) {
+			return
+		}
+		const num = evt.controller.number
+		let vv = evt.value * evt.value
+		switch (true) {
+			case num === 21:
+				vv = Math.pow(10, evt.value * 3 + 1) // 10 to 10000
+				this.filter.frequency.rampTo(vv, 0.005)
+				break
+			case num === 22:
+				this.filter.set({ Q: vv * 8 })
+				break
+			case num === 26:
+				this.psSpread = evt.value * 12
+				this.updatePitchbend()
+				break
 		}
 	}
 
@@ -207,6 +186,12 @@ export class PolySynth extends Instrument {
 
 	updatePitchbend = () => {
 		this.synth.set({ detune: 100 * this.ps * this.psSpread })
+	}
+
+	updateModwheel = (val: number) => {
+		this.modwheel = val
+		const vv = Math.pow(10, val * 3 + 1) // 10 to 10000
+		this.filter.frequency.rampTo(vv, 0.005)
 	}
 
 	lastPos: { [key: number]: Vec } = {}

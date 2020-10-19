@@ -193,6 +193,15 @@ export class Loops {
 		al.save()
 	}
 
+	muteAll = () => {
+		for (const ll of this.loops) {
+			if (!ll.isMuted) {
+				ll.isMuted = true
+				ll.save()
+			}
+		}
+	}
+
 	toggleHide = () => (this.hidden = !this.hidden)
 	toggleHideText = () => (this.hidden ? 'Show Loops' : 'Hide Loops')
 	toggleHideDial = () => (this.hiddenDial = !this.hiddenDial)
@@ -240,22 +249,66 @@ export class Loops {
 
 	keyPressed = (evt: p5) => {
 		if (evt.keyCode === KEYCODE_BACKSPACE || evt.keyCode === KEYCODE_DELETE) {
-			// Clear events from active loop, or all loops if Shift is being pressed
-			if (evt.keyIsDown(KEYCODE_SHIFT)) {
-				this.clearAll()
-			} else {
-				this.clearActiveLoop()
-			}
+			// if (evt.keyIsDown(KEYCODE_SHIFT)) {
+			//  // Clear all loops if Shift is being pressed
+			// 	this.clearAll()
+			// } else {
+			// Clear events from active loop
+			this.clearActiveLoop()
+			// }
+			return
 		}
 		if (evt.keyCode === KEYCODE_ENTER || evt.keyCode === KEYCODE_RETURN) {
 			this.recLock = !this.recLock
 			if (!this.recLock) {
 				this.stopRecording()
 			}
+			return
 		}
-		const ctrlM = evt.key === 'm' && evt.keyIsDown(KEYCODE_CONTROL)
-		if (ctrlM || evt.key === '\\' || evt.key === '|') {
-			this.toggleActiveLoopMute()
+		switch (evt.key) {
+			case '\\':
+			case '|':
+			case 'm':
+				if (evt.keyIsDown(KEYCODE_CONTROL)) {
+					this.muteAll()
+				} else {
+					this.toggleActiveLoopMute()
+				}
+				return
+			case '[':
+			case ',':
+				return this.activatePrev()
+			case ']':
+			case '.':
+				return this.activateNext()
+		}
+	}
+
+	activatePrev = () => {
+		const { loops } = this
+		for (let ii = 0; ii < loops.length; ii++) {
+			if (loops[ii] === this.activeLoop) {
+				if (ii === 0) {
+					this.activeLoop = loops[loops.length - 1]
+				} else {
+					this.activeLoop = loops[ii - 1]
+				}
+				return
+			}
+		}
+	}
+
+	activateNext = () => {
+		const { loops } = this
+		for (let ii = 0; ii < loops.length; ii++) {
+			if (loops[ii] === this.activeLoop) {
+				if (ii === loops.length - 1) {
+					this.activeLoop = loops[0]
+				} else {
+					this.activeLoop = loops[ii + 1]
+				}
+				return
+			}
 		}
 	}
 

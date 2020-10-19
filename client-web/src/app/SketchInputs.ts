@@ -1,7 +1,6 @@
 import * as p5 from 'p5'
 import { sketch } from './Sketch'
 import { clockUpdateReq, ClockOpts } from './serverApi/serverClock'
-import { InstSliders } from './InstSliders'
 
 const userInputsY = 40
 
@@ -47,7 +46,6 @@ export class SketchInputs {
 	}
 	helpImg?: p5.Image
 	pingBeats = 0 // number of beats it takes for a round-trip message to/from the server
-	sliders = new InstSliders()
 
 	constructor(loadedFromStorage = false) {
 		this.nameCustomized = loadedFromStorage
@@ -311,7 +309,6 @@ export class SketchInputs {
 		}
 		// Draw labels for inputs
 		this.drawClockStats(pp)
-		this.sliders.draw(pp)
 		pp.textSize(12).textAlign(pp.LEFT, pp.BOTTOM).textStyle(pp.BOLD)
 		pp.fill(255).strokeWeight(1).stroke(0)
 		for (const key in this.inputs) {
@@ -421,5 +418,46 @@ export class SketchInputs {
 			return
 		}
 		this.inputs.bpm.value(clk.bpm)
+	}
+
+	keyPressed = (evt: p5) => {
+		let prev: boolean
+		switch (evt.key) {
+			case 'c':
+				prev = true
+				break
+			case 'v':
+				prev = false
+				break
+			default:
+				return
+		}
+		const uinst = sketch.user.instrument
+		const keys = Object.keys(sketch.instruments)
+		for (let ii = 0; ii < keys.length; ii++) {
+			const iname = keys[ii]
+			if (iname !== uinst) {
+				continue
+			}
+			let switchTo: string
+			if (prev) {
+				if (ii === 0) {
+					switchTo = keys[keys.length - 1]
+				} else {
+					switchTo = keys[ii - 1]
+				}
+			} else {
+				if (ii === keys.length - 1) {
+					switchTo = keys[0]
+				} else {
+					switchTo = keys[ii + 1]
+				}
+			}
+			if (this.inputs.instrument) {
+				this.inputs.instrument.selected(switchTo)
+			}
+			sketch.updateUser({ instrument: switchTo })
+			return
+		}
 	}
 }

@@ -1,5 +1,6 @@
 import * as p5 from 'p5'
 import * as Tone from 'tone'
+import { engine3d, Avatar, BlackHoleObj, Ground, Vec } from 'engine3d'
 import { KEYCODE_ESC } from './constants'
 import WSClient, { DONT_REOPEN } from './serverApi/WSClient'
 import { ClockOpts, NOTE_METRONOME_BPM_CHANGED, NOTE_METRONOME_DOWN } from './serverApi/serverClock'
@@ -15,20 +16,23 @@ import {
 } from './serverApi/serverApi'
 import MIDI, { MidiEvent, MidiEventCC, MidiEventNote, MidiEventPitchbend } from './MIDI'
 import { Instrument } from './Instrument'
+import { InstSliders } from './InstSliders'
 import { BlackHole, Dancer, EightOhEight, Hoover, Metronome, Piano, PolySynth } from './instruments'
 import { EasyCam } from 'vendor/p5.easycam.js'
-import { engine3d, Avatar, Ground, Vec } from 'engine3d'
 import { SketchInputs } from './SketchInputs'
 import { SketchAudioKeys } from './SketchAudioKeys'
 import { Loops } from './Loops'
-import { BlackHoleObj } from 'engine3d/objs/BlackHoleObj'
 
 type Instruments = { [key: string]: Instrument }
 
 const worldScale = 1000
-const newAvatarPos = () => {
+const newAvatarPos = (clientId: number) => {
+	if (clientId === 0) {
+		// server avatar goes in the corner
+		return new Vec(worldScale, 31, worldScale)
+	}
 	const rr = () => Math.random() - 0.5
-	return new Vec(rr() * worldScale, 31, rr() * worldScale)
+	return new Vec((rr() * worldScale) / 2, 31, (rr() * worldScale) / 2)
 }
 function nearestPowerOf2(n: number) {
 	// via https://stackoverflow.com/questions/26965171/fast-nearest-power-of-2-in-javascript
@@ -36,18 +40,29 @@ function nearestPowerOf2(n: number) {
 }
 
 export default class Sketch {
-	width: number = 0
-	height: number = 0
-	started: boolean = false
-	syncing: boolean = true
-	instruments: Instruments
+	width = 0
+	height = 0
+	started = false
+	syncing = true
+	downbeat = Tone.now() // Tone time of the first downbeat
+	transportStarted = false
+	_bpm = 95
+	_bpmNext = 95
+	bgCol = {
+		hue: 0.5,
+		sat: 0,
+		lgt: 0.2,
+	}
+
+	localStorage: Storage
 	ws: WSClient
 	midi: MIDI
 	audioKeys: SketchAudioKeys
-	pp?: p5 // Main canvas, gets WebGL graphics + 2D elements (loops, labels, etc)
-	pg?: p5.Graphics // WebGL graphics context for 3D virtual space
-	backbuffer?: p5.Graphics // A graphics buffer for the previously rendered frame
-	cam?: EasyCam
+	instruments: Instruments
+	instSliders = new InstSliders()
+	inputs: SketchInputs
+	loops: Loops
+
 	user: User = {
 		clientId: 0,
 		name: '',
@@ -55,23 +70,15 @@ export default class Sketch {
 		inputDevice: 'keyboard',
 		offset: 2,
 	}
-	avatar: Avatar
 	users: User[] = []
+	avatar: Avatar
 	avatars: Avatar[] = []
-	inputs: SketchInputs
+
+	pp?: p5 // Main canvas, gets WebGL graphics + 2D elements (loops, labels, etc)
+	pg?: p5.Graphics // WebGL graphics context for 3D virtual space
+	backbuffer?: p5.Graphics // A graphics buffer for the previously rendered frame
+	cam?: EasyCam
 	ground = new Ground({ pos: new Vec(0, -1, 0), scale: new Vec(worldScale) })
-	engine3d = engine3d
-	bgCol = {
-		hue: 0.5,
-		sat: 0,
-		lgt: 0.2,
-	}
-	loops: Loops
-	downbeat = 0 // Tone time of the first downbeat
-	transportStarted = false
-	_bpm = 95
-	_bpmNext = 95
-	localStorage: Storage
 	blackHole = new BlackHoleObj()
 
 	constructor(global: any) {
@@ -85,7 +92,7 @@ export default class Sketch {
 		})
 		this.avatar = new Avatar({
 			user: this.user,
-			pos: newAvatarPos(),
+			pos: newAvatarPos(1),
 			scale: new Vec(30),
 			phys: { worldScale },
 			onForce: this.sendUserXform,
@@ -122,7 +129,7 @@ export default class Sketch {
 		})
 		this.instruments = {
 			dancer: new Dancer(),
-			synth: new PolySynth(),
+			polysquare: new PolySynth(),
 			blackHole: new BlackHole(),
 			hoover: new Hoover(),
 			eightOhEight: new EightOhEight(this),
@@ -210,11 +217,11 @@ export default class Sketch {
 	}
 
 	draw = (pp: p5) => {
-		this.inputs.sliders.update(pp)
+		this.instSliders.update(pp)
 		this.loops.update()
 		engine3d.update()
 		pp.colorMode(pp.HSL, 1)
-			.background(this.bgCol.hue, this.bgCol.sat, this.bgCol.lgt, 0.2)
+			.background(this.bgCol.hue, this.bgCol.sat, this.bgCol.lgt, 0.3)
 			.colorMode(pp.RGB, 255)
 		const { pg } = this
 		if (pg) {
@@ -232,6 +239,7 @@ export default class Sketch {
 			} // else: help being displayed, so don't draw2D because the avatar labels are distracting
 		}
 		this.inputs.draw(pp)
+		this.instSliders.draw(pp)
 		this.loops.draw(pp)
 		if (this.inputs.help) {
 			return
@@ -266,13 +274,13 @@ export default class Sketch {
 			Tone.start()
 			console.log('[Sketch #mousePressed] Started Tone')
 		}
-		if (this.inputs.sliders.mousePressed(pp)) {
+		if (this.instSliders.mousePressed(pp)) {
 			return
 		}
 		this.loops.mousePressed(pp)
 	}
 	mouseReleased = (pp: p5) => {
-		this.inputs.sliders.mouseReleased(pp)
+		this.instSliders.mouseReleased(pp)
 	}
 
 	keyboardInputDisabled = () => {
@@ -288,7 +296,7 @@ export default class Sketch {
 		}
 		this.avatar.keyPressed(evt)
 		this.loops.keyPressed(evt)
-		this.audioKeys.keyPressedP5(evt)
+		this.inputs.keyPressed(evt)
 	}
 	keyReleased = (evt: p5) => {
 		if (this.keyboardInputDisabled()) {
@@ -296,7 +304,6 @@ export default class Sketch {
 		}
 		this.avatar.keyReleased(evt)
 		this.loops.keyReleased(evt)
-		this.audioKeys.keyReleasedP5(evt)
 	}
 
 	updateUser = (uu: Partial<User>, sendUpdate: boolean = true) => {
@@ -307,7 +314,7 @@ export default class Sketch {
 		}
 		if (uu.instrument) {
 			const inst = this.instruments[uu.instrument]
-			this.inputs.sliders = inst.ctrls
+			this.instSliders = inst.ctrls
 		}
 	}
 
@@ -540,7 +547,7 @@ export default class Sketch {
 				this.avatars.push(
 					new Avatar({
 						user: user,
-						pos: newAvatarPos(),
+						pos: newAvatarPos(user.clientId),
 						scale: new Vec(20),
 						phys: { worldScale },
 					}),

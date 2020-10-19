@@ -5,7 +5,7 @@ import { Avatar } from 'engine3d'
 export class Dancer extends Instrument {
 	constructor() {
 		super()
-		this.ctrls.sliders = {}
+		this.ctrls.sliders = []
 	}
 
 	loaded() {

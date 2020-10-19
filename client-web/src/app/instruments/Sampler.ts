@@ -13,7 +13,7 @@ export class Sampler extends Instrument {
 
 	constructor(sampler: Tone.Sampler) {
 		super()
-		this.ctrls.sliders = {}
+		this.ctrls.sliders = []
 		this.panVol = new Tone.PanVol(0, 0).toDestination()
 		this.pitchShift = new Tone.PitchShift().connect(this.panVol)
 		this.sampler = sampler.connect(this.pitchShift)
