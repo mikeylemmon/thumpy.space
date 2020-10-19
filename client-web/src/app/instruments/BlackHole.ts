@@ -1,143 +1,118 @@
 import * as p5 from 'p5'
 import * as Tone from 'tone'
-import { MidiEventCC, MidiEventNote, MidiEventPitchbend } from '../MIDI'
-import { Instrument } from '../Instrument'
+import { MidiEventNote } from '../MIDI'
+import { ADSR, ControlChange, FilterProps, Instrument } from '../Instrument'
 import { noteFreq, srand, srandVec } from '../util'
 import { Avatar, Obj, ObjOpts, Vec } from 'engine3d'
 import { sketch } from '../Sketch'
 
 export class BlackHole extends Instrument {
+	panVol: Tone.PanVol
+	reverb: Tone.Reverb
+	filter: Tone.Filter
 	synth: Tone.Synth
-	gain: Tone.Gain
 	freqNode = new Tone.Add()
 	freq = new Tone.Signal(440)
 	noiseGain: Tone.Gain
 	noise: Tone.Noise
-	reverb: Tone.Reverb
-	panVol: Tone.PanVol
+	modwheel = 0.3
 	ps = 0
 	psSpread = 7
-	attack = 0.01
-	decay = 0.07
-	sustain = 0.3
-	release = 0.6
-	modwheel = 0.3
 	objs: Obj[] = []
 	maxObjs = 32
 	ii = 0
 
 	constructor() {
 		super()
-		this.ctrls.sliders = []
 		this.panVol = new Tone.PanVol(0, 0).toDestination()
 		this.reverb = new Tone.Reverb({ decay: 4, wet: 0.6 }).connect(this.panVol)
-		const filter = new Tone.Filter({
-			type: 'lowpass',
-			frequency: 8000,
-			Q: 0.5,
-		}).connect(this.reverb)
+		this.filter = new Tone.Filter({ type: 'lowpass' }).connect(this.reverb)
 		const delay = new Tone.PingPongDelay({
 			delayTime: '4n',
 			feedback: 0.6,
 			wet: 0.3,
-		}).connect(filter)
-		this.gain = new Tone.Gain(1).connect(delay)
-		this.synth = new Tone.Synth().connect(this.gain)
+		}).connect(this.filter)
+		this.synth = new Tone.Synth().connect(delay)
 		this.freqNode.connect(this.synth.frequency)
 		this.freq.connect(this.freqNode)
 		this.noiseGain = new Tone.Gain(100).connect(this.freqNode.addend)
 		this.noise = new Tone.Noise({ volume: 0, playbackRate: 0.5, type: 'brown' })
 			.start()
 			.connect(this.noiseGain)
+
+		// Initialize control sliders
+		for (const ss of this.ctrls.sliders) {
+			switch (ss.label) {
+				case 'mod': ss.set(0.3); break
+				case 'ff': ss.set(0.9); break
+				case 'fq': ss.set(0.25); break
+				case 'a': ss.set(0.1); break
+				case 'd': ss.set(0.3); break
+				case 's': ss.set(0.66); break
+				case 'r': ss.set(0.6); break
+			}
+		}
+		for (const ss of this.ctrls.sliders) {
+			this.handleCC({ slider: ss })
+		}
 	}
 
 	loaded() {
 		return true
 	}
 
+	_attacks = 0
 	noteon = (avatar: Avatar, time: number, evt: MidiEventNote) => {
 		const freq = noteFreq(evt.note)
-		this.freq.exponentialRampToValueAtTime(freq, time)
 		try {
-			this.synth.triggerAttack(freq, time, evt.attack)
+			if (this._attacks) {
+				this.freq.exponentialRampToValueAtTime(freq, time)
+			} else {
+				this.freq.setValueAtTime(freq, time)
+				this.synth.triggerAttack(freq, time, evt.attack)
+			}
 		} catch {}
+		this._attacks++
 		Tone.Draw.schedule(() => this.addBHObj(avatar, evt), time)
 	}
-
 	noteoff = (_avatar: Avatar, time: number, _evt: MidiEventNote) => {
-		this.synth.triggerRelease(time)
+		this._attacks = Math.max(0, this._attacks - 1)
+		if (!this._attacks) {
+			this.synth.triggerRelease(time)
+		}
 	}
 
-	controlchange = (_avatar: Avatar, time: number, evt: MidiEventCC) => {
+	handleDetune = (val: number) => {
+		this.ps = val
+		this.synth.set({ detune: 100 * val * this.psSpread })
+	}
+
+	handleModwheel = (val: number) => {
+		this.modwheel = val
+		const vv = val * val
+		this.noiseGain.set({ gain: vv * this.freq.value * 3 })
+	}
+
+	handleFilter = (props: FilterProps) => this.filter.set(props)
+	handleADSR = (props: ADSR) => this.synth.set({ envelope: props })
+
+	handleCC(cc: ControlChange) {
+		super.handleCC(cc)
+		const { evt } = cc
+		if (!evt) {
+			return
+		}
+		// Handle customized control events that don't have sliders
 		const num = evt.controller.number
-		let delayed: (() => void) | null = null
+		let vv = evt.value * evt.value
 		switch (true) {
-			case num === 1:
-				delayed = () => {
-					const vv = evt.value * evt.value
-					this.noiseGain.set({ gain: vv * this.freq.value * 3 })
-					this.modwheel = evt.value
-				}
+			case num === 23:
+				this.noise.set({ playbackRate: vv * 2 })
 				break
-			case num === 21:
-				delayed = () => {
-					const vv = evt.value * evt.value
-					this.noise.set({ playbackRate: vv * 2 })
-				}
+			case num === 24:
+				this.synth.set({ portamento: vv * 2 })
 				break
-			case num === 27:
-				delayed = () => {
-					this.psSpread = evt.value * 12
-					this.updatePitchbend()
-				}
-				break
-			case num === 28:
-				delayed = () => {
-					this.panVol.set({ pan: evt.value * 2 - 1 })
-				}
-				break
-			case 71 <= num && num <= 74: {
-				let vv = evt.value * evt.value * evt.value * evt.value
-				const key = ['attack', 'decay', 'sustain', 'release'][num - 71]
-				delayed = () => {
-					vv = key === 'sustain' ? evt.value : 10 * vv
-					;(this as any)[key] = vv
-					this.synth.envelope.set({ [key]: vv })
-				}
-				break
-			}
-			case 75 <= num && num <= 79:
-				delayed = () => {
-					this.panVol.mute = !evt.value
-					this.panVol.set({ volume: (evt.value - 1) * 50 })
-				}
-				break
-			case 15 <= num && num <= 19:
-				delayed = () => {
-					this.panVol.mute = !evt.value
-				}
-				break
-			default:
-			// console.log(
-			// 	`[BlackHole #controlchange] Unsupported CC event on channel ${evt.channel}:`,
-			// 	evt.controller,
-			// 	evt.value,
-			// )
 		}
-		if (delayed) {
-			Tone.Draw.schedule(delayed, time)
-		}
-	}
-
-	pitchbend = (_avatar: Avatar, time: number, evt: MidiEventPitchbend) => {
-		Tone.Draw.schedule(() => {
-			this.ps = evt.value
-			this.updatePitchbend()
-		}, time)
-	}
-
-	updatePitchbend = () => {
-		this.synth.set({ detune: 100 * this.ps * this.psSpread })
 	}
 
 	lastPos: { [key: number]: Vec } = {}

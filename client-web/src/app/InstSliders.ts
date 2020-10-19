@@ -2,7 +2,7 @@ import * as Tone from 'tone'
 import * as p5 from 'p5'
 import { sketch } from './Sketch'
 import { ctrlColor } from './util'
-import { MidiEvent, MidiEventCC } from './MIDI'
+import { MidiEvent, MidiEventCC, MidiEventPitchbend } from './MIDI'
 
 // type Sliders = { [key: string]: InstSlider }
 type InstSlidersOpts = { sliders: InstSlider[] }
@@ -28,9 +28,9 @@ export class InstSliders {
 			ss.xx = xx
 			ss.draw(pp)
 			xx += ss.width
-			if (['a', 'd', 's'].includes(ss.label)) {
+			if (['ff', 'a', 'd', 's'].includes(ss.label)) {
 				// no margin
-			} else if (['pan'].includes(ss.label)) {
+			} else if (['pb', 'pan'].includes(ss.label)) {
 				xx += ss.width / 2 // half margin
 			} else {
 				xx += ss.width // full margin
@@ -57,25 +57,54 @@ export class InstSliders {
 	}
 
 	controlchangeNext = (evt: MidiEventCC): InstSlider | undefined => {
-		const ss = this.sliderForCtrl(evt.controller.number)
+		const ss = this.getSliderForCtrl(evt.controller.number)
 		if (ss && !ss.pressed) {
 			ss.valueNext = evt.value
 		}
 		return ss
 	}
-
 	controlchange = (evt: MidiEventCC): InstSlider | undefined => {
-		const ss = this.sliderForCtrl(evt.controller.number)
+		const ss = this.getSliderForCtrl(evt.controller.number)
 		if (ss) {
 			ss.value.value = evt.value
 		}
 		return ss
 	}
 
-	sliderForCtrl = (ctrl: number): InstSlider | undefined => {
+	pitchbendNext = (evt: MidiEventPitchbend): InstSlider | undefined => {
+		const ss = this.getSliderForPitchbend()
+		if (ss && !ss.pressed) {
+			ss.valueNext = evt.value
+		}
+		return ss
+	}
+	pitchbend = (evt: MidiEventPitchbend): InstSlider | undefined => {
+		const ss = this.getSliderForPitchbend()
+		if (ss) {
+			ss.value.value = evt.value
+		}
+		return ss
+	}
+
+	getSliderForLabel = (lbl: string): InstSlider | undefined => {
+		const sliders = this.sliders.filter(s => s.label === lbl)
+		return sliders[0]
+	}
+	getSliderForCtrl = (ctrl: number): InstSlider | undefined => {
 		const sliders = this.sliders.filter(s => s.ctrl === ctrl)
 		return sliders[0]
 	}
+	getSliderForPitchbend = (): InstSlider | undefined => {
+		const sliders = this.sliders.filter(s => s.pitchbend)
+		return sliders[0]
+	}
+}
+
+type InstSliderOpts = {
+	label: string
+	ctrl: number
+	value?: number
+	pitchbend?: boolean
 }
 
 export class InstSlider {
@@ -89,23 +118,32 @@ export class InstSlider {
 	pressed = false
 	label: string
 	ctrl: number
+	pitchbend: boolean
 
-	constructor(opts: { label: string; ctrl: number; value?: number }) {
+	constructor(opts: InstSliderOpts) {
 		this.label = opts.label
 		this.ctrl = opts.ctrl
 		if (opts.value) {
-			this.value.value = opts.value
-			this.valueNext = opts.value
+			this.set(opts.value)
 		}
+		this.pitchbend = !!opts.pitchbend
 	}
 
+	_wasPressed = false
 	update(pp: p5) {
 		if (!this.pressed) {
+			if (this.pitchbend && this._wasPressed) {
+				this.valueNext = 0
+				this.sendValue()
+			}
+			this._wasPressed = false
 			return
 		}
+		this._wasPressed = true
 		this.setValueNext(pp.mouseY)
 	}
 
+	_ee = 0
 	draw(pp: p5) {
 		pp.colorMode(pp.HSL, 1)
 		pp.fill(0, 0, 0.1).stroke(0, 0, 0.7).strokeWeight(this.strokeWeight)
@@ -144,7 +182,12 @@ export class InstSlider {
 	setValueNext(mouseY: number) {
 		const tt = this.yy + this.width / 2
 		const hh = this.height - this.width - this.strokeWeight / 2
-		this.valueNext = 1 - Math.max(0, Math.min(1, (mouseY - tt) / hh))
+		const vv = 1 - (mouseY - tt) / hh
+		if (this.pitchbend) {
+			this.valueNext = Math.max(-1, Math.min(1, vv * 2 - 1))
+		} else {
+			this.valueNext = Math.max(0, Math.min(1, vv))
+		}
 		this.sendValue()
 	}
 
@@ -156,8 +199,8 @@ export class InstSlider {
 		this.valueLastSent = this.valueNext
 		// Send update
 		const midiEvt = {
-			kind: 'controlchange',
-			controller: { number: this.ctrl, name: this.label },
+			kind: this.pitchbend ? 'pitchbend' : 'controlchange',
+			controller: this.pitchbend ? undefined : { number: this.ctrl, name: this.label },
 			value: this.valueNext,
 		} as MidiEvent
 		sketch.sendUserEvent('keyboard', midiEvt.kind, midiEvt)
@@ -166,7 +209,8 @@ export class InstSlider {
 	valueY(val: number) {
 		const tt = this.yy + this.width / 2
 		const hh = this.height - this.width
-		return (1 - val) * hh + tt - this.width / 2 + this.strokeWeight / 2
+		const vv = this.pitchbend ? val / 2 + 0.5 : val
+		return (1 - vv) * hh + tt - this.width / 2 + this.strokeWeight / 2
 	}
 
 	set(val: number) {

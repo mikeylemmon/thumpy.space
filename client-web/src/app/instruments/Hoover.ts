@@ -1,6 +1,6 @@
 import * as Tone from 'tone'
-import { MidiEventNote, MidiEventPitchbend } from '../MIDI'
-import { ControlChange, Instrument } from '../Instrument'
+import { MidiEventNote } from '../MIDI'
+import { ADSR, ControlChange, FilterProps, Instrument } from '../Instrument'
 import { noteFreq } from '../util'
 import { engine3d, Avatar, Obj, ObjOpts, Vec } from 'engine3d'
 
@@ -23,38 +23,15 @@ export class Hoover extends Instrument {
 	psSpread = 7
 	harmonicity = new Tone.Multiply(3.03)
 	freq = 440
-	attacks = 0
 	obj: Obj
 	wave: Tone.Waveform
 	fft: Tone.FFT
 
 	constructor() {
 		super()
-		for (const ss of this.ctrls.sliders) {
-			// set default values for controls
-			switch (ss.label) {
-				case 'a':
-					ss.set(0.6)
-					break
-				case 'd':
-					ss.set(0.07)
-					break
-				case 's':
-					ss.set(1.0)
-					break
-				case 'r':
-					ss.set(0.7)
-					break
-			}
-		}
-
 		this.panVol = new Tone.PanVol(0, 0).toDestination()
 		this.chorus = new Tone.Chorus(0.15, 30, 1).connect(this.panVol)
-		this.filter = new Tone.Filter({
-			type: 'bandpass',
-			frequency: 1000,
-			Q: 0,
-		}).connect(this.chorus)
+		this.filter = new Tone.Filter({ type: 'bandpass' }).connect(this.chorus)
 		this.amGain = new Tone.Gain(1).connect(this.filter)
 		this.synth = new Tone.Synth({
 			oscillator: {
@@ -64,7 +41,6 @@ export class Hoover extends Instrument {
 			},
 			portamento: 0.25,
 		}).connect(this.amGain)
-		this.envelope = this.synth.envelope
 		const amScale = new Tone.AudioToGain().connect(this.amGain.gain)
 		this.amOsc = new Tone.OmniOscillator({
 			type: 'fatsquare',
@@ -91,7 +67,17 @@ export class Hoover extends Instrument {
 				scale: new Vec(4),
 			})
 		}
-		// Initialize values from sliders
+
+		// Initialize control sliders
+		for (const ss of this.ctrls.sliders) {
+			switch (ss.label) {
+				case 'mod': ss.set(1.0); break
+				case 'a': ss.set(0.6); break
+				case 'd': ss.set(0.07); break
+				case 's': ss.set(1.0); break
+				case 'r': ss.set(0.7); break
+			}
+		}
 		for (const ss of this.ctrls.sliders) {
 			this.handleCC({ slider: ss })
 		}
@@ -101,46 +87,66 @@ export class Hoover extends Instrument {
 		return true
 	}
 
+	_attacks = 0
 	noteon = (_avatar: Avatar, time: number, evt: MidiEventNote) => {
 		this.freq = noteFreq(evt.note) / 2
 		try {
-			if (this.attacks) {
+			if (this._attacks) {
 				this.synth.setNote(this.freq, time)
 			} else {
 				this.synth.triggerAttack(this.freq, time, evt.attack)
 			}
 		} catch {}
-		this.attacks++
+		this._attacks++
 	}
-
 	noteoff = (_avatar: Avatar, time: number, _evt: MidiEventNote) => {
-		this.attacks = Math.max(0, this.attacks - 1)
-		if (!this.attacks) {
+		this._attacks = Math.max(0, this._attacks - 1)
+		if (!this._attacks) {
 			this.synth.triggerRelease(time)
 		}
 	}
 
+	handleDetune = (val: number) => {
+		this.ps = val
+		this.synth.set({ detune: 100 * val * this.psSpread })
+	}
+
+	handleModwheel = (val: number) => {
+		const sin = Math.sin(val * Math.PI)
+		let ss = 1 - sin
+		ss = 1 - ss * ss
+		const vv = Math.pow(2, Math.floor((1 - val) * 32) / 8 - 1)
+		this.harmonicity.value = vv
+		if (val < 0.5) {
+			this.amOsc.volume.value = ss * 60 - 60
+		} else {
+			this.amOsc.volume.value = 0
+		}
+		const ff = this.ctrls.getSliderForLabel('ff')
+		if (ff) {
+			ff.set(val)
+			this.handleCC({ slider: ff })
+		}
+		const fq = this.ctrls.getSliderForLabel('fq')
+		if (fq) {
+			fq.set(sin * sin * sin * 0.35)
+			this.handleCC({ slider: fq })
+		}
+	}
+
+	handleFilter = (props: FilterProps) => this.filter.set(props)
+	handleADSR = (props: ADSR) => this.synth.set({ envelope: props })
+
 	handleCC(cc: ControlChange) {
 		super.handleCC(cc)
-		const { evt, slider } = cc
-		if (slider && slider.label === 'mod') {
-			this.updateModwheel(slider.value.value)
-			return
-		}
-		// Handle customized control events that don't have sliders
+		const { evt } = cc
 		if (!evt) {
 			return
 		}
+		// Handle customized control events that don't have sliders
 		const num = evt.controller.number
 		let vv = evt.value * evt.value
 		switch (true) {
-			case num === 21:
-				vv = Math.pow(10, evt.value * 3 + 1) // 10 to 10000
-				this.filter.frequency.rampTo(vv, 0.005)
-				break
-			case num === 22:
-				this.filter.set({ Q: vv * 8 })
-				break
 			case num === 23:
 				this.harmonicity.value = vv * 20
 				break
@@ -148,32 +154,6 @@ export class Hoover extends Instrument {
 				this.synth.set({ portamento: vv * 2 })
 				break
 		}
-	}
-
-	pitchbend = (_avatar: Avatar, time: number, evt: MidiEventPitchbend) => {
-		Tone.Draw.schedule(() => {
-			this.ps = evt.value
-			this.updatePitchbend()
-		}, time)
-	}
-
-	updateModwheel = (val: number) => {
-		const sin = Math.sin(val * Math.PI)
-		let ss = 1 - sin
-		ss = 1 - ss * ss
-		const vv = Math.pow(2, Math.floor((1 - val) * 32) / 8 - 1)
-		this.harmonicity.value = vv
-		this.filter.Q.value = sin * sin * sin * 1.0
-		this.filter.frequency.value = Math.pow(10, (1 - val) * 3 + 1) // 10 to 10000
-		if (val < 0.5) {
-			this.amOsc.volume.value = ss * 60 - 60
-		} else {
-			this.amOsc.volume.value = 0
-		}
-	}
-
-	updatePitchbend = () => {
-		this.synth.set({ detune: 100 * this.ps * this.psSpread })
 	}
 }
 
@@ -200,7 +180,7 @@ class HooverObj extends Obj {
 		}
 		const max = Math.max(0.001, ...fftVals)
 		fftVals = fftVals.map(ff => ff / max).filter(ff => ff > 0.05)
-		const vals = this.inst.wave.getValue()
+		const vals = this.inst.wave.getValue().filter(vv => Math.abs(vv) > 0.0005)
 
 		// Draw waveform lasers, with colors modulated by fft values
 		pg.colorMode(pg.HSL, 1)

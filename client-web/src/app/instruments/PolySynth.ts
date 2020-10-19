@@ -1,71 +1,9 @@
 import * as p5 from 'p5'
 import * as Tone from 'tone'
-import { MidiEventCC, MidiEventNote, MidiEventPitchbend } from '../MIDI'
-import { ControlChange, Instrument } from '../Instrument'
+import { MidiEventNote } from '../MIDI'
+import { ADSR, FilterProps, Instrument } from '../Instrument'
 import { noteFreq, srand, srandVec } from '../util'
 import { engine3d, Avatar, Obj, ObjOpts, Vec } from 'engine3d'
-
-type SynthObjOpts = ObjOpts & {
-	noteEvt: MidiEventNote
-}
-
-class SynthObj extends Obj {
-	polySynth: PolySynth
-	createdAt: number
-	noteEvt: MidiEventNote
-	scaleOrig: Vec
-	voice: Tone.Synth | null = null
-	hue = Math.random()
-	lgt = 0.3
-	envValLast = 1
-
-	constructor(polySynth: PolySynth, opts: SynthObjOpts) {
-		super(opts)
-		this.polySynth = polySynth
-		this.createdAt = new Date().valueOf() / 1000
-		this.noteEvt = opts.noteEvt
-		this.drawFunc = this.render
-		this.scaleOrig = this.xform.scale.clone()
-	}
-
-	update = (dt: number) => {
-		let mod = 1 - this.polySynth.modwheel
-		mod = 1 - mod * mod
-		// set lightness
-		this.lgt = mod * 0.8 + 0.2
-		// set hue
-		this.hue += (Math.random() * 2 - 1) * dt * mod
-		if (this.hue < 0) {
-			this.hue += 1
-		} else if (this.hue > 1) {
-			this.hue -= 1
-		}
-		this.xform.rot.applyAdd(srandVec().applyMult(dt * mod))
-		// // Disabled for now: scale by envelope value
-		// const voices = (this.polySynth.synth as any)._activeVoices
-		// if (!this.voice) {
-		// 	for (const vv of voices) {
-		// 		if (vv.midi === noteFreq(this.noteEvt.note) && !vv.released) {
-		// 			this.voice = vv.voice
-		// 			break
-		// 		}
-		// 	}
-		// }
-		// if (this.voice) {
-		// 	this.envValLast = this.voice.envelope.value
-		// }
-		// this.xform.scale = this.scaleOrig.cloneMult(this.envValLast)
-	}
-
-	render = (pg: p5.Graphics) => {
-		pg.colorMode(pg.HSL, 1)
-		pg.fill(this.hue, 0.8, this.lgt)
-		pg.stroke(this.hue, 0.8, this.lgt - 0.2)
-		pg.strokeWeight(1)
-		pg.sphere(1, 3, 4)
-		pg.colorMode(pg.RGB, 255)
-	}
-}
 
 export class PolySynth extends Instrument {
 	synth: Tone.PolySynth
@@ -75,41 +13,17 @@ export class PolySynth extends Instrument {
 	panVol: Tone.PanVol
 	ps = 0
 	psSpread = 7
-	modwheel = 0.3
+	modwheel = 0.6
 	objs: Obj[] = []
 	maxObjs = 24
 	ii = 0
 
 	constructor() {
 		super()
-		for (const ss of this.ctrls.sliders) {
-			// set default values for controls
-			switch (ss.label) {
-				case 'mod':
-					ss.set(0.5)
-					break
-				case 'a':
-					ss.set(0.01)
-					break
-				case 'd':
-					ss.set(0.4)
-					break
-				case 's':
-					ss.set(0.66)
-					break
-				case 'r':
-					ss.set(0.5)
-					break
-			}
-		}
 		this.panVol = new Tone.PanVol(0, 0).toDestination()
 		this.reverb = new Tone.Reverb({ decay: 4, wet: 0.6 }).connect(this.panVol)
 		this.filterVol = new Tone.Volume(0).connect(this.reverb)
-		this.filter = new Tone.Filter({
-			type: 'bandpass',
-			frequency: 1000,
-			Q: 2,
-		}).connect(this.filterVol)
+		this.filter = new Tone.Filter({ type: 'bandpass' }).connect(this.filterVol)
 		this.synth = new Tone.PolySynth(Tone.Synth, {
 			oscillator: {
 				type: 'fatsquare',
@@ -117,11 +31,17 @@ export class PolySynth extends Instrument {
 				spread: 30,
 			},
 		}).connect(this.filter)
-		this.envelope = {
-			// enable base class to auto-bind ASDR sliders
-			set: (props: { [key: string]: number }) => this.synth.set({ envelope: props }),
+
+		// Initialize control sliders
+		for (const ss of this.ctrls.sliders) {
+			switch (ss.label) {
+				case 'mod': ss.set(0.6); break
+				case 'a': ss.set(0.01); break
+				case 'd': ss.set(0.4); break
+				case 's': ss.set(0.66); break
+				case 'r': ss.set(0.5); break
+			}
 		}
-		// Initialize values from sliders
 		for (const ss of this.ctrls.sliders) {
 			this.handleCC({ slider: ss })
 		}
@@ -138,7 +58,6 @@ export class PolySynth extends Instrument {
 
 	noteoff = (_avatar: Avatar, time: number, evt: MidiEventNote) => {
 		const freq = noteFreq(evt.note)
-		// this.synth.triggerRelease(freq, time) // sometimes fails to release
 		// Tone.PolySynth can leave voices dangling, so manually release all voices matching this note
 		Tone.Draw.schedule(() => {
 			for (const vv of (this.synth as any)._activeVoices) {
@@ -149,50 +68,31 @@ export class PolySynth extends Instrument {
 		}, `+${time - Tone.immediate()}`)
 	}
 
-	handleCC(cc: ControlChange) {
-		super.handleCC(cc)
-		const { evt, slider } = cc
-		if (slider && slider.label === 'mod') {
-			this.updateModwheel(slider.value.value)
-			return
-		}
-		// Handle customized control events that don't have sliders
-		if (!evt) {
-			return
-		}
-		const num = evt.controller.number
-		let vv = evt.value * evt.value
-		switch (true) {
-			case num === 21:
-				vv = Math.pow(10, evt.value * 3 + 1) // 10 to 10000
-				this.filter.frequency.rampTo(vv, 0.005)
-				break
-			case num === 22:
-				this.filter.set({ Q: vv * 8 })
-				break
-			case num === 26:
-				this.psSpread = evt.value * 12
-				this.updatePitchbend()
-				break
-		}
+	handleDetune = (val: number) => {
+		this.ps = val
+		this.synth.set({ detune: 100 * val * this.psSpread })
 	}
 
-	pitchbend = (_avatar: Avatar, time: number, evt: MidiEventPitchbend) => {
-		Tone.Draw.schedule(() => {
-			this.ps = evt.value
-			this.updatePitchbend()
-		}, time)
-	}
-
-	updatePitchbend = () => {
-		this.synth.set({ detune: 100 * this.ps * this.psSpread })
-	}
-
-	updateModwheel = (val: number) => {
+	handleModwheel = (val: number) => {
 		this.modwheel = val
-		const vv = Math.pow(10, val * 3 + 1) // 10 to 10000
-		this.filter.frequency.rampTo(vv, 0.005)
+		// bind modwheel to filter freq and Q
+		const ff = this.ctrls.getSliderForLabel('ff')
+		if (ff) {
+			ff.set(val)
+			this.handleCC({ slider: ff })
+		}
+		const fq = this.ctrls.getSliderForLabel('fq')
+		if (fq) {
+			const sin = Math.sin(val * Math.PI)
+			let vv = 1 - val
+			vv = 1 - vv * vv * vv
+			fq.set(sin * 0.2 + 0.06 + 0.2 * vv)
+			this.handleCC({ slider: fq })
+		}
 	}
+
+	handleFilter = (props: FilterProps) => this.filter.set(props)
+	handleADSR = (props: ADSR) => this.synth.set({ envelope: props })
 
 	lastPos: { [key: number]: Vec } = {}
 	addSynthObj = (avatar: Avatar, evt: MidiEventNote) => {
@@ -238,5 +138,62 @@ export class PolySynth extends Instrument {
 			engine3d.rmObj(objs[objs.length - 1])
 			this.objs = objs.slice(0, maxObjs)
 		}
+	}
+}
+
+type SynthObjOpts = ObjOpts & {
+	noteEvt: MidiEventNote
+}
+
+class SynthObj extends Obj {
+	polySynth: PolySynth
+	hue = Math.random()
+	lgt = 0.3
+	// envValLast = 1
+	// voice: Tone.Synth | null = null
+	// noteEvt: MidiEventNote
+	// scaleOrig: Vec
+
+	constructor(polySynth: PolySynth, opts: SynthObjOpts) {
+		super(opts)
+		this.polySynth = polySynth
+		// this.noteEvt = opts.noteEvt
+		// this.scaleOrig = this.xform.scale.clone()
+	}
+
+	update = (dt: number) => {
+		let mod = 1 - this.polySynth.modwheel
+		mod = 1 - mod * mod
+		this.lgt = mod * 0.8 + 0.2
+		this.hue += (Math.random() * 2 - 1) * dt * mod
+		if (this.hue < 0) {
+			this.hue += 1
+		} else if (this.hue > 1) {
+			this.hue -= 1
+		}
+		this.xform.rot.applyAdd(srandVec().applyMult(dt * mod))
+		// // Disabled: scale by envelope value
+		// const voices = (this.polySynth.synth as any)._activeVoices
+		// if (!this.voice) {
+		// 	for (const vv of voices) {
+		// 		if (vv.midi === noteFreq(this.noteEvt.note) && !vv.released) {
+		// 			this.voice = vv.voice
+		// 			break
+		// 		}
+		// 	}
+		// }
+		// if (this.voice) {
+		// 	this.envValLast = this.voice.envelope.value
+		// }
+		// this.xform.scale = this.scaleOrig.cloneMult(this.envValLast)
+	}
+
+	drawFunc = (pg: p5.Graphics) => {
+		pg.colorMode(pg.HSL, 1)
+		pg.fill(this.hue, 0.8, this.lgt)
+		pg.stroke(this.hue, 0.8, this.lgt - 0.2)
+		pg.strokeWeight(1)
+		pg.sphere(1, 3, 4)
+		pg.colorMode(pg.RGB, 255)
 	}
 }

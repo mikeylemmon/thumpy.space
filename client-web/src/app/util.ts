@@ -10,10 +10,22 @@ export const srand = () => Math.random() * 2 - 1
 
 export const srandVec = () => new Vec(srand(), srand(), srand())
 
+const _ctrlColorMemo: { [key: string]: number } = {}
 export const ctrlColor = (ctrl: string) => {
+	const sat = 0.8,
+		lgt = 0.4
+	if (_ctrlColorMemo[ctrl]) {
+		return { hue: _ctrlColorMemo[ctrl], sat, lgt }
+	}
 	// override seed for some ctrls if their default color is too close to others
 	let seed = ctrl
 	switch (ctrl) {
+		case '21':
+			seed = '21###'
+			break
+		case '22':
+			seed = '22&$&'
+			break
 		case '73':
 			seed = '73##'
 			break
@@ -21,9 +33,10 @@ export const ctrlColor = (ctrl: string) => {
 			seed = '77#'
 			break
 	}
+	_ctrlColorMemo[ctrl] = seedrandom(seed).quick()
 	return {
-		hue: seedrandom(seed).quick(),
-		sat: 0.8,
-		lgt: 0.4,
+		hue: _ctrlColorMemo[ctrl],
+		sat,
+		lgt,
 	}
 }

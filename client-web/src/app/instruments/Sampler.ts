@@ -1,22 +1,35 @@
 import * as Tone from 'tone'
 import { Avatar } from 'engine3d'
-import { MidiEventCC, MidiEventNote, MidiEventPitchbend } from '../MIDI'
-import { Instrument } from '../Instrument'
+import { MidiEventNote } from '../MIDI'
+import { FilterProps, Instrument } from '../Instrument'
+import { InstSlider } from '../InstSliders'
 import { noteFreq } from '../util'
 
 export class Sampler extends Instrument {
-	sampler: Tone.Sampler
-	pitchShift: Tone.PitchShift
 	panVol: Tone.PanVol
+	filter: Tone.Filter
+	pitchShift: Tone.PitchShift
+	sampler: Tone.Sampler
 	ps = 0
 	psSpread = 7
 
 	constructor(sampler: Tone.Sampler) {
 		super()
-		this.ctrls.sliders = []
 		this.panVol = new Tone.PanVol(0, 0).toDestination()
-		this.pitchShift = new Tone.PitchShift().connect(this.panVol)
+		this.filter = new Tone.Filter({ type: 'bandpass' }).connect(this.panVol)
+		this.pitchShift = new Tone.PitchShift().connect(this.filter)
 		this.sampler = sampler.connect(this.pitchShift)
+		this.ctrls.sliders = [
+			new InstSlider({ label: 'pb', ctrl: -1, pitchbend: true }),
+			new InstSlider({ label: 'mod', ctrl: 1, value: 0.0 }),
+			new InstSlider({ label: 'ff', ctrl: 21, value: 0.67 }),
+			new InstSlider({ label: 'fq', ctrl: 22, value: 0.0 }),
+			new InstSlider({ label: 'pan', ctrl: 27, value: 0.5 }),
+			new InstSlider({ label: 'vol', ctrl: 28, value: 0.857 }),
+		]
+		for (const ss of this.ctrls.sliders) {
+			this.handleCC({ slider: ss })
+		}
 	}
 
 	loaded() {
@@ -31,48 +44,27 @@ export class Sampler extends Instrument {
 		this.sampler.triggerRelease(noteFreq(evt.note), time)
 	}
 
-	controlchange = (_avatar: Avatar, time: number, evt: MidiEventCC) => {
-		const num = evt.controller.number
-		let delayed: (() => void) | null = null
-		switch (true) {
-			case num === 1:
-				delayed = () => {
-					this.psSpread = evt.value * 12
-					this.pitchShift.pitch = this.ps * this.psSpread
-				}
-				break
-			case 75 <= num && num <= 79:
-				delayed = () => {
-					this.panVol.mute = !evt.value
-					this.panVol.volume.value = (evt.value - 1) * 50
-				}
-				break
-			case 15 <= num && num <= 19:
-				delayed = () => {
-					this.panVol.mute = !evt.value
-				}
-				break
-			case num === 28:
-				delayed = () => {
-					this.panVol.pan.value = evt.value * 2 - 1
-				}
-				break
-			default:
-				console.log(
-					`[Sampler #controlchange] Unsupported CC event on channel ${evt.channel}:`,
-					evt.controller,
-					evt.value,
-				)
+	handleDetune = (val: number) => {
+		this.ps = val
+		this.pitchShift.pitch = this.ps * this.psSpread
+	}
+
+	handleModwheel = (val: number) => {
+		// bind modwheel to filter freq and Q
+		const ff = this.ctrls.getSliderForLabel('ff')
+		if (ff) {
+			ff.set(val)
+			this.handleCC({ slider: ff })
 		}
-		if (delayed) {
-			Tone.Draw.schedule(delayed, time)
+		const fq = this.ctrls.getSliderForLabel('fq')
+		if (fq) {
+			const sin = Math.sin(val * Math.PI)
+			let vv = 1 - val
+			vv = 1 - vv * vv * vv
+			fq.set(sin * 0.2 + 0 + 0.2 * vv)
+			this.handleCC({ slider: fq })
 		}
 	}
 
-	pitchbend = (_avatar: Avatar, time: number, evt: MidiEventPitchbend) => {
-		Tone.Draw.schedule(() => {
-			this.ps = evt.value
-			this.pitchShift.pitch = this.ps * this.psSpread
-		}, time)
-	}
+	handleFilter = (props: FilterProps) => this.filter.set(props)
 }

@@ -21,7 +21,7 @@ export class SketchAudioKeys {
 
 	constructor(sketch: Sketch) {
 		this.sketch = sketch
-		this.audioKeys = new AudioKeys({ polyphony: Infinity })
+		this.audioKeys = new AudioKeys({ polyphony: Infinity, velocity: 95 })
 		this.audioKeys.down(this.keyPressed)
 		this.audioKeys.up(this.keyReleased)
 	}

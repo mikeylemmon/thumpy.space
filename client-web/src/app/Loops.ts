@@ -235,16 +235,20 @@ export class Loops {
 					this.loops = this.loops.filter(ll => ll !== loop)
 					break
 				}
-				this.inputs.loopLen.value(loop.opts.beats)
-				this.activeLoop.isActive = false
-				this.activeLoop = loop
-				loop.isActive = true
+				this.activateLoop(loop)
 				break
 			}
 		}
 		if (didHit) {
 			this.saveLoopRefs()
 		}
+	}
+
+	activateLoop = (loop: Loop) => {
+		this.inputs.loopLen.value(loop.opts.beats)
+		this.activeLoop.isActive = false
+		this.activeLoop = loop
+		loop.isActive = true
 	}
 
 	keyPressed = (evt: p5) => {
@@ -289,9 +293,9 @@ export class Loops {
 		for (let ii = 0; ii < loops.length; ii++) {
 			if (loops[ii] === this.activeLoop) {
 				if (ii === 0) {
-					this.activeLoop = loops[loops.length - 1]
+					this.activateLoop(loops[loops.length - 1])
 				} else {
-					this.activeLoop = loops[ii - 1]
+					this.activateLoop(loops[ii - 1])
 				}
 				return
 			}
@@ -303,9 +307,9 @@ export class Loops {
 		for (let ii = 0; ii < loops.length; ii++) {
 			if (loops[ii] === this.activeLoop) {
 				if (ii === loops.length - 1) {
-					this.activeLoop = loops[0]
+					this.activateLoop(loops[0])
 				} else {
-					this.activeLoop = loops[ii + 1]
+					this.activateLoop(loops[ii + 1])
 				}
 				return
 			}
