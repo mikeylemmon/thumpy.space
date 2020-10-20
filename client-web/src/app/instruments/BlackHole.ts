@@ -43,13 +43,27 @@ export class BlackHole extends Instrument {
 		// Initialize control sliders
 		for (const ss of this.ctrls.sliders) {
 			switch (ss.label) {
-				case 'mod': ss.set(0.3); break
-				case 'ff': ss.set(0.9); break
-				case 'fq': ss.set(0.25); break
-				case 'a': ss.set(0.1); break
-				case 'd': ss.set(0.3); break
-				case 's': ss.set(0.66); break
-				case 'r': ss.set(0.6); break
+				case 'mod':
+					ss.set(0.3)
+					break
+				case 'ff':
+					ss.set(0.9)
+					break
+				case 'fq':
+					ss.set(0.25)
+					break
+				case 'a':
+					ss.set(0.1)
+					break
+				case 'd':
+					ss.set(0.3)
+					break
+				case 's':
+					ss.set(0.66)
+					break
+				case 'r':
+					ss.set(0.6)
+					break
 			}
 		}
 		for (const ss of this.ctrls.sliders) {
@@ -138,7 +152,7 @@ export class BlackHole extends Instrument {
 			const { facing, xform } = avatar
 			const { pos: apos, scale: ascale } = xform
 			const theta = Math.random() * Math.PI * 2
-			const ff = facing.cloneMult(objSize * 4)
+			const ff = facing.cloneMult(-objSize * 3)
 			pos.x = apos.x + ff.x + ascale.x * 3 * Math.sin(theta)
 			pos.y = apos.y
 			pos.z = apos.z + ff.z + ascale.x * 3 * Math.cos(theta)

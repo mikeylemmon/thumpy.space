@@ -28,22 +28,16 @@ export class Loops {
 	recLock = false
 	hidden = false
 	hiddenDial = false
+	loaded = false
 
 	constructor(opts: LoopsOpts) {
 		this.sketch = opts.sketch
 		this.dial = new Loop({
 			beats: this.dialBeats(opts.recOffset),
 			radius: radBig,
-			sketch: opts.sketch,
 			isDial: true,
 		})
-		this.activeLoop = this.load()
-	}
-
-	saveLoopRefs = () => {
-		const store = this.sketch.localStorage
-		store.setItem('activeLoop', this.activeLoop.id)
-		store.setItem('loops', JSON.stringify(this.loops.map(ll => ll.id)))
+		this.activeLoop = new Loop({ beats: 8, radius: radBig })
 	}
 
 	load = () => {
@@ -59,6 +53,7 @@ export class Loops {
 				const loop = new Loop({ id: lid, ...defaultParams })
 				if (loop.loaded) {
 					// loop loaded successfully from local storage, add to loops
+					loop.updateClientId(sketch.user.clientId)
 					this.loops.push(loop)
 					if (lid === aid) {
 						activeLoop = loop
@@ -75,7 +70,17 @@ export class Loops {
 		return this.activeLoop
 	}
 
+	saveLoopRefs = () => {
+		const store = this.sketch.localStorage
+		store.setItem('activeLoop', this.activeLoop.id)
+		store.setItem('loops', JSON.stringify(this.loops.map(ll => ll.id)))
+	}
+
 	update = () => {
+		if (!this.loaded) {
+			this.activeLoop = this.load()
+			this.loaded = true
+		}
 		this.dial.update()
 		this.loops.forEach(ll => ll.update())
 	}
@@ -216,7 +221,6 @@ export class Loops {
 		this.activeLoop = new Loop({
 			beats: this.inputs.loopLen.value(),
 			radius: radBig,
-			sketch: this.sketch,
 		})
 		this.loops.push(this.activeLoop)
 		this.saveLoopRefs()

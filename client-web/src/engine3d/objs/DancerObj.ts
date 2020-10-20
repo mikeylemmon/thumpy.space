@@ -42,7 +42,7 @@ class DanceMoves extends Component {
 		const obj = this.parent as DancerObj
 		const { envs } = this
 		obj.xform.pos.y = -envs.dip.value * sizes.leg.y * 0.8
-		obj.stepLeftRight = 0.7 * (envs.stepRight.value - envs.stepLeft.value)
+		obj.stepLeftRight = 0.5 * (envs.stepRight.value - envs.stepLeft.value)
 		const avatar = obj.parent || obj
 		avatar.xform.rot.y += dt * 20 * (envs.spinRight.value - envs.spinLeft.value)
 		obj.rotHead.x = (envs.headbang.value * Math.PI) / 4

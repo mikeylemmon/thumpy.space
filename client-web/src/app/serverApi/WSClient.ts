@@ -40,6 +40,7 @@ export default class WSClient {
 	options: WSClientOptions
 	clientId: number = 0
 	users: User[] = []
+	isReady = false
 
 	constructor(global: any, options: WSClientOptions) {
 		this.global = global
@@ -56,9 +57,10 @@ export default class WSClient {
 		this.conn = this.newConn()
 	}
 
-	ready = () => this.conn && this.conn.readyState === WebSocket.OPEN
+	ready = () => this.conn && this.conn.readyState === WebSocket.OPEN && this.isReady
 
 	newConn = (): WebSocket => {
+		this.isReady = false
 		const conn = new WebSocket(WS_URL)
 		conn.onclose = (evt: CloseEvent) => {
 			if (evt.code === DONT_REOPEN) {
@@ -84,6 +86,12 @@ export default class WSClient {
 		const parts = split(evt.data, WS_HEADER_END, 1)
 		const [head, body] = parts
 		switch (head) {
+			case WS_CLIENT_ID:
+				this.isReady = true
+				this.clientId = parseClientId(body)
+				console.log('[WSClient #onMessage] Received clientId', this.clientId)
+				this.options.onClientId(this.clientId)
+				break
 			case WS_CLOCK_NOW:
 			case WS_CLOCK_ORIGIN:
 				if (!this.clock) {
@@ -100,11 +108,6 @@ export default class WSClient {
 				const clkOpts = parseClockUpdate(body)
 				this.options.onClockUpdate(clkOpts)
 				console.log('[WSClient #onMessage] Received clockUpdate', clkOpts)
-				break
-			case WS_CLIENT_ID:
-				this.clientId = parseClientId(body)
-				console.log('[WSClient #onMessage] Received clientId', this.clientId)
-				this.options.onClientId(this.clientId)
 				break
 			case WS_USERS_ALL:
 				this.users = parseUsersAll(body).filter(uu => !!uu)

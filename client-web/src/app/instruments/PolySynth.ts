@@ -35,11 +35,21 @@ export class PolySynth extends Instrument {
 		// Initialize control sliders
 		for (const ss of this.ctrls.sliders) {
 			switch (ss.label) {
-				case 'mod': ss.set(0.6); break
-				case 'a': ss.set(0.01); break
-				case 'd': ss.set(0.4); break
-				case 's': ss.set(0.66); break
-				case 'r': ss.set(0.5); break
+				case 'mod':
+					ss.set(0.6)
+					break
+				case 'a':
+					ss.set(0.01)
+					break
+				case 'd':
+					ss.set(0.4)
+					break
+				case 's':
+					ss.set(0.66)
+					break
+				case 'r':
+					ss.set(0.5)
+					break
 			}
 		}
 		for (const ss of this.ctrls.sliders) {
@@ -113,7 +123,7 @@ export class PolySynth extends Instrument {
 			const { facing, xform } = avatar
 			const { pos: apos, scale: ascale } = xform
 			const theta = Math.random() * Math.PI * 2
-			const ff = facing.cloneMult(objSize * 4)
+			const ff = facing.cloneMult(-objSize * 3)
 			pos.x = apos.x + ff.x + ascale.x * 3 * Math.sin(theta)
 			pos.y = apos.y
 			pos.z = apos.z + ff.z + ascale.x * 3 * Math.cos(theta)

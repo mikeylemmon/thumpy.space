@@ -1,7 +1,7 @@
 import * as p5 from 'p5'
 import { v4 as uuid } from 'uuid'
 import { UserEvent } from './serverApi/serverApi'
-import Sketch from './Sketch'
+import { sketch } from './Sketch'
 import { BLACK_KEYS } from './constants'
 import { ctrlColor } from './util'
 
@@ -25,7 +25,6 @@ export type LoopOpts = {
 	id?: string
 	beats: number
 	radius: number
-	sketch: Sketch
 	isDial?: boolean
 }
 
@@ -72,7 +71,7 @@ export class Loop {
 
 	save = () => {
 		const { id, isMuted, evts, opts } = this
-		const { beats, sketch } = opts
+		const { beats } = opts
 		const data = { id, beats, evts, isMuted }
 		sketch.localStorage.setItem(id, JSON.stringify(data))
 		// console.log(`[Loop #save] Saved loop ${id} to local storage`)
@@ -80,7 +79,6 @@ export class Loop {
 
 	load = () => {
 		const { id, opts } = this
-		const { sketch } = opts
 		const dataStr = sketch.localStorage.getItem(id)
 		if (!dataStr || dataStr === '') {
 			this.loaded = false
@@ -96,7 +94,7 @@ export class Loop {
 	}
 
 	remove = () => {
-		this.opts.sketch.localStorage.removeItem(this.id)
+		localStorage.removeItem(this.id)
 	}
 
 	setRadius = (rad: number) => {
@@ -113,10 +111,9 @@ export class Loop {
 		}
 	}
 
-	loopLenMs = () => this.opts.beats * this.opts.sketch.beatMs()
+	loopLenMs = () => this.opts.beats * sketch.beatMs()
 
 	loopUserEvent = (evt: UserEvent) => {
-		const { sketch } = this.opts
 		const recOff = sketch.offsetMs()
 		const now = sketch.nowMs()
 		const loopTime = this.timeGlobalToLoopNorm(now + recOff)
@@ -205,9 +202,10 @@ export class Loop {
 		}
 	}
 
+	_lastDownbeat = 0
+	_lastBeats = 0
 	update = () => {
 		// Calculate play and rec heads normalized (0-1) to the loop length
-		const { sketch } = this.opts
 		const now = sketch.nowMs()
 		const recOff = sketch.offsetMs()
 		const play = this.timeGlobalToLoopNorm(now)
@@ -219,6 +217,11 @@ export class Loop {
 
 		if (this.isMuted) {
 			return
+		}
+		if (this._lastDownbeat !== sketch.downbeat || this._lastBeats !== this.opts.beats) {
+			this._lastDownbeat = sketch.downbeat
+			this._lastBeats = this.opts.beats
+			return // downbeat changed, skip an update so we don't get faulty triggers
 		}
 
 		// Trigger looped events if an offset boundary was crossed
@@ -453,7 +456,7 @@ export class Loop {
 	}
 
 	timeGlobalToLoop = (tt: number) => {
-		return (tt - this.opts.sketch.downbeat) / this.loopLenMs()
+		return (tt - sketch.downbeat) / this.loopLenMs()
 	}
 
 	timeGlobalToLoopNorm = (tt: number) => {
@@ -462,7 +465,6 @@ export class Loop {
 	}
 
 	timeLoopToGlobal = (loopTime: number) => {
-		const { sketch } = this.opts
 		const loopLenMs = this.loopLenMs()
 		return sketch.downbeat + loopTime * loopLenMs
 	}
@@ -473,7 +475,6 @@ export class Loop {
 	}
 
 	timeLastLoopStartMs = (tt: number) => {
-		const { sketch } = this.opts
 		const loopLenMs = this.loopLenMs()
 		const lt = this.timeGlobalToLoop(tt)
 		return sketch.downbeat + Math.floor(lt) * loopLenMs

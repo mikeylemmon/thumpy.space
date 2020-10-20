@@ -48,7 +48,7 @@ export class Avatar extends Obj {
 		this.comps = [this.phys]
 		this.onForce = opts.onForce
 		this.dancer = new DancerObj()
-		this.facing = new Vec(0, 0, -1)
+		this.facing = new Vec(0, 0, 1)
 		this.addChild(this.dancer)
 		console.log('[Avatar] ctor', this)
 	}

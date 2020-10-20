@@ -1,8 +1,9 @@
 import * as Tone from 'tone'
+import { Avatar, Obj, ObjOpts, Vec } from 'engine3d'
 import { MidiEventNote } from '../MIDI'
 import { ADSR, ControlChange, FilterProps, Instrument } from '../Instrument'
 import { noteFreq } from '../util'
-import { engine3d, Avatar, Obj, ObjOpts, Vec } from 'engine3d'
+import { worldScale } from '../Sketch'
 
 // Hoover implements a very rough approximation of a Alpha Juno 2 'rave hoover'
 // by amplitude-modulating a fatsawtooth by a fatsquare (would have used pulse
@@ -23,7 +24,11 @@ export class Hoover extends Instrument {
 	psSpread = 7
 	harmonicity = new Tone.Multiply(3.03)
 	freq = 440
-	obj: Obj
+	modwheel = 1
+	obj = new HooverObj(this, {
+		scale: new Vec(worldScale * 2),
+		pos: new Vec(0, 100, -worldScale),
+	})
 	wave: Tone.Waveform
 	fft: Tone.FFT
 
@@ -59,23 +64,25 @@ export class Hoover extends Instrument {
 			normalRange: true,
 		})
 		this.panVol.connect(this.fft)
-		const obj = engine3d.getObj(HooverObj)
-		if (obj) {
-			this.obj = obj
-		} else {
-			this.obj = new HooverObj(this, {
-				scale: new Vec(4),
-			})
-		}
 
 		// Initialize control sliders
 		for (const ss of this.ctrls.sliders) {
 			switch (ss.label) {
-				case 'mod': ss.set(1.0); break
-				case 'a': ss.set(0.6); break
-				case 'd': ss.set(0.07); break
-				case 's': ss.set(1.0); break
-				case 'r': ss.set(0.7); break
+				case 'mod':
+					ss.set(1.0)
+					break
+				case 'a':
+					ss.set(0.6)
+					break
+				case 'd':
+					ss.set(0.07)
+					break
+				case 's':
+					ss.set(1.0)
+					break
+				case 'r':
+					ss.set(0.7)
+					break
 			}
 		}
 		for (const ss of this.ctrls.sliders) {
@@ -112,6 +119,7 @@ export class Hoover extends Instrument {
 	}
 
 	handleModwheel = (val: number) => {
+		this.modwheel = val
 		const sin = Math.sin(val * Math.PI)
 		let ss = 1 - sin
 		ss = 1 - ss * ss
@@ -166,12 +174,44 @@ class HooverObj extends Obj {
 		this.inst = hoover
 	}
 
-	every = 0
-	ff = 0.0
+	_ff = 0.0 // counter for rotation and color modulation
 	drawFunc = (pg: p5.Graphics) => {
-		pg.rotateX(this.ff / 59371)
-		pg.rotateY(this.ff / -37523)
-		pg.rotateZ(this.ff / 294783)
+		const lp = this.calcLaserParams()
+		this._ff += 3 * (32 - lp.wave.length)
+		if (!lp.wave.length) {
+			return
+		}
+		// Apply slow rotation
+		pg.rotateX(this._ff / 59371)
+		pg.rotateY(this._ff / -37523)
+		pg.rotateZ(this._ff / 294783)
+		// Draw waveform lasers, with colors modulated by fft values
+		pg.colorMode(pg.HSL, 1)
+		pg.noFill().strokeWeight(5).stroke(0)
+		this.drawLasers(pg, lp)
+		pg.rotateX(-Math.PI / 2)
+		this.drawLasers(pg, lp)
+		pg.rotateY(-Math.PI / 2)
+		this.drawLasers(pg, lp)
+	}
+
+	calcLaserParams = (): LaserParams => {
+		const { ctrls, modwheel, wave } = this.inst
+		const empty = { fft: [], wave: new Float32Array(), waveMin: 0, waveMax: 0 }
+		const volCtrl = ctrls.getSliderForLabel('vol')
+		if (volCtrl) {
+			const vol = volCtrl.value.value
+			if (vol < 0.01) {
+				return empty
+			}
+		}
+		const visThresh = 0.001 + 0.02 * (1 - modwheel * modwheel)
+		let vals = wave.getValue().filter(vv => Math.abs(vv) > visThresh)
+		const valsMax = Math.max(0, ...vals)
+		const valsMin = Math.min(0, ...vals)
+		if (!vals.length) {
+			return empty
+		}
 		const fft = this.inst.fft.getValue()
 		let fftVals: number[] = []
 		const fftStart = 2
@@ -180,42 +220,43 @@ class HooverObj extends Obj {
 		}
 		const max = Math.max(0.001, ...fftVals)
 		fftVals = fftVals.map(ff => ff / max).filter(ff => ff > 0.05)
-		const vals = this.inst.wave.getValue().filter(vv => Math.abs(vv) > 0.0005)
-
-		// Draw waveform lasers, with colors modulated by fft values
-		pg.colorMode(pg.HSL, 1)
-		pg.noFill().strokeWeight(3)
-		for (let ii = 0; ii < vals.length; ii++) {
-			const val = vals[ii] * 2000
-			this.ff++
-			const ff = this.ff % fftVals.length || 0
-			const hh = ((ff / fft.length) * 6.7 + ((this.ff / 100000) % 1.0)) % 1.0
-			const ss = (fftVals[ff] || 0) / 2 + 0.5
-			pg.stroke(hh, ss, 0.5)
-			pg.rotateZ((Math.PI * 2) / vals.length)
-			pg.line(0, 0, 0, val)
+		if (!fftVals.length) {
+			fftVals.push(fft[0])
 		}
-		pg.rotateX(-Math.PI / 2)
-		for (let ii = 0; ii < vals.length; ii++) {
-			const val = vals[ii] * 2000
-			this.ff++
-			const ff = this.ff % fftVals.length || 0
-			const hh = ((ff / fft.length) * 6.7 + ((this.ff / 100000) % 1.0)) % 1.0
-			const ss = (fftVals[ff] || 0) / 2 + 0.5
-			pg.stroke(hh, ss, 0.5)
-			pg.rotateZ((Math.PI * 2) / vals.length)
-			pg.line(0, 0, 0, val)
-		}
-		pg.rotateY(-Math.PI / 2)
-		for (let ii = 0; ii < vals.length; ii++) {
-			const val = vals[ii] * 2000
-			this.ff++
-			const ff = this.ff % fftVals.length || 0
-			const hh = ((ff / fft.length) * 6.7 + ((this.ff / 100000) % 1.0)) % 1.0
-			const ss = (fftVals[ff] || 0) / 2 + 0.5
-			pg.stroke(hh, ss, 0.5)
-			pg.rotateZ((Math.PI * 2) / vals.length)
-			pg.line(0, 0, 0, val)
+		return {
+			fft: fftVals,
+			wave: vals,
+			waveMin: valsMin,
+			waveMax: valsMax,
 		}
 	}
+
+	drawLasers = (pg: p5.Graphics, params: LaserParams) => {
+		const { fft, wave, waveMax, waveMin } = params
+		for (let ii = 0; ii < wave.length; ii++) {
+			this._ff++
+			const ff = this._ff % fft.length || 0
+			const hh = ((ff / fft.length) * 6.7 + this._ff / 100000) % 1.0
+			const ss = (fft[ff] || 0) / 2 + 0.5
+			let vv = 1 - (wave[ii] - waveMin) / (waveMax - waveMin)
+			const aa = 1 - 0.3 * vv * vv
+			// work around p5 disabled alpha for stroke by setting 'curStrokeColor' directly
+			const cc = pg.color(hh, ss, 0.5, aa) as any
+			const rr = (pg as any)._renderer
+			rr.curStrokeColor = cc._array
+			pg.rotateZ((Math.PI * 2) / wave.length)
+			if (vv > 0.5) {
+				pg.line(0, 0, 0, 1 - vv)
+			} else {
+				pg.line(0, vv, 0, 0.3)
+			}
+		}
+	}
+}
+
+type LaserParams = {
+	fft: number[]
+	wave: Float32Array
+	waveMin: number
+	waveMax: number
 }

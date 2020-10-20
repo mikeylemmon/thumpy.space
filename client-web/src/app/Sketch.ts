@@ -25,7 +25,7 @@ import { Loops } from './Loops'
 
 type Instruments = { [key: string]: Instrument }
 
-const worldScale = 1000
+export const worldScale = 1000
 const newAvatarPos = (clientId: number) => {
 	if (clientId === 0) {
 		// server avatar goes in the corner
@@ -68,7 +68,7 @@ export default class Sketch {
 		name: '',
 		instrument: 'dancer',
 		inputDevice: 'keyboard',
-		offset: 2,
+		offset: 1,
 	}
 	users: User[] = []
 	avatar: Avatar
@@ -101,11 +101,10 @@ export default class Sketch {
 			clock: {
 				onSynced: () => {
 					this.syncing = false
-					this.transportStarted = false
-					this.inputs.setupInputsBPM()
 				},
 			},
 			onClientId: (clientId: number) => {
+				this.transportStarted = false
 				this.user.clientId = clientId
 				this.inputs.setupInputsUser(clientId)
 				this.loops.updateClientId(clientId)
@@ -204,7 +203,6 @@ export default class Sketch {
 		this.pg.textureWrap(pp.REPEAT) // applies to textures rendered to pg (i.e. backbuffer)
 		const bbsize = nearestPowerOf2(this.width) // backbuffer size is ^2 so p5 doesn't force mode to CLAMP
 		this.backbuffer = pp.createGraphics(bbsize, bbsize, pp.WEBGL)
-		console.log('bbsize', bbsize, this.backbuffer.width, this.backbuffer.height)
 		this.cam = new EasyCam((this.pg as any)._renderer, { distance: 100 })
 		this.cam.setDistanceMin(40)
 		this.cam.setDistanceMax(3000)
@@ -221,7 +219,7 @@ export default class Sketch {
 		this.loops.update()
 		engine3d.update()
 		pp.colorMode(pp.HSL, 1)
-			.background(this.bgCol.hue, this.bgCol.sat, this.bgCol.lgt, 0.3)
+			.background(this.bgCol.hue, this.bgCol.sat, this.bgCol.lgt, 0.5)
 			.colorMode(pp.RGB, 255)
 		const { pg } = this
 		if (pg) {
@@ -256,14 +254,18 @@ export default class Sketch {
 		}
 		if (loading) {
 			this.drawMessage(pp, 'Loading instruments...')
-		} else if (this.syncing) {
-			this.drawMessage(pp, 'Syncing clock with server...')
+		} else if (this.ws.ready()) {
+			if (this.syncing) {
+				this.drawMessage(pp, 'Syncing clock with server')
+			} else if (!this.transportStarted) {
+				this.drawMessage(pp, 'Starting on next downbeat')
+			}
 		}
 	}
 
 	drawMessage = (pp: p5, msg: string) => {
-		pp.fill(200)
-		pp.strokeWeight(0)
+		pp.fill(200).stroke(0)
+		pp.strokeWeight(2)
 		pp.textSize(20)
 		pp.textAlign(pp.CENTER, pp.CENTER)
 		pp.textStyle(pp.BOLDITALIC)
@@ -443,7 +445,7 @@ export default class Sketch {
 
 	_sendUserEvent = (uevt: UserEvent) => {
 		const { conn, ready } = this.ws
-		if (!ready()) {
+		if (!ready() || !this.transportStarted) {
 			// websocket connection isn't ready, handle event locally
 			this.onUserEvent(uevt)
 			return
@@ -465,6 +467,9 @@ export default class Sketch {
 		const isMetronome = instrument === 'metronome'
 		if (isMetronome && this.syncing) {
 			return // don't handle metronome events until clock has synced
+		}
+		if (!isMetronome && !this.transportStarted) {
+			return // don't handle non-metronome events until the downbeat has been set
 		}
 		const tt = this.timeGlobalToTone(timestamp)
 		if (tt < 0) {
@@ -514,6 +519,7 @@ export default class Sketch {
 		if (!this.transportStarted && note === NOTE_METRONOME_DOWN) {
 			console.log(`[Sketch #onUserEvent] Downbeat synced with server. BPM:`, this._bpmNext)
 			this.transportStarted = true
+			this.inputs.setupInputsBPM()
 			this.setNewDownbeat(time)
 			return
 		}
