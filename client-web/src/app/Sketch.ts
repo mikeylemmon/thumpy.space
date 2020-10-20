@@ -16,7 +16,7 @@ import {
 } from './serverApi/serverApi'
 import MIDI, { MidiEvent, MidiEventCC, MidiEventNote, MidiEventPitchbend } from './MIDI'
 import { Instrument } from './Instrument'
-import { InstSliders } from './InstSliders'
+import { InstControls } from './InstControls'
 import { BlackHole, Dancer, EightOhEight, Hoover, Metronome, Piano, PolySynth } from './instruments'
 import { EasyCam } from 'vendor/p5.easycam.js'
 import { SketchInputs } from './SketchInputs'
@@ -59,7 +59,7 @@ export default class Sketch {
 	midi: MIDI
 	audioKeys: SketchAudioKeys
 	instruments: Instruments
-	instSliders = new InstSliders()
+	instSliders = new InstControls()
 	inputs: SketchInputs
 	loops: Loops
 
@@ -239,7 +239,9 @@ export default class Sketch {
 			} // else: help being displayed, so don't draw2D because the avatar labels are distracting
 		}
 		this.inputs.draw(pp)
-		this.instSliders.draw(pp)
+		if (!this.inputs.hidden) {
+			this.instSliders.draw(pp)
+		}
 		this.loops.draw(pp)
 		if (this.inputs.help) {
 			return

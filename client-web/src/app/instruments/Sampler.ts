@@ -2,7 +2,7 @@ import * as Tone from 'tone'
 import { Avatar } from 'engine3d'
 import { MidiEventNote } from '../MIDI'
 import { FilterProps, Instrument } from '../Instrument'
-import { InstSlider } from '../InstSliders'
+import { InstControl } from '../InstControls'
 import { noteFreq } from '../util'
 
 export class Sampler extends Instrument {
@@ -20,12 +20,12 @@ export class Sampler extends Instrument {
 		this.pitchShift = new Tone.PitchShift().connect(this.filter)
 		this.sampler = sampler.connect(this.pitchShift)
 		this.ctrls.sliders = [
-			new InstSlider({ label: 'pb', ctrl: -1, pitchbend: true }),
-			new InstSlider({ label: 'mod', ctrl: 1, value: 0.0 }),
-			new InstSlider({ label: 'ff', ctrl: 21, value: 0.67 }),
-			new InstSlider({ label: 'fq', ctrl: 22, value: 0.0 }),
-			new InstSlider({ label: 'pan', ctrl: 27, value: 0.5 }),
-			new InstSlider({ label: 'vol', ctrl: 28, value: 0.857 }),
+			new InstControl({ label: 'pb', ctrl: -1, pitchbend: true }),
+			new InstControl({ label: 'mod', ctrl: 1, value: 0.0 }),
+			new InstControl({ label: 'ff', ctrl: 21, value: 0.67 }),
+			new InstControl({ label: 'fq', ctrl: 22, value: 0.0 }),
+			new InstControl({ label: 'pan', ctrl: 27, value: 0.5 }),
+			new InstControl({ label: 'vol', ctrl: 28, value: 0.857 }),
 		]
 		for (const ss of this.ctrls.sliders) {
 			this.handleCC({ slider: ss })

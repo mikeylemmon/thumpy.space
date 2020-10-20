@@ -1,12 +1,12 @@
 import * as Tone from 'tone'
 import { Avatar } from 'engine3d'
 import { MidiEventCC, MidiEventNote, MidiEventPitchbend } from './MIDI'
-import { InstSlider, InstSliders } from './InstSliders'
+import { InstControl, InstControls } from './InstControls'
 
 export type ControlChange = {
 	avatar?: Avatar
 	evt?: MidiEventCC
-	slider?: InstSlider
+	slider?: InstControl
 }
 
 export type ADSR = Partial<{
@@ -22,18 +22,18 @@ export type FilterProps = Partial<{
 }>
 
 export class Instrument {
-	ctrls = new InstSliders({
+	ctrls = new InstControls({
 		sliders: [
-			new InstSlider({ label: 'pb', ctrl: -1, pitchbend: true }),
-			new InstSlider({ label: 'mod', ctrl: 1, value: 0.0 }),
-			new InstSlider({ label: 'ff', ctrl: 21, value: 0.67 }), // Filter freq
-			new InstSlider({ label: 'fq', ctrl: 22, value: 0.0 }), // Filter Q
-			new InstSlider({ label: 'a', ctrl: 71, value: 0.05 }),
-			new InstSlider({ label: 'd', ctrl: 72, value: 0.1 }),
-			new InstSlider({ label: 's', ctrl: 73, value: 1.0 }),
-			new InstSlider({ label: 'r', ctrl: 74, value: 0.4 }),
-			new InstSlider({ label: 'pan', ctrl: 27, value: 0.5 }),
-			new InstSlider({ label: 'vol', ctrl: 28, value: 0.857 }),
+			new InstControl({ label: 'pb', ctrl: -1, pitchbend: true }),
+			new InstControl({ label: 'mod', ctrl: 1, value: 0.0 }),
+			new InstControl({ label: 'ff', ctrl: 21, value: 0.67 }), // Filter freq
+			new InstControl({ label: 'fq', ctrl: 22, value: 0.0 }), // Filter Q
+			new InstControl({ label: 'a', ctrl: 71, value: 0.05 }),
+			new InstControl({ label: 'd', ctrl: 72, value: 0.1 }),
+			new InstControl({ label: 's', ctrl: 73, value: 1.0 }),
+			new InstControl({ label: 'r', ctrl: 74, value: 0.4 }),
+			new InstControl({ label: 'pan', ctrl: 27, value: 0.5 }),
+			new InstControl({ label: 'vol', ctrl: 28, value: 0.857 }),
 		],
 	})
 	panVol?: Tone.PanVol // automatically bound to pan/vol sliders

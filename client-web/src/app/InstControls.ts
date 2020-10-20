@@ -4,11 +4,11 @@ import { sketch } from './Sketch'
 import { ctrlColor } from './util'
 import { MidiEvent, MidiEventCC, MidiEventPitchbend } from './MIDI'
 
-// type Sliders = { [key: string]: InstSlider }
-type InstSlidersOpts = { sliders: InstSlider[] }
+// type Sliders = { [key: string]: InstControl }
+type InstSlidersOpts = { sliders: InstControl[] }
 
-export class InstSliders {
-	sliders: InstSlider[]
+export class InstControls {
+	sliders: InstControl[]
 
 	constructor(opts: InstSlidersOpts = { sliders: [] }) {
 		this.sliders = opts.sliders
@@ -56,14 +56,14 @@ export class InstSliders {
 		this.sliders.forEach(ss => ss.mouseReleased())
 	}
 
-	controlchangeNext = (evt: MidiEventCC): InstSlider | undefined => {
+	controlchangeNext = (evt: MidiEventCC): InstControl | undefined => {
 		const ss = this.getSliderForCtrl(evt.controller.number)
 		if (ss && !ss.pressed) {
 			ss.valueNext = evt.value
 		}
 		return ss
 	}
-	controlchange = (evt: MidiEventCC): InstSlider | undefined => {
+	controlchange = (evt: MidiEventCC): InstControl | undefined => {
 		const ss = this.getSliderForCtrl(evt.controller.number)
 		if (ss) {
 			ss.value.value = evt.value
@@ -71,14 +71,14 @@ export class InstSliders {
 		return ss
 	}
 
-	pitchbendNext = (evt: MidiEventPitchbend): InstSlider | undefined => {
+	pitchbendNext = (evt: MidiEventPitchbend): InstControl | undefined => {
 		const ss = this.getSliderForPitchbend()
 		if (ss && !ss.pressed) {
 			ss.valueNext = evt.value
 		}
 		return ss
 	}
-	pitchbend = (evt: MidiEventPitchbend): InstSlider | undefined => {
+	pitchbend = (evt: MidiEventPitchbend): InstControl | undefined => {
 		const ss = this.getSliderForPitchbend()
 		if (ss) {
 			ss.value.value = evt.value
@@ -86,15 +86,15 @@ export class InstSliders {
 		return ss
 	}
 
-	getSliderForLabel = (lbl: string): InstSlider | undefined => {
+	getSliderForLabel = (lbl: string): InstControl | undefined => {
 		const sliders = this.sliders.filter(s => s.label === lbl)
 		return sliders[0]
 	}
-	getSliderForCtrl = (ctrl: number): InstSlider | undefined => {
+	getSliderForCtrl = (ctrl: number): InstControl | undefined => {
 		const sliders = this.sliders.filter(s => s.ctrl === ctrl)
 		return sliders[0]
 	}
-	getSliderForPitchbend = (): InstSlider | undefined => {
+	getSliderForPitchbend = (): InstControl | undefined => {
 		const sliders = this.sliders.filter(s => s.pitchbend)
 		return sliders[0]
 	}
@@ -107,7 +107,7 @@ type InstSliderOpts = {
 	pitchbend?: boolean
 }
 
-export class InstSlider {
+export class InstControl {
 	height = 150
 	width = 20
 	value = new Tone.Signal(0)
