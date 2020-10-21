@@ -26,11 +26,7 @@ import { Loops } from './Loops'
 type Instruments = { [key: string]: Instrument }
 
 export const worldScale = 1000
-const newAvatarPos = (clientId: number) => {
-	if (clientId === 0) {
-		// server avatar goes in the corner
-		return new Vec(worldScale, 31, worldScale)
-	}
+const newAvatarPos = () => {
 	const rr = () => Math.random() - 0.5
 	return new Vec((rr() * worldScale) / 2, 31, (rr() * worldScale) / 2)
 }
@@ -64,7 +60,7 @@ export default class Sketch {
 	loops: Loops
 
 	user: User = {
-		clientId: 0,
+		clientId: -1,
 		name: '',
 		instrument: 'dancer',
 		inputDevice: 'keyboard',
@@ -92,7 +88,7 @@ export default class Sketch {
 		})
 		this.avatar = new Avatar({
 			user: this.user,
-			pos: newAvatarPos(1),
+			pos: newAvatarPos(),
 			scale: new Vec(30),
 			phys: { worldScale },
 			onForce: this.sendUserXform,
@@ -553,14 +549,19 @@ export default class Sketch {
 			const prevs = this.users.filter(uu => uu.clientId === user.clientId)
 			if (!prevs.length) {
 				this.users.push(user)
-				this.avatars.push(
-					new Avatar({
-						user: user,
-						pos: newAvatarPos(user.clientId),
-						scale: new Vec(20),
-						phys: { worldScale },
-					}),
-				)
+				const aa = new Avatar({
+					user: user,
+					pos: newAvatarPos(),
+					scale: new Vec(20),
+					phys: { worldScale },
+				})
+				if (user.name === 'the-server') {
+					// Put server far away, really small
+					aa.xform.pos = new Vec(worldScale * 4, 31, 0)
+					aa.xform.scale = new Vec(3)
+					aa.xform.rot.y = Math.PI / 2
+				}
+				this.avatars.push(aa)
 				continue
 			}
 			if (prevs.length > 1) {

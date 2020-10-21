@@ -187,7 +187,7 @@ class HooverObj extends Obj {
 		pg.rotateZ(this._ff / 294783)
 		// Draw waveform lasers, with colors modulated by fft values
 		pg.colorMode(pg.HSL, 1)
-		pg.noFill().strokeWeight(5).stroke(0)
+		pg.noFill().strokeWeight(4).stroke(0)
 		this.drawLasers(pg, lp)
 		pg.rotateX(-Math.PI / 2)
 		this.drawLasers(pg, lp)

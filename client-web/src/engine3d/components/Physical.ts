@@ -20,9 +20,10 @@ export class Physical extends Component {
 		if (!opts.worldScale) {
 			opts.worldScale = 1000
 		}
+		const worldXZGain = 5
 		this.world = new Bounds(
-			new Vec(-opts.worldScale, 0, -opts.worldScale),
-			new Vec(opts.worldScale, opts.worldScale, opts.worldScale),
+			new Vec(-opts.worldScale * worldXZGain, 0, -opts.worldScale * worldXZGain),
+			new Vec(opts.worldScale * worldXZGain, opts.worldScale, opts.worldScale * worldXZGain),
 		)
 	}
 

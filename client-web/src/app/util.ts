@@ -7,8 +7,10 @@ export function noteFreq(note: number) {
 }
 
 export const srand = () => Math.random() * 2 - 1
-
 export const srandVec = () => new Vec(srand(), srand(), srand())
+export const mix = (aa: number, bb: number, xx: number) => {
+	return bb * xx + aa * (1 - xx)
+}
 
 const _ctrlColorMemo: { [key: string]: number } = {}
 export const ctrlColor = (ctrl: string) => {

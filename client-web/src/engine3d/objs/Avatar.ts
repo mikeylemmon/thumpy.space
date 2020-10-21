@@ -1,6 +1,7 @@
 import * as p5 from 'p5'
 import { EasyCam } from 'vendor/p5.easycam.js'
 import { User, UserForce, UserXform } from 'app/serverApi/serverApi'
+import { sketch } from 'app/Sketch'
 import { Obj, ObjOpts, Vec } from '../core'
 import { Physical, PhysicalOpts, FollowCam } from '../components'
 import { DancerObj } from './DancerObj'
@@ -30,6 +31,7 @@ export class Avatar extends Obj {
 	onForce?: forceFunc
 	dancer: DancerObj
 	facing: Vec
+	scale2D = 100
 
 	keys: KeyMovement = {
 		up: false,
@@ -62,6 +64,10 @@ export class Avatar extends Obj {
 	}
 
 	drawFunc2D = (pp: p5, pos: Vec, scale: number) => {
+		this.scale2D = scale
+		if (sketch.inputs.hiddenLabels) {
+			return
+		}
 		const { name, instrument, offset } = this.user
 		if (scale < 15) {
 			return // avatar is very small on screen, so no text

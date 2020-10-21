@@ -583,6 +583,7 @@ export class EasyCam {
 		if (renderer) {
 			this.camEYE = this.getPosition(this.camEYE)
 			this.camLAT = this.getCenter(this.camLAT)
+			this.camLAT[1] += this.cam.state.distance / 6 // put center towards bottom of screen
 			this.camRUP = this.getUpVector(this.camRUP)
 
 			if (undefined === renderer._curCamera)

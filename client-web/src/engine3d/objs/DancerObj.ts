@@ -1,10 +1,11 @@
 import * as p5 from 'p5'
 import * as Tone from 'tone'
 import seedrandom from 'seedrandom'
-import { Component, Obj, ObjOpts, Vec } from '../core'
 import { MidiEventNote } from 'app/MIDI'
 import { ControlChange } from 'app/Instrument'
 import { InstControls } from 'app/InstControls'
+import { Component, Obj, ObjOpts, Vec } from '../core'
+import { Avatar } from './Avatar'
 
 export type DancerCC = ControlChange & {
 	ctrls: InstControls
@@ -191,9 +192,18 @@ export class DancerObj extends Obj {
 
 	drawFunc = (pg: p5.Graphics) => {
 		const { leg, body } = sizes
+		const { parent } = this
+		const scale2D = (parent instanceof Avatar && parent.scale2D) || 500
 		const cs = this.colors.stroke
 		pg.colorMode(pg.HSL, 1)
-		pg.stroke(cs.hue, cs.sat, cs.lgt).strokeWeight(2)
+		pg.stroke(cs.hue, cs.sat, cs.lgt)
+		if (scale2D < 35) {
+			pg.noStroke()
+		} else if (scale2D < 200) {
+			pg.strokeWeight(1)
+		} else {
+			pg.strokeWeight(2)
+		}
 		pg.translate(this.stepLeftRight, -1 + leg.y + body.y, 0)
 		this.setFill(pg, 'body')
 		pg.sphere(sizes.body.y, 7, 4)

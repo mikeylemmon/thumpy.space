@@ -15,7 +15,7 @@ export class PolySynth extends Instrument {
 	psSpread = 7
 	modwheel = 0.6
 	objs: Obj[] = []
-	maxObjs = 24
+	maxObjs = 30
 	ii = 0
 
 	constructor() {
@@ -104,31 +104,30 @@ export class PolySynth extends Instrument {
 	handleFilter = (props: FilterProps) => this.filter.set(props)
 	handleADSR = (props: ADSR) => this.synth.set({ envelope: props })
 
-	lastPos: { [key: number]: Vec } = {}
+	_rr = 0
+	_lastPos: { [key: number]: Vec } = {}
 	addSynthObj = (avatar: Avatar, evt: MidiEventNote) => {
 		// Create obj for note
 		const objSize = 100
 		const { objs, maxObjs } = this
 		const { clientId } = avatar.user
 		let pos = avatar.xform.pos
-		if (this.lastPos[clientId]) {
-			pos = this.lastPos[clientId]
+		if (this._lastPos[clientId]) {
+			pos = this._lastPos[clientId]
 		}
-		const off = new Vec(srand(), Math.random(), srand()).applyMult(objSize * 0.6)
+		const off = new Vec(srand(), Math.random() / 2 + 1, srand()).applyMult(objSize * 0.6)
 		pos = pos.cloneAdd(off)
 		if (this.ii++ % 8 === 0 || pos.y > 1000) {
-			for (const oo of objs) {
-				oo.xform.scale.applyMult(0.6)
-			}
+			// Start a new column (4 total columns in semicircle behind avatar)
 			const { facing, xform } = avatar
-			const { pos: apos, scale: ascale } = xform
-			const theta = Math.random() * Math.PI * 2
-			const ff = facing.cloneMult(-objSize * 3)
-			pos.x = apos.x + ff.x + ascale.x * 3 * Math.sin(theta)
+			const { pos: apos } = xform
+			const ff = new Vec(facing.x, facing.z, 0).applyMult(-700)
+			ff.rotate(-Math.PI / 2 + (Math.PI * ((this._rr++ % 4) + 1)) / 5)
+			pos.x = apos.x + ff.x
 			pos.y = apos.y
-			pos.z = apos.z + ff.z + ascale.x * 3 * Math.cos(theta)
+			pos.z = apos.z + ff.y
 		}
-		this.lastPos[clientId] = pos
+		this._lastPos[clientId] = pos
 		const rot = new Vec(
 			Math.random() * Math.PI * 2,
 			Math.random() * Math.PI * 2,
@@ -174,7 +173,7 @@ class SynthObj extends Obj {
 	update = (dt: number) => {
 		let mod = 1 - this.polySynth.modwheel
 		mod = 1 - mod * mod
-		this.lgt = mod * 0.8 + 0.2
+		this.lgt = mod * 0.6 + 0.2
 		this.hue += (Math.random() * 2 - 1) * dt * mod
 		if (this.hue < 0) {
 			this.hue += 1

@@ -2,7 +2,7 @@ import * as p5 from 'p5'
 import * as Tone from 'tone'
 import { MidiEventNote } from '../MIDI'
 import { ADSR, ControlChange, FilterProps, Instrument } from '../Instrument'
-import { noteFreq, srand, srandVec } from '../util'
+import { mix, noteFreq, srand, srandVec } from '../util'
 import { Avatar, Obj, ObjOpts, Vec } from 'engine3d'
 import { sketch } from '../Sketch'
 
@@ -19,7 +19,7 @@ export class BlackHole extends Instrument {
 	ps = 0
 	psSpread = 7
 	objs: Obj[] = []
-	maxObjs = 32
+	maxObjs = 30
 	ii = 0
 
 	constructor() {
@@ -129,47 +129,52 @@ export class BlackHole extends Instrument {
 		}
 	}
 
-	lastPos: { [key: number]: Vec } = {}
+	_rr = 0
+	_lastPos: { [key: number]: Vec } = {}
 	addBHObj = (avatar: Avatar, evt: MidiEventNote) => {
 		const { blackHole } = sketch
 		if (!blackHole) {
 			return
 		}
 		// Create obj for note
-		const objSize = 130
+		const objSize = 150
 		const { objs, maxObjs } = this
 		const { clientId } = avatar.user
 		let pos = avatar.xform.pos
-		if (this.lastPos[clientId]) {
-			pos = this.lastPos[clientId]
+		if (this._lastPos[clientId]) {
+			pos = this._lastPos[clientId]
 		}
-		const off = new Vec(srand(), Math.random(), srand()).applyMult(objSize * 0.6)
+		const off = new Vec(srand() / 2, Math.random() / 2 + 0.5, srand() / 2).applyMult(objSize * 0.6)
 		pos = pos.cloneAdd(off)
-		if (this.ii++ % 16 === 0 || pos.y > 1000) {
-			for (const oo of objs) {
-				oo.xform.scale.applyMult(0.8)
-			}
+		if (this.ii++ % 8 === 0 || pos.y > 1000) {
+			// Start a new column (4 total columns in semicircle behind avatar),
+			// place between PolySynth columns
 			const { facing, xform } = avatar
-			const { pos: apos, scale: ascale } = xform
-			const theta = Math.random() * Math.PI * 2
-			const ff = facing.cloneMult(-objSize * 3)
-			pos.x = apos.x + ff.x + ascale.x * 3 * Math.sin(theta)
+			const { pos: apos } = xform
+			const ff = new Vec(facing.x, facing.z, 0).applyMult(-700)
+			let rr = 1 + 2 * (this._rr++ % 4)
+			if (rr > 3) {
+				rr += 2
+			}
+			ff.rotate(-Math.PI / 2 + (Math.PI * rr) / 10)
+			pos.x = apos.x + ff.x
 			pos.y = apos.y
-			pos.z = apos.z + ff.z + ascale.x * 3 * Math.cos(theta)
+			pos.z = apos.z + ff.y
 		}
-		this.lastPos[clientId] = pos
+		this._lastPos[clientId] = pos
 		const rot = new Vec(
 			Math.random() * Math.PI * 2,
 			Math.random() * Math.PI * 2,
 			Math.random() * Math.PI * 2,
 		)
-		let extraScale = pos.y / 1000
-		extraScale *= extraScale * extraScale * 10 * objSize
+		// let extraScale = pos.y / 1000
+		// extraScale *= extraScale * extraScale * 10 * objSize
 		const obj = new BHObj(this, {
 			noteEvt: evt,
 			pos: pos,
 			rot: rot,
-			scale: new Vec(objSize * 0.7 + extraScale),
+			// scale: new Vec(objSize * 0.7 + extraScale),
+			scale: new Vec(objSize),
 			twist: this.modwheel * this.modwheel,
 			mass: evt.attack || 0.7,
 		})
@@ -198,7 +203,9 @@ class BHObj extends Obj {
 	voice: Tone.Synth | null = null
 	hue = Math.random()
 	mass: number
+	massOrig: number
 	twist = 0
+	twistDir = 1
 
 	constructor(inst: BlackHole, opts: BHObjOpts) {
 		super(opts)
@@ -208,15 +215,18 @@ class BHObj extends Obj {
 		this.scaleOrig = this.xform.scale.clone()
 		this.mass = 1 - opts.mass // invert to apply square
 		this.mass = 1 - this.mass * this.mass // un-invert the square
-		if (opts.twist) {
-			this.twist = Math.random() > 0.5 ? opts.twist : -opts.twist
-		}
+		this.massOrig = this.mass
+		this.twistDir = Math.random() > 0.5 ? 1 : -1
 	}
 
 	update = (dt: number) => {
-		let mod = 1 - this.inst.modwheel // invert to apply square
-		mod = 1 - mod * mod // un-invert the square
-		this.xform.rot.applyAdd(srandVec().applyMult(dt * mod))
+		const { modwheel } = this.inst
+		const mm = modwheel * modwheel
+		let im = 1 - modwheel // invert to apply square
+		im = 1 - im * im // un-invert the square
+		this.xform.rot.applyAdd(srandVec().applyMult(dt * im))
+		this.twist = mix(mm, this.twist, 0.99)
+		this.mass = mix(mix(im, this.massOrig, 0.65), this.mass, 0.99)
 	}
 
 	origin2D = new Vec()
@@ -228,7 +238,7 @@ class BHObj extends Obj {
 				this.origin2D.y / pg.height,
 			])
 			sketch.shaderBlackHole.setUniform('scale', this.scale2D / pg.width)
-			sketch.shaderBlackHole.setUniform('rotate', this.twist * Math.PI)
+			sketch.shaderBlackHole.setUniform('rotate', this.twist * Math.PI * this.twistDir)
 			sketch.shaderBlackHole.setUniform('mass', this.mass)
 		}
 		pg.sphere(1, 3, 4)

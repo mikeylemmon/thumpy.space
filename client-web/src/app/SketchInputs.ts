@@ -33,10 +33,12 @@ export class SketchInputs {
 		bpm?: any
 		hide?: any
 		hideLoops?: any
-		hideDial?: any
+		// hideDial?: any
+		hideLabels?: any
 		showHelp?: any
 	} = {}
 	hidden = false
+	hiddenLabels = false
 	clockOpts: ClockOpts = {
 		bpm: 95,
 	}
@@ -131,8 +133,11 @@ export class SketchInputs {
 		if (this.inputs.hideLoops) {
 			this.inputs.hideLoops.remove()
 		}
-		if (this.inputs.hideDial) {
-			this.inputs.hideDial.remove()
+		// if (this.inputs.hideDial) {
+		// 	this.inputs.hideDial.remove()
+		// }
+		if (this.inputs.hideLabels) {
+			this.inputs.hideLabels.remove()
 		}
 		if (this.inputs.showHelp) {
 			this.inputs.showHelp.remove()
@@ -150,18 +155,25 @@ export class SketchInputs {
 		xx -= 100
 		this.inputs.hide = pp.createButton(this.hidden ? 'Show Settings' : 'Hide Settings') as any
 		this.inputs.hideLoops = pp.createButton(loops.toggleHideText()) as any
-		this.inputs.hideDial = pp.createButton(loops.toggleHideDialText()) as any
-		const { hide, hideLoops, hideDial } = this.inputs
+		// this.inputs.hideDial = pp.createButton(loops.toggleHideDialText()) as any
+		this.inputs.hideLabels = pp.createButton(this.hiddenLabels ? 'Show Names' : 'Hide Names') as any
+		const { hide, hideLoops, /* hideDial, */ hideLabels } = this.inputs
 		hideLoops.position(xx, yy)
 		hideLoops.mousePressed(() => {
+			loops.toggleHideDial()
 			loops.toggleHide()
 			hideLoops.elt.innerHTML = loops.toggleHideText()
 		})
-		xx -= 130
-		hideDial.position(xx, yy)
-		hideDial.mousePressed(() => {
-			loops.toggleHideDial()
-			hideDial.elt.innerHTML = loops.toggleHideDialText()
+		xx -= 105
+		// hideDial.position(xx, yy)
+		// hideDial.mousePressed(() => {
+		// 	loops.toggleHideDial()
+		// 	hideDial.elt.innerHTML = loops.toggleHideDialText()
+		// })
+		hideLabels.position(xx, yy)
+		hideLabels.mousePressed(() => {
+			this.hiddenLabels = !this.hiddenLabels
+			hideLabels.elt.innerHTML = this.hiddenLabels ? 'Show Names' : 'Hide Names'
 		})
 		xx -= 110
 		hide.position(xx, yy)
@@ -323,6 +335,7 @@ export class SketchInputs {
 				case key === 'hide':
 				case key === 'hideLoops':
 				case key === 'hideDial':
+				case key === 'hideLabels':
 				case key === 'showHelp':
 					continue
 				case key === 'latency':
