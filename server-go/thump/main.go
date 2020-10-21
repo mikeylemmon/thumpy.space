@@ -70,10 +70,13 @@ func mainAction(cc *cli.Context) error {
 }
 
 func handleWS(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != `/api` && r.URL.Path != `/api/ws` {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
 	conn, _, _, err := ws.UpgradeHTTP(r, w)
 	if err != nil {
 		log.Error().Err(err).Msg(`Failed to upgrade websocket connection`)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	go handleWSConn(conn)

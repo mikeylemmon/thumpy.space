@@ -6,13 +6,18 @@ build:
 
 push:
 	scp thump_linux_64 $(SERVER):$(THUMP).next
+	scp Makefile $(SERVER):Makefile
 	ssh -t $(SERVER) cp $(THUMP) $(THUMP).prev.$$(date +%Y-%m-%d-%H%M%S)
 
 restart:
-	ssh -t $(SERVER) mv $(THUMP).next $(THUMP)
-	ssh -t $(SERVER) cp $(THUMP) $(THUMP).next
-	ssh -t $(SERVER) setcap CAP_NET_BIND_SERVICE=+eip $(THUMP)
-	ssh -t $(SERVER) systemctl restart thump
+	ssh -t $(SERVER) make restart-remote
+
+restart-remote:
+	@# Runs on the remote server
+	mv $(THUMP).next $(THUMP)
+	cp $(THUMP) $(THUMP).next
+	setcap CAP_NET_BIND_SERVICE=+eip $(THUMP)
+	systemctl restart thump
 
 logs:
 	ssh -t $(SERVER) journalctl -f -u thump

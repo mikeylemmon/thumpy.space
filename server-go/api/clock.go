@@ -36,7 +36,7 @@ type ClockOriginResp struct {
 func nanoToMs(nano int64) float64 { return float64(nano) / 1000000.0 }
 
 var (
-	_clock      = ClockOpts{BPM: 95}
+	_clock      = ClockOpts{BPM: 98}
 	_clockMutex = sync.RWMutex{}
 	origin      = nanoToMs(time.Now().UnixNano())
 )
