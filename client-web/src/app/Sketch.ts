@@ -28,7 +28,7 @@ type Instruments = { [key: string]: Instrument }
 export const worldScale = 1000
 const newAvatarPos = () => {
 	const rr = () => Math.random() - 0.5
-	return new Vec((rr() * worldScale) / 2, 31, (rr() * worldScale) / 2)
+	return new Vec((rr() * worldScale) / 2, 31, (rr() * worldScale) / 4 + worldScale / 3)
 }
 function nearestPowerOf2(n: number) {
 	// via https://stackoverflow.com/questions/26965171/fast-nearest-power-of-2-in-javascript
