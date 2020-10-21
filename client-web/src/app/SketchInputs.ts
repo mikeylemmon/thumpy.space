@@ -1,4 +1,5 @@
 import * as p5 from 'p5'
+import { KEYCODE_CONTROL } from './constants'
 import { sketch } from './Sketch'
 import { clockUpdateReq, ClockOpts } from './serverApi/serverClock'
 
@@ -421,6 +422,9 @@ export class SketchInputs {
 	}
 
 	keyPressed = (evt: p5) => {
+		if (evt.keyIsDown(KEYCODE_CONTROL)) {
+			return
+		}
 		let prev: boolean
 		switch (evt.key) {
 			case 'c':

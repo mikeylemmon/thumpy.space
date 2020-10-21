@@ -9,12 +9,14 @@ import {
 	KEYCODE_ENTER,
 	KEYCODE_RETURN,
 } from './constants'
-import { radBig, radSmall, Loop } from './Loop'
+import { radBig, radSmall, Loop, LoopData } from './Loop'
 
 type LoopsOpts = {
 	sketch: Sketch
 	recOffset: number
 }
+
+const defaultLoopParams = { beats: 8, radius: radSmall }
 
 export class Loops {
 	sketch: Sketch
@@ -44,13 +46,12 @@ export class Loops {
 		const { sketch } = this
 		const store = sketch.localStorage
 		const lidsStr = store.getItem('loops')
-		const defaultParams = { beats: 8, radius: radSmall, sketch }
 		const aid = store.getItem('activeLoop')
 		let activeLoop: Loop | null = null
 		if (lidsStr && lidsStr !== '') {
 			const lids = JSON.parse(lidsStr)
 			for (const lid of lids) {
-				const loop = new Loop({ id: lid, ...defaultParams })
+				const loop = new Loop({ id: lid, ...defaultLoopParams })
 				if (loop.loaded) {
 					// loop loaded successfully from local storage, add to loops
 					loop.updateClientId(sketch.user.clientId)
@@ -65,7 +66,7 @@ export class Loops {
 			this.activeLoop = activeLoop
 			return activeLoop
 		}
-		this.activeLoop = new Loop(defaultParams)
+		this.activeLoop = new Loop(defaultLoopParams)
 		this.loops.push(this.activeLoop)
 		return this.activeLoop
 	}
@@ -74,6 +75,41 @@ export class Loops {
 		const store = this.sketch.localStorage
 		store.setItem('activeLoop', this.activeLoop.id)
 		store.setItem('loops', JSON.stringify(this.loops.map(ll => ll.id)))
+	}
+
+	copyToClipboard = async () => {
+		await navigator.clipboard.writeText(JSON.stringify(this.activeLoop.data()))
+		console.log('[Loops #copyToClipboard] Data saved to clipboard')
+	}
+	pasteFromClipboard = async () => {
+		const dataStr = await navigator.clipboard.readText()
+		if (!dataStr || dataStr === '') {
+			console.log('[Loops #copyToClipboard] No data to paste')
+			return
+		}
+		try {
+			const data = JSON.parse(dataStr) as LoopData
+			if (!data || !data.id || data.id === '' || !data.beats || !data.evts || !data.evts.length) {
+				console.log('[Loops #copyToClipboard] Unable to parse pasted data', data, { dataStr })
+				return
+			}
+			const loop = new Loop(defaultLoopParams)
+			const newId = loop.id
+			loop.loadData(data)
+			if (loop.loaded) {
+				// loop loaded successfully from local storage, add to loops
+				loop.id = newId
+				loop.updateClientId(this.sketch.user.clientId)
+				loop.isMuted = true
+				this.loops.push(loop)
+				this.activateLoop(loop)
+				loop.save()
+				this.saveLoopRefs()
+				console.log('[Loops #pasteFromClipboard] New loop loaded from clipboard')
+			}
+		} catch (err) {
+			console.log('[Loops #copyToClipboard] Unable to parse pasted data', err, dataStr)
+		}
 	}
 
 	update = () => {
@@ -249,21 +285,15 @@ export class Loops {
 	}
 
 	activateLoop = (loop: Loop) => {
-		this.inputs.loopLen.value(loop.opts.beats)
 		this.activeLoop.isActive = false
+		this.inputs.loopLen.value(loop.opts.beats)
 		this.activeLoop = loop
 		loop.isActive = true
 	}
 
 	keyPressed = (evt: p5) => {
 		if (evt.keyCode === KEYCODE_BACKSPACE || evt.keyCode === KEYCODE_DELETE) {
-			// if (evt.keyIsDown(KEYCODE_SHIFT)) {
-			//  // Clear all loops if Shift is being pressed
-			// 	this.clearAll()
-			// } else {
-			// Clear events from active loop
 			this.clearActiveLoop()
-			// }
 			return
 		}
 		if (evt.keyCode === KEYCODE_ENTER || evt.keyCode === KEYCODE_RETURN) {
@@ -274,6 +304,16 @@ export class Loops {
 			return
 		}
 		switch (evt.key) {
+			case 'c':
+				if (evt.keyIsDown(KEYCODE_CONTROL)) {
+					this.copyToClipboard()
+				}
+				return
+			case 'v':
+				if (evt.keyIsDown(KEYCODE_CONTROL)) {
+					this.pasteFromClipboard()
+				}
+				return
 			case '\\':
 			case '|':
 			case 'm':

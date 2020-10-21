@@ -232,20 +232,20 @@ export default class Sketch {
 				const { width, height } = backbuffer
 				backbuffer.image(pg, -width / 2, -height / 2, width, height)
 			}
-			if (!this.inputs.help) {
-				engine3d.draw2D(pp, pg)
-			} // else: help being displayed, so don't draw2D because the avatar labels are distracting
 		}
 		this.inputs.draw(pp)
-		if (!this.inputs.hidden) {
-			this.instSliders.draw(pp)
-		}
 		this.loops.draw(pp)
 		if (this.inputs.help) {
 			return
 		}
-		let loading = false
+		if (!this.inputs.hidden) {
+			this.instSliders.draw(pp)
+		}
+		if (pg) {
+			engine3d.draw2D(pp, pg)
+		}
 		// set loading to true if any instruments haven't finished loading
+		let loading = false
 		for (const instName in this.instruments) {
 			if (!this.instruments[instName].loaded()) {
 				loading = true
@@ -264,12 +264,13 @@ export default class Sketch {
 	}
 
 	drawMessage = (pp: p5, msg: string) => {
-		pp.fill(200).stroke(0)
-		pp.strokeWeight(2)
-		pp.textSize(20)
-		pp.textAlign(pp.CENTER, pp.CENTER)
-		pp.textStyle(pp.BOLDITALIC)
-		pp.text(msg, pp.width / 2, pp.height / 2)
+		const xx = pp.width / 2
+		const yy = pp.height - 100
+		pp.fill(30, 180).stroke(200, 180).strokeWeight(4)
+		pp.rect(xx - 150, yy - 20, 300, 40)
+		pp.fill(200).stroke(0).strokeWeight(2)
+		pp.textSize(20).textAlign(pp.CENTER, pp.CENTER).textStyle(pp.BOLDITALIC)
+		pp.text(msg, xx, yy)
 	}
 
 	mousePressed = (pp: p5) => {

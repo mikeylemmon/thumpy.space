@@ -14,7 +14,7 @@ type LoopEvent = {
 	release?: LoopEvent // reference to release for attack events
 }
 
-type LoopData = {
+export type LoopData = {
 	id: string
 	beats: number
 	evts: LoopEvent[]
@@ -29,23 +29,23 @@ export type LoopOpts = {
 }
 
 export class Loop {
-	opts: LoopOpts
-	id: string
 	xx = 0
 	yy = 0
-	evts: LoopEvent[] = []
 	headPlay = 0
 	headRec = 0
 	isActive = false
 	isDial = false
 	isRecording = false
-	isMuted = false
 	loaded = false
 	pgControls?: p5.Graphics
 	pgNotes?: p5.Graphics
 	needsRenderControls = false
 	needsRenderNotes = false
-	// data: LoopData
+	// data: LoopData // TODO: replace props below with this data prop
+	opts: LoopOpts
+	id: string
+	evts: LoopEvent[] = []
+	isMuted = false
 
 	constructor(opts: LoopOpts) {
 		this.opts = opts
@@ -70,31 +70,39 @@ export class Loop {
 	}
 
 	save = () => {
-		const { id, isMuted, evts, opts } = this
-		const { beats } = opts
-		const data = { id, beats, evts, isMuted }
-		sketch.localStorage.setItem(id, JSON.stringify(data))
-		// console.log(`[Loop #save] Saved loop ${id} to local storage`)
+		sketch.localStorage.setItem(this.id, JSON.stringify(this.data()))
 	}
 
 	load = () => {
-		const { id, opts } = this
+		const { id } = this
 		const dataStr = sketch.localStorage.getItem(id)
 		if (!dataStr || dataStr === '') {
 			this.loaded = false
 			return false
 		}
-		const data = JSON.parse(dataStr) as LoopData
-		opts.beats = data.beats
-		this.evts = data.evts
-		this.evts.forEach(le => (le.evt.timestamp = 0))
-		this.isMuted = data.isMuted
-		this.loaded = true
+		this.loadData(JSON.parse(dataStr) as LoopData)
 		return true
 	}
 
 	remove = () => {
 		localStorage.removeItem(this.id)
+	}
+
+	data = (): LoopData => {
+		const { id, isMuted, evts, opts } = this
+		const { beats } = opts
+		return { id, beats, evts, isMuted }
+	}
+
+	loadData = (data: LoopData) => {
+		this.id = data.id
+		this.isMuted = data.isMuted
+		this.evts = data.evts
+		this.evts.forEach(le => (le.evt.timestamp = 0))
+		this.opts.beats = data.beats
+		this.needsRenderControls = true
+		this.needsRenderNotes = true
+		this.loaded = true
 	}
 
 	setRadius = (rad: number) => {
