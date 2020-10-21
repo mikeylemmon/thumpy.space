@@ -102,7 +102,12 @@ const defaultArmsRot = () => ({
 	lower: new Vec(Math.PI * 0.1, 0, 0),
 })
 
+type DancerObjOpts = ObjOpts & {
+	avatar: Avatar
+}
+
 export class DancerObj extends Obj {
+	avatar: Avatar
 	moves: DanceMoves
 	rotHead = new Vec()
 	rotArms = {
@@ -119,9 +124,11 @@ export class DancerObj extends Obj {
 		armLower: { hue: 0, sat: 0, lgt: 0 },
 		hand: { hue: 0, sat: 0, lgt: 0 },
 	}
+	modwheel = 0
 
-	constructor(opts: ObjOpts = {}) {
+	constructor(opts: DancerObjOpts) {
 		super(opts)
+		this.avatar = opts.avatar
 		this.moves = new DanceMoves(this)
 		this.addComp(this.moves)
 	}
@@ -139,15 +146,15 @@ export class DancerObj extends Obj {
 			console.log('[DancerObj #handleCC] Received CC call with missing info', cc)
 			return
 		}
-		if (localUser) {
-			// Update sliders if evt is from the local user
-			ctrls.controlchangeNext(evt)
-			Tone.Draw.schedule(() => ctrls.controlchange(evt), time)
-		}
 		const slider = ctrls.getSliderForCtrl(evt.controller.number)
 		if (!slider) {
 			console.log('[DancerObj #handleCC] Unable to find control for CC event', cc)
 			return
+		}
+		if (localUser) {
+			// Update sliders if evt is from the local user
+			ctrls.controlchangeNext(evt)
+			Tone.Draw.schedule(() => ctrls.controlchange(evt), time)
 		}
 		const tt = '0:' + evt.value + ':0' // Tone timecode for floating beat unit
 		switch (slider.label) {
@@ -155,7 +162,13 @@ export class DancerObj extends Obj {
 				this.vol = evt.value
 				break
 			case 'mod':
-				Tone.Draw.schedule(() => this.handleModwheel(evt.value), time)
+				Tone.Draw.schedule(() => {
+					this.handleModwheel(evt.value)
+					if (localUser) {
+						// Call avatar.sendUserXform on slider release as a hacky way of saving the value
+						slider.onRelease(this.avatar.sendUserXform)
+					}
+				}, time)
 				break
 			case 'a':
 				this.moves.handleADSR({ attack: tt })
@@ -173,6 +186,7 @@ export class DancerObj extends Obj {
 	}
 
 	handleModwheel = (val: number) => {
+		this.modwheel = val
 		const rng = seedrandom(`${val}`)
 		for (const kk in this.colors) {
 			const part = this.colors[kk]
@@ -192,14 +206,13 @@ export class DancerObj extends Obj {
 
 	drawFunc = (pg: p5.Graphics) => {
 		const { leg, body } = sizes
-		const { parent } = this
-		const scale2D = (parent instanceof Avatar && parent.scale2D) || 500
+		const { avatar } = this
 		const cs = this.colors.stroke
 		pg.colorMode(pg.HSL, 1)
 		pg.stroke(cs.hue, cs.sat, cs.lgt)
-		if (scale2D < 35) {
+		if (avatar.scale2D < 50) {
 			pg.noStroke()
-		} else if (scale2D < 200) {
+		} else if (avatar.scale2D < 200) {
 			pg.strokeWeight(1)
 		} else {
 			pg.strokeWeight(2)

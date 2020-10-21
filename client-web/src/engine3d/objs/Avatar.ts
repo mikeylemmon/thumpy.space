@@ -49,7 +49,7 @@ export class Avatar extends Obj {
 		this.phys = new Physical(this, opts.phys)
 		this.comps = [this.phys]
 		this.onForce = opts.onForce
-		this.dancer = new DancerObj()
+		this.dancer = new DancerObj({ avatar: this })
 		this.facing = new Vec(0, 0, 1)
 		this.addChild(this.dancer)
 		console.log('[Avatar] ctor', this)
@@ -80,7 +80,7 @@ export class Avatar extends Obj {
 		pp.noStroke()
 		pp.textSize(ss / 2)
 		pp.textStyle(pp.BOLD)
-		if (scale < 35) {
+		if (scale < 50) {
 			pp.text(name, 0, -ss * 0.8)
 			return
 		} else {
@@ -105,7 +105,14 @@ export class Avatar extends Obj {
 		scale: this.xform.scale.toArray(),
 		force: this.phys.force.toArray(),
 		vel: this.phys.vel.toArray(),
+		dancerMod: this.dancer.modwheel,
 	})
+
+	sendUserXform = () => {
+		if (this.onForce) {
+			this.onForce(this.getUserXform())
+		}
+	}
 
 	setUserXform = (data: UserXform) => {
 		this.xform.pos.setFromArray(data.pos)
@@ -113,6 +120,7 @@ export class Avatar extends Obj {
 		this.xform.scale.setFromArray(data.scale)
 		this.phys.force.setFromArray(data.force)
 		this.phys.vel.setFromArray(data.vel)
+		this.dancer.handleModwheel(data.dancerMod)
 	}
 
 	setUserForce = (data: UserForce) => {
@@ -158,9 +166,7 @@ export class Avatar extends Obj {
 		if (!this.followCam) {
 			// Can't determine camera orientation, apply force in world-space
 			this.phys.force = mov
-			if (this.onForce) {
-				this.onForce(this.getUserXform())
-			}
+			this.sendUserXform()
 			return
 		}
 		// Convert movement vector to force based on camera orientation
@@ -176,8 +182,6 @@ export class Avatar extends Obj {
 			this.xform.rot.y = Math.atan2(ff.x, ff.z)
 			this.facing = ff.clone().normalize()
 		}
-		if (this.onForce) {
-			this.onForce(this.getUserXform())
-		}
+		this.sendUserXform()
 	}
 }

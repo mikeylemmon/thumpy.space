@@ -175,8 +175,23 @@ export class InstControl {
 		this.pressed = true
 		return true
 	}
+
+	_onRelease?: () => void
 	mouseReleased() {
 		this.pressed = false
+		if (this._onRelease) {
+			this._onRelease()
+			this._onRelease = undefined
+		}
+	}
+	onRelease(cb: (ctrl?: InstControl) => void) {
+		if (this._onRelease) {
+			return
+		}
+		if (!this.pressed) {
+			return cb()
+		}
+		this._onRelease = cb
 	}
 
 	setValueNext(mouseY: number) {

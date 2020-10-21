@@ -26,7 +26,7 @@ export class Hoover extends Instrument {
 	freq = 440
 	modwheel = 1
 	obj = new HooverObj(this, {
-		scale: new Vec(worldScale * 2),
+		scale: new Vec(worldScale * 3.5),
 		pos: new Vec(0, 100, -worldScale),
 	})
 	wave: Tone.Waveform

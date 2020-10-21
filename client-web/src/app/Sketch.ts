@@ -55,7 +55,7 @@ export default class Sketch {
 	midi: MIDI
 	audioKeys: SketchAudioKeys
 	instruments: Instruments
-	instSliders = new InstControls()
+	instCtrls = new InstControls()
 	inputs: SketchInputs
 	loops: Loops
 
@@ -80,19 +80,22 @@ export default class Sketch {
 	constructor(global: any) {
 		console.log('[Sketch #ctor]')
 		this.localStorage = global.localStorage
-		const didLoad = this.loadFromStorage()
+		const didLoad = this.loadUserFromStorage()
+		this.instruments = {
+			dancer: new Dancer(),
+			polysquare: new PolySynth(),
+			blackHole: new BlackHole(),
+			hoover: new Hoover(),
+			eightOhEight: new EightOhEight(this),
+			piano: new Piano(),
+			metronome: new Metronome(this),
+		}
 		this.inputs = new SketchInputs(didLoad)
 		this.loops = new Loops({
 			sketch: this,
 			recOffset: this.user.offset,
 		})
-		this.avatar = new Avatar({
-			user: this.user,
-			pos: newAvatarPos(),
-			scale: new Vec(30),
-			phys: { worldScale },
-			onForce: this.sendUserXform,
-		})
+		this.avatar = this.loadAvatar()
 		this.ws = new WSClient(window, {
 			clock: {
 				onSynced: () => {
@@ -122,15 +125,6 @@ export default class Sketch {
 			onUserXform: this.onUserXform,
 			onUserRequestXforms: () => this.sendUserXform(this.avatar.getUserXform()),
 		})
-		this.instruments = {
-			dancer: new Dancer(),
-			polysquare: new PolySynth(),
-			blackHole: new BlackHole(),
-			hoover: new Hoover(),
-			eightOhEight: new EightOhEight(this),
-			piano: new Piano(),
-			metronome: new Metronome(this),
-		}
 		this.midi = new MIDI({
 			onEnabled: this.inputs.setupInputsMidi,
 			onMessage: this.sendUserEvent,
@@ -140,7 +134,7 @@ export default class Sketch {
 		window.me = this
 	}
 
-	loadFromStorage = () => {
+	loadUserFromStorage = () => {
 		const ustr = this.localStorage.getItem('user')
 		if (!ustr || ustr === ``) {
 			console.error('No stored user')
@@ -148,6 +142,28 @@ export default class Sketch {
 		}
 		this.user = JSON.parse(ustr)
 		return true
+	}
+
+	loadAvatar = () => {
+		const aa = new Avatar({
+			user: this.user,
+			pos: newAvatarPos(),
+			scale: new Vec(30),
+			phys: { worldScale },
+			onForce: this.sendUserXform,
+		})
+		const xformStr = this.localStorage.getItem('userXform')
+		try {
+			if (xformStr && xformStr !== '') {
+				const data = JSON.parse(xformStr) as UserXform
+				aa.setUserXform(data)
+				const ss = this.instruments.dancer.ctrls.getSliderForLabel('mod')
+				if (ss) {
+					ss.set(data.dancerMod)
+				}
+			}
+		} catch {}
+		return aa
 	}
 
 	destroy = () => {
@@ -211,7 +227,7 @@ export default class Sketch {
 	}
 
 	draw = (pp: p5) => {
-		this.instSliders.update(pp)
+		this.instCtrls.update(pp)
 		this.loops.update()
 		engine3d.update()
 		pp.colorMode(pp.HSL, 1)
@@ -235,7 +251,7 @@ export default class Sketch {
 			return
 		}
 		if (!this.inputs.hidden) {
-			this.instSliders.draw(pp)
+			this.instCtrls.draw(pp)
 		}
 		if (pg) {
 			engine3d.draw2D(pp, pg)
@@ -275,13 +291,13 @@ export default class Sketch {
 			Tone.start()
 			console.log('[Sketch #mousePressed] Started Tone')
 		}
-		if (this.instSliders.mousePressed(pp)) {
+		if (this.instCtrls.mousePressed(pp)) {
 			return
 		}
 		this.loops.mousePressed(pp)
 	}
 	mouseReleased = (pp: p5) => {
-		this.instSliders.mouseReleased(pp)
+		this.instCtrls.mouseReleased(pp)
 	}
 
 	keyboardInputDisabled = () => {
@@ -315,7 +331,7 @@ export default class Sketch {
 		}
 		if (uu.instrument) {
 			const inst = this.instruments[uu.instrument]
-			this.instSliders = inst.ctrls
+			this.instCtrls = inst.ctrls
 		}
 	}
 
@@ -363,6 +379,7 @@ export default class Sketch {
 	}
 
 	sendUserXform = (data: UserXform) => {
+		this.localStorage.setItem('userXform', JSON.stringify(data))
 		const { conn, ready } = this.ws
 		if (!ready()) {
 			console.warn("[Sketch #sendUserXform] Can't send user xform, websocket connection is not open")

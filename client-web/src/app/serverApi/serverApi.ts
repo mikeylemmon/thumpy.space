@@ -53,6 +53,7 @@ export type UserXform = {
 	scale: number[]
 	force: number[]
 	vel: number[]
+	dancerMod: number
 }
 
 export function parseUsersAll(body: string): User[] {
