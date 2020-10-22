@@ -181,27 +181,20 @@ export class SketchInputs {
 	}
 
 	setupInputsUser = (clientId: number): any => {
-		const uu = sketch.user
-		const defaultName = this.nameCustomized ? uu.name : `User ${sketch.ws.clientId}`
-		if (this.hidden) {
-			if (uu.name === '') {
-				sketch.updateUser({ name: defaultName })
-			}
-			return
-		}
 		if (!this.pp) {
 			console.log(
 				'[SketchInputs #setupInputsUser] Attempted to setup user input before sketch was initialized',
 			)
 			return
 		}
+		const uu = sketch.user
 		if (this.inputs.name) {
 			this.inputs.name.remove()
 		}
 		if (this.inputs.latency) {
 			this.inputs.latency.remove()
 		}
-		this.inputs.name = this.pp.createInput(defaultName) as any
+		this.inputs.name = this.pp.createInput(uu.name) as any
 		this.inputs.latency = this.pp.createInput(`${sketch.user.offset}`) as any
 		const { name: inName, latency: inLatency } = this.inputs
 		inName.size(80)
