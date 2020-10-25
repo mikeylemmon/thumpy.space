@@ -3,6 +3,8 @@ Mikey Lemmon | Major Assignment | CMPO 385
 
 This repository implements a browser-based application for collaborative networked performance over the Internet, as described in the [write-up](./write-up.pdf). A running version of the application is live at [mikeylemmon.github.io](https://mikeylemmon.github.io/).
 
+Note: The minor3 release of this app is now live at [mikeylemmon.com](https://mikeylemmon.com), and the minor2 release is running at [doomboom.tv](https://doomboom.tv)
+
 ## A rough guide to the source code
 
 -   README.md — a link to this file
