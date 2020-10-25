@@ -1,8 +1,7 @@
 # Networked performance with quantised latency
 Mikey Lemmon | Minor Assignment 3 | CMPO 385
 
-Note: This version of the app is NOT live yet, as Minor Assignment 2 is currently deployed to
-[mikeylemmon.github.io](https://mikeylemmon.github.io) as well as [mikeylemmon.com](https://mikeylemmon.com). This version of the app will be deployed once Minor Assignment 2 has been assessed.
+A running version of the app is live at [mikeylemmon.com](https://mikeylemmon.com).
 
 ## Updates since Minor Assignment 2
 
