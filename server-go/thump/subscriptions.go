@@ -27,7 +27,7 @@ type Event struct {
 func NewSubscription(cid int) *Subscription {
 	return &Subscription{
 		ClientId: cid,
-		Messages: make(chan []byte),
+		Messages: make(chan []byte, 512),
 	}
 }
 
@@ -67,7 +67,11 @@ func runSubscriptionLoop() {
 					if sub.Messages == nil {
 						continue // skip robo subscriptions
 					}
-					sub.Messages <- evt.Raw
+					select {
+					case sub.Messages <- evt.Raw:
+					default:
+						log.Warn().Int(`clientId`, sub.ClientId).Str(`kind`, evt.Kind).Msg(`Subscription refuses message`)
+					}
 				}
 				// log.Info().Str(`kind`, evt.Kind).Int(`from`, evt.FromClient).Int(`numClients`, len(subs)).Msg(`Sent raw event`)
 				continue
@@ -108,7 +112,11 @@ func sendUsers() {
 		if sub.Messages == nil {
 			continue // skip robo subscriptions
 		}
-		sub.Messages <- msg
+		select {
+		case sub.Messages <- msg:
+		default:
+			log.Warn().Int(`clientId`, sub.ClientId).Str(`kind`, api.WS_USERS_ALL).Msg(`Subscription refuses message`)
+		}
 	}
 	log.Info().Int(`numClients`, len(subs)).Msg(`Sent updated users list`)
 }

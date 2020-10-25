@@ -111,6 +111,7 @@ func handleWSConn(conn net.Conn) {
 	var errBreaker error
 
 	go func() {
+		log.Info().Msg(`Sending clock origin, client ID, and BPM`)
 		if err := api.SendClockOrigin(conn); err != nil {
 			log.Error().Err(err).Msg(`Failed to send clock origin`)
 			errBreaker = err
@@ -126,6 +127,7 @@ func handleWSConn(conn net.Conn) {
 			errBreaker = err
 			return
 		}
+		log.Info().Msg(`Initial messages sent, running send loop`)
 
 		nErrs := 0
 		for {
