@@ -1,7 +1,7 @@
 # Networked performance with quantised latency
 Mikey Lemmon | Minor Assignment 2 | CMPO 385
 
-The app is live at [mikeylemmon.github.io](https://mikeylemmon.github.io) as well as [mikeylemmon.com](https://mikeylemmon.com)
+The app is live at [doomboom.tv](https://doomboom.tv)
 
 ## Running locally
 
