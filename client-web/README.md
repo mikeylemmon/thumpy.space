@@ -1,9 +1,5 @@
 # A Latency-Native Virtual Space For Networked Audio/Visual Performance Over The Internet
-Mikey Lemmon | Major Assignment | CMPO 385
-
-This repository implements a browser-based application for collaborative networked performance over the Internet, as described in the [write-up](./write-up.pdf). A running version of the application is live at [mikeylemmon.github.io](https://mikeylemmon.github.io/).
-
-Note: The minor3 release of this app is now live at [mikeylemmon.com](https://mikeylemmon.com), and the minor2 release is running at [doomboom.tv](https://doomboom.tv)
+This repository contains my coursework for the class [CMPO 385](https://www.wgtn.ac.nz/courses/cmpo/385/2020/offering?crn=30153) at the New Zealand School of Music. Its final state here implements a browser-based application and websocket server that enable collaborative networked musical performance over the Internet, as described in the [write-up](./write-up.pdf). A running version of the application is live at https://thumpy.space.
 
 ## A rough guide to the source code
 
