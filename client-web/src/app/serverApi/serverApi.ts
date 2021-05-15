@@ -1,8 +1,7 @@
 import { MidiEvent } from '../MIDI'
 
 // export const WS_URL = 'ws://localhost:38883'
-// export const WS_URL = 'wss://mikeylemmon.com/api'
-export const WS_URL = 'wss://thumpy.space/api'
+export const WS_URL = 'wss://api.thumpy.space/api'
 export const WS_HEADER_END = '#'
 
 //
